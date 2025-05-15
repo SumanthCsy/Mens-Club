@@ -24,10 +24,10 @@ export default function LoginPage() {
     if (email === 'admin@mensclub' && password === 'admin@mensclub') {
       toast({
         title: "Admin Login Successful!",
-        description: "Redirecting to your profile...",
+        description: "Redirecting to the Admin Dashboard...",
       });
       // In a real app, you would set some authentication state here
-      router.push('/profile');
+      router.push('/admin/dashboard'); // Directly redirect admin to their dashboard
     } else {
       toast({
         title: "Login Failed",
