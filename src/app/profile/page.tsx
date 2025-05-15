@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 // This is a placeholder. In a real app, user data would come from an auth context/API.
 // For demonstration, we're setting admin details by default.
@@ -25,6 +26,23 @@ const userData = {
 export default function ProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
+  
+  useEffect(() => {
+    // If this is the admin user, redirect to the admin dashboard
+    // In a real app, this logic would be based on actual authentication state
+    if (userData.email === 'admin@mensclub') {
+      router.replace('/admin/dashboard');
+    }
+  }, [router]);
+
+  // If redirecting, render nothing or a loader
+  if (userData.email === 'admin@mensclub') {
+    return (
+      <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
+        <p>Redirecting to admin dashboard...</p>
+      </div>
+    );
+  }
   
   // Placeholder for logout functionality
   const handleLogout = () => {
@@ -77,13 +95,7 @@ export default function ProfilePage() {
                 <ShoppingCart className="mr-3 h-5 w-5" /> My Cart
               </Link>
             </Button>
-            {userData.isAdmin && (
-               <Button variant="outline" asChild className="justify-start text-base py-6 h-auto border-yellow-500 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-800 dark:border-yellow-600 dark:text-yellow-500 dark:hover:bg-yellow-900/30 dark:hover:text-yellow-400">
-                <Link href="/admin/dashboard"> {/* Placeholder admin link - this page needs to be created */}
-                  <Shield className="mr-3 h-5 w-5" /> Admin Panel
-                </Link>
-              </Button>
-            )}
+            {/* The admin panel link is no longer needed here as admin is redirected */}
           </div>
 
           <Separator className="my-8" />
