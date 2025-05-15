@@ -22,7 +22,14 @@ export function CartItemCard({ item, onRemoveItem, onUpdateQuantity }: CartItemC
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) newQuantity = 1;
-    if (item.stock && newQuantity > item.stock) newQuantity = item.stock;
+    if (item.stock && newQuantity > item.stock) {
+        newQuantity = item.stock;
+        toast({
+            title: "Stock Limit Reached",
+            description: `Only ${item.stock} units of ${item.name} available.`,
+            variant: "default"
+        })
+    }
     setQuantity(newQuantity);
     onUpdateQuantity(item.id, newQuantity);
   };
@@ -40,7 +47,7 @@ export function CartItemCard({ item, onRemoveItem, onUpdateQuantity }: CartItemC
       <Link href={`/products/${item.id}`} className="shrink-0">
         <div className="w-20 h-28 sm:w-24 sm:h-32 overflow-hidden rounded-md bg-muted">
           <Image
-            src={item.imageUrl}
+            src={item.imageUrl || 'https://placehold.co/100x133.png'} // Fallback image
             alt={item.name}
             width={100}
             height={133}
@@ -59,8 +66,11 @@ export function CartItemCard({ item, onRemoveItem, onUpdateQuantity }: CartItemC
             <p className="text-xs sm:text-sm text-muted-foreground">
               Size: {item.selectedSize} {item.selectedColor && `| Color: ${item.selectedColor}`}
             </p>
-            {item.stock && item.stock < 10 && (
-              <p className="text-xs text-destructive mt-0.5">Only {item.stock} left in stock!</p>
+            {typeof item.stock === 'number' && item.stock < 10 && item.stock > 0 && (
+              <p className="text-xs text-yellow-600 mt-0.5">Only {item.stock} left in stock!</p>
+            )}
+             {typeof item.stock === 'number' && item.stock === 0 && (
+              <p className="text-xs text-destructive mt-0.5">Out of stock</p>
             )}
           </div>
           <Button variant="ghost" size="icon" onClick={handleRemove} className="text-muted-foreground hover:text-destructive -mr-2 -mt-1 sm:mt-0">
@@ -77,18 +87,31 @@ export function CartItemCard({ item, onRemoveItem, onUpdateQuantity }: CartItemC
             <Input
               type="number"
               value={quantity}
-              onChange={(e) => handleQuantityChange(parseInt(e.target.value, 10))}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                    handleQuantityChange(val);
+                } else if (e.target.value === '') {
+                    // Allow clearing the input, handle potential NaN scenario by not updating immediately
+                    setQuantity(1); // Or some other default / behavior
+                }
+              }}
+              onBlur={(e) => { // Ensure a valid number on blur if input was cleared
+                if (e.target.value === '' || parseInt(e.target.value, 10) < 1) {
+                    handleQuantityChange(1);
+                }
+              }}
               min="1"
-              max={item.stock || 99}
+              max={item.stock || 99} // Fallback max if stock undefined
               className="h-8 w-14 text-center px-1"
               aria-label="Quantity"
             />
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(quantity + 1)} disabled={item.stock ? quantity >= item.stock : false}>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(quantity + 1)} disabled={typeof item.stock === 'number' ? quantity >= item.stock : false}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
           <p className="text-base sm:text-lg font-semibold text-primary mt-2 sm:mt-0">
-            ${(item.price * quantity).toFixed(2)}
+            ₹{(item.price * quantity).toFixed(2)}
           </p>
         </div>
       </div>

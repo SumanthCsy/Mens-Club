@@ -1,11 +1,17 @@
 // @/components/home/featured-products.tsx
 import { ProductCard } from '@/components/products/product-card';
-import { sampleProducts } from '@/lib/placeholder-data';
+// import { sampleProducts } from '@/lib/placeholder-data'; // Removed sample data
 import type { Product } from '@/types';
 
 export function FeaturedProducts() {
-  // In a real app, you'd fetch featured products. Here we use sample data.
-  const featured: Product[] = sampleProducts.slice(0, 4); // Show first 4 products as featured
+  // In a real app, you'd fetch featured products from a database.
+  // For now, it defaults to an empty array.
+  const featured: Product[] = []; 
+
+  if (featured.length === 0) {
+    // Optionally, render nothing or a placeholder if no featured products
+    return null; 
+  }
 
   return (
     <section className="py-16 md:py-24 bg-background">

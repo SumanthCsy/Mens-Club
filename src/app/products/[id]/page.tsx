@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Image from 'next/image';
-import { getProductById, sampleProducts } from '@/lib/placeholder-data'; // Using sampleProducts for fallback
+// import { getProductById, sampleProducts } from '@/lib/placeholder-data'; // Removed sample data
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
@@ -15,9 +14,10 @@ import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2 } from
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ProductCard } from '@/components/products/product-card'; // For related products
+import { ProductCard } from '@/components/products/product-card'; 
+import Link from 'next/link';
 
-// Component to handle client-side data fetching and state
+
 function ProductDetailsClient({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -26,14 +26,32 @@ function ProductDetailsClient({ productId }: { productId: string }) {
 
   useEffect(() => {
     setIsLoading(true);
-    const fetchedProduct = getProductById(productId);
-    if (fetchedProduct) {
-      setProduct(fetchedProduct);
-      if (fetchedProduct.sizes && fetchedProduct.sizes.length > 0) {
-        setSelectedSize(fetchedProduct.sizes[0]);
-      }
-    }
-    setIsLoading(false);
+    // In a real application, you would fetch the product from your backend/database here
+    // For example:
+    // async function fetchProduct() {
+    //   try {
+    //     const response = await fetch(`/api/products/${productId}`);
+    //     if (!response.ok) throw new Error('Product not found');
+    //     const data = await response.json();
+    //     setProduct(data);
+    //     if (data.sizes && data.sizes.length > 0) {
+    //       setSelectedSize(data.sizes[0]);
+    //     }
+    //   } catch (error) {
+    //     console.error("Failed to fetch product:", error);
+    //     setProduct(null);
+    //   } finally {
+    //     setIsLoading(false);
+    //   }
+    // }
+    // fetchProduct();
+
+    // Simulating no product found for now as placeholder data is removed
+    setTimeout(() => {
+      setProduct(null); 
+      setIsLoading(false);
+    }, 500); // Simulate network delay
+    
   }, [productId]);
 
   if (isLoading) {
@@ -54,13 +72,14 @@ function ProductDetailsClient({ productId }: { productId: string }) {
           Sorry, we couldn't find the product you're looking for.
         </p>
         <Button asChild className="mt-6">
-          <a href="/products">Back to Products</a>
+          <Link href="/products">Back to Products</Link>
         </Button>
       </div>
     );
   }
   
-  const relatedProducts = sampleProducts.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  // Related products would also be fetched from a database
+  const relatedProducts: Product[] = []; 
 
   const handleAddToCart = () => {
     if (!selectedSize && product.sizes && product.sizes.length > 0) {
@@ -71,6 +90,7 @@ function ProductDetailsClient({ productId }: { productId: string }) {
       });
       return;
     }
+    // Add to cart logic would interact with a cart state/API
     console.log(`Added ${product.name} (Size: ${selectedSize || 'N/A'}) to cart.`);
     toast({
       title: "Added to Cart!",
@@ -86,10 +106,8 @@ function ProductDetailsClient({ productId }: { productId: string }) {
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
-        {/* Product Image Gallery */}
         <ProductImageGallery images={product.images || [product.imageUrl]} altText={product.name} mainImageHint={product.dataAiHint} />
 
-        {/* Product Details */}
         <div className="space-y-6">
           <div className="space-y-2">
             {product.brand && <p className="text-sm font-medium text-primary tracking-wide uppercase">{product.brand}</p>}
@@ -107,9 +125,9 @@ function ProductDetailsClient({ productId }: { productId: string }) {
           </div>
           
           <div className="flex items-baseline gap-3">
-            <p className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-primary">₹{product.price.toFixed(2)}</p>
             {product.originalPrice && product.originalPrice > product.price && (
-              <p className="text-xl text-muted-foreground line-through">${product.originalPrice.toFixed(2)}</p>
+              <p className="text-xl text-muted-foreground line-through">₹{product.originalPrice.toFixed(2)}</p>
             )}
           </div>
 
@@ -139,7 +157,7 @@ function ProductDetailsClient({ productId }: { productId: string }) {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={product.stock === 0}>
+            <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={!product || product.stock === 0}>
               <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
             </Button>
             <Button variant="outline" size="lg" className="flex-1 text-base">
@@ -156,12 +174,10 @@ function ProductDetailsClient({ productId }: { productId: string }) {
         </div>
       </div>
 
-      {/* User Reviews Section */}
       <div className="mt-16 md:mt-24">
         <UserReviews reviews={product.reviews} averageRating={product.averageRating} reviewCount={product.reviewCount} />
       </div>
       
-      {/* Related Products Section */}
       {relatedProducts.length > 0 && (
         <div className="mt-16 md:mt-24">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-8 text-center">You Might Also Like</h2>
@@ -181,7 +197,5 @@ export default function ProductDetailsPage() {
   const params = useParams();
   const productId = typeof params.id === 'string' ? params.id : '';
   
-  // This structure is to ensure useParams can be used, as it's a client hook.
-  // The actual data fetching and rendering logic is in ProductDetailsClient.
   return <ProductDetailsClient productId={productId} />;
 }

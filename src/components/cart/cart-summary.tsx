@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 
 interface CartSummaryProps {
   subtotal: number;
-  shippingCost?: number; // Optional, can be 'Calculated at next step'
+  shippingCost?: number; 
   discount?: number;
   total: number;
   checkoutButtonText?: string;
@@ -33,12 +33,12 @@ export function CartSummary({
       <CardContent className="space-y-4">
         <div className="flex justify-between text-sm text-foreground">
           <span>Subtotal</span>
-          <span>${subtotal.toFixed(2)}</span>
+          <span>₹{subtotal.toFixed(2)}</span>
         </div>
         {shippingCost !== undefined && (
           <div className="flex justify-between text-sm text-foreground">
             <span>Shipping</span>
-            <span>${shippingCost.toFixed(2)}</span>
+            <span>₹{shippingCost.toFixed(2)}</span>
           </div>
         )}
         {shippingCost === undefined && (
@@ -50,7 +50,7 @@ export function CartSummary({
         {discount !== undefined && discount > 0 && (
           <div className="flex justify-between text-sm text-green-600">
             <span>Discount</span>
-            <span>-${discount.toFixed(2)}</span>
+            <span>-₹{discount.toFixed(2)}</span>
           </div>
         )}
         
@@ -70,11 +70,11 @@ export function CartSummary({
         <Separator />
         <div className="flex justify-between text-xl font-bold text-foreground">
           <span>Total</span>
-          <span>${total.toFixed(2)}</span>
+          <span>₹{total.toFixed(2)}</span>
         </div>
       </CardContent>
       <CardFooter>
-        <Button asChild size="lg" className="w-full text-base group">
+        <Button asChild size="lg" className="w-full text-base group" disabled={total === 0 && subtotal === 0}>
           <Link href={checkoutLink}>
             {checkoutButtonText} <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>

@@ -4,31 +4,24 @@
 import { useState, useEffect } from 'react';
 import { CartItemCard } from '@/components/cart/cart-item-card';
 import { CartSummary } from '@/components/cart/cart-summary';
-// import { sampleCartItems as initialCartItems } from '@/lib/placeholder-data'; // Removed direct import for default empty cart
 import type { CartItemData } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ShoppingBag, ArrowLeft } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function CartPage() {
-  // Cart items will now start as an empty array.
-  // In a real app, you might fetch this from localStorage or an API.
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Keep loading state for potential async ops
 
   useEffect(() => {
-    // Simulate fetching cart items or loading from local storage
-    // For demonstration, we can still load sample items after a delay,
-    // or you can keep it empty and rely on user actions to add items.
-    // For now, let's keep it starting empty.
-    // To load sample data for testing, uncomment the following:
-    // import { sampleCartItems } from '@/lib/placeholder-data';
-    // setCartItems(sampleCartItems);
-    setIsLoading(false);
+    // In a real app, cart items might be fetched from localStorage or an API
+    // For now, it starts empty.
+    setIsLoading(false); 
   }, []);
 
   const handleRemoveItem = (itemId: string) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+    // TODO: Update persistent cart storage (localStorage/API)
   };
 
   const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
@@ -37,16 +30,18 @@ export default function CartPage() {
         item.id === itemId ? { ...item, quantity: newQuantity } : item
       )
     );
+    // TODO: Update persistent cart storage (localStorage/API)
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingEstimate = cartItems.length > 0 ? 5.00 : 0;
+  // Shipping could be calculated based on cart items or address later
+  const shippingEstimate = cartItems.length > 0 ? 50.00 : 0; // Example fixed shipping in INR
   const total = subtotal + shippingEstimate;
 
   if (isLoading) {
      return (
       <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
-        <ShoppingBag className="mx-auto h-16 w-16 text-primary mb-4 animate-pulse" />
+        <Loader2 className="mx-auto h-12 w-12 text-primary mb-4 animate-spin" />
         <h1 className="text-3xl font-bold">Loading Your Cart...</h1>
       </div>
     );

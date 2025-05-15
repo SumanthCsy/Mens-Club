@@ -1,170 +1,41 @@
 import type { Product, Review, CartItemData } from '@/types';
 
-export const sampleReviews: Review[] = [
-  {
-    id: 'review1',
-    author: 'Alex P.',
-    rating: 5,
-    comment: 'Absolutely love this shirt! The fabric is amazing and fits perfectly.',
-    date: '2024-07-15',
-    avatarUrl: 'https://placehold.co/40x40.png',
-  },
-  {
-    id: 'review2',
-    author: 'Jamie L.',
-    rating: 4,
-    comment: 'Great quality and stylish design. A bit pricey but worth it.',
-    date: '2024-07-10',
-    avatarUrl: 'https://placehold.co/40x40.png',
-  },
-  {
-    id: 'review3',
-    author: 'Casey B.',
-    rating: 5,
-    comment: 'Received many compliments. Highly recommend!',
-    date: '2024-07-05',
-    avatarUrl: 'https://placehold.co/40x40.png',
-  },
-];
+// All sample product, review, and cart item data has been removed.
+// In a full-stack application, this data would be fetched from a database.
 
-export const sampleProducts: Product[] = [
+export const sampleProducts: Product[] = [];
+export const sampleReviews: Review[] = [];
+export const sampleCartItems: CartItemData[] = [];
+
+// The getProductById function is removed as it relied on sampleProducts.
+// Product fetching logic should be implemented in the respective components/pages
+// to query a database.
+
+// Sample orders are kept as a UI placeholder for src/app/profile/my-orders/page.tsx
+// This can be removed if a purely empty state is preferred.
+export const sampleOrders = [
   {
-    id: '1',
-    name: 'Classic Oxford Shirt',
-    price: 79.99,
-    originalPrice: 99.99,
-    imageUrl: 'https://placehold.co/600x800.png',
-    images: [
-      'https://placehold.co/600x800.png',
-      'https://placehold.co/600x800_alt1.png',
-      'https://placehold.co/600x800_alt2.png',
-      'https://placehold.co/600x800_alt3.png',
+    id: "ORD-2024-001",
+    date: "2024-07-20",
+    total: 168.99,
+    status: "Delivered",
+    items: [
+      { name: "Classic Oxford Shirt", quantity: 1, price: 79.99 },
+      { name: "Slim-Fit Chinos", quantity: 1, price: 89.00 },
     ],
-    description:
-      'A timeless classic, this Oxford shirt is crafted from premium cotton for a comfortable and breathable fit. Perfect for both casual and formal occasions, it features a button-down collar, chest pocket, and a tailored silhouette. Available in various colors to suit your style.',
-    sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-    colors: ['White', 'Sky Blue', 'Navy', 'Pink'],
-    category: 'Shirts',
-    brand: 'Club Essentials',
-    averageRating: 4.8,
-    reviewCount: 120,
-    reviews: sampleReviews,
-    stock: 50,
-    tags: ['formal', 'casual', 'cotton', ' bestselling'],
-    sku: 'MENS-OXF-001',
-    dataAiHint: 'men shirt',
   },
   {
-    id: '2',
-    name: 'Slim-Fit Chinos',
-    price: 89.00,
-    imageUrl: 'https://placehold.co/600x800.png',
-    images: [
-      'https://placehold.co/600x800.png',
-      'https://placehold.co/600x800_alt1.png',
-    ],
-    description:
-      'Versatile and stylish, these slim-fit chinos are a wardrobe staple. Made with a slight stretch for comfort, they offer a modern tapered leg and can be dressed up or down. Features include side pockets, back welt pockets, and a zip fly with button closure.',
-    sizes: ['30W/30L', '32W/30L', '32W/32L', '34W/32L', '36W/32L'],
-    colors: ['Khaki', 'Navy', 'Olive Green', 'Graphite'],
-    category: 'Trousers',
-    brand: 'Urban Threads',
-    averageRating: 4.5,
-    reviewCount: 85,
-    stock: 30,
-    tags: ['smart casual', 'stretch', 'tapered'],
-    sku: 'MENS-CHN-005',
-    dataAiHint: 'men pants',
+    id: "ORD-2024-002",
+    date: "2024-07-25",
+    total: 110.00,
+    status: "Shipped",
+    items: [{ name: "Merino Wool V-Neck Sweater", quantity: 1, price: 110.00 }],
   },
   {
-    id: '3',
-    name: 'Leather Brogue Shoes',
-    price: 149.50,
-    imageUrl: 'https://placehold.co/600x800.png',
-    description:
-      'Elevate your footwear collection with these exquisite leather brogue shoes. Featuring traditional wingtip detailing and Goodyear welt construction for durability, these shoes are the epitome of classic style and craftsmanship. Perfect for formal events or adding a sophisticated touch to your everyday look.',
-    sizes: ['UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'],
-    colors: ['Tan Brown', 'Black'],
-    category: 'Footwear',
-    brand: 'Heritage Footwear',
-    averageRating: 4.9,
-    reviewCount: 60,
-    stock: 15,
-    tags: ['leather', 'formal shoes', 'wingtip'],
-    sku: 'MENS-SHOE-012',
-    dataAiHint: 'men shoes',
-  },
-  {
-    id: '4',
-    name: 'Merino Wool V-Neck Sweater',
-    price: 110.00,
-    imageUrl: 'https://placehold.co/600x800.png',
-    description:
-      'Luxuriously soft and lightweight, this V-neck sweater is knitted from fine Merino wool. Ideal for layering, it provides warmth without bulk. Features a classic V-neckline, ribbed cuffs and hem, and a comfortable regular fit.',
-    sizes: ['S', 'M', 'L', 'XL'],
-    colors: ['Charcoal', 'Burgundy', 'Forest Green', 'Navy'],
-    category: 'Knitwear',
-    brand: 'Club Essentials',
-    averageRating: 4.7,
-    reviewCount: 92,
-    stock: 40,
-    tags: ['wool', 'layering', 'winter fashion'],
-    sku: 'MENS-KNIT-003',
-    dataAiHint: 'men sweater',
-  },
-  {
-    id: '5',
-    name: 'Designer Silk Tie',
-    price: 65.00,
-    imageUrl: 'https://placehold.co/600x800.png',
-    description:
-      'Add a touch of elegance to your formal attire with this premium silk tie. Featuring a subtle jacquard pattern and expertly crafted for a perfect knot, this tie is a sophisticated accessory for any discerning gentleman.',
-    sizes: ['One Size'],
-    colors: ['Sapphire Blue', 'Crimson Red', 'Silver Grey'],
-    category: 'Accessories',
-    brand: 'Prestige Attire',
-    averageRating: 4.6,
-    reviewCount: 45,
-    stock: 25,
-    tags: ['silk', 'formal accessory', 'gift idea'],
-    sku: 'MENS-TIE-008',
-    dataAiHint: 'men tie',
-  },
-  {
-    id: '6',
-    name: 'Quilted Bomber Jacket',
-    price: 180.00,
-    imageUrl: 'https://placehold.co/600x800.png',
-    description:
-      'Stay warm and stylish with this modern quilted bomber jacket. Featuring a lightweight yet insulating fill, ribbed collar, cuffs, and hem, and practical zip pockets. A versatile outerwear piece for transitional weather.',
-    sizes: ['M', 'L', 'XL'],
-    colors: ['Black', 'Olive', 'Navy'],
-    category: 'Outerwear',
-    brand: 'Urban Threads',
-    averageRating: 4.4,
-    reviewCount: 70,
-    stock: 20,
-    tags: ['jacket', 'quilted', 'casual outerwear'],
-    sku: 'MENS-JKT-015',
-    dataAiHint: 'men jacket',
+    id: "ORD-2024-003",
+    date: "2024-07-28",
+    total: 65.00,
+    status: "Processing",
+    items: [{ name: "Designer Silk Tie", quantity: 1, price: 65.00 }],
   },
 ];
-
-export const sampleCartItems: CartItemData[] = [
-  {
-    ...sampleProducts[0],
-    quantity: 1,
-    selectedSize: 'M',
-    selectedColor: 'White',
-  },
-  {
-    ...sampleProducts[1],
-    quantity: 2,
-    selectedSize: '32W/32L',
-    selectedColor: 'Khaki',
-  },
-];
-
-export function getProductById(id: string): Product | undefined {
-  return sampleProducts.find(p => p.id === id);
-}
