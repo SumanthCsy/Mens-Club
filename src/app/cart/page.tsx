@@ -4,19 +4,26 @@
 import { useState, useEffect } from 'react';
 import { CartItemCard } from '@/components/cart/cart-item-card';
 import { CartSummary } from '@/components/cart/cart-summary';
-import { sampleCartItems as initialCartItems } from '@/lib/placeholder-data';
+// import { sampleCartItems as initialCartItems } from '@/lib/placeholder-data'; // Removed direct import for default empty cart
 import type { CartItemData } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
 
 export default function CartPage() {
+  // Cart items will now start as an empty array.
+  // In a real app, you might fetch this from localStorage or an API.
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching cart items
-    setCartItems(initialCartItems);
+    // Simulate fetching cart items or loading from local storage
+    // For demonstration, we can still load sample items after a delay,
+    // or you can keep it empty and rely on user actions to add items.
+    // For now, let's keep it starting empty.
+    // To load sample data for testing, uncomment the following:
+    // import { sampleCartItems } from '@/lib/placeholder-data';
+    // setCartItems(sampleCartItems);
     setIsLoading(false);
   }, []);
 
@@ -33,8 +40,7 @@ export default function CartPage() {
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  // Shipping and discount can be calculated here or passed from a backend
-  const shippingEstimate = cartItems.length > 0 ? 5.00 : 0; // Example fixed shipping
+  const shippingEstimate = cartItems.length > 0 ? 5.00 : 0;
   const total = subtotal + shippingEstimate;
 
   if (isLoading) {
@@ -45,7 +51,6 @@ export default function CartPage() {
       </div>
     );
   }
-
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -77,7 +82,7 @@ export default function CartPage() {
             ))}
           </div>
 
-          <div className="lg:col-span-1 lg:sticky lg:top-24"> {/* Sticky summary for desktop */}
+          <div className="lg:col-span-1 lg:sticky lg:top-24">
             <CartSummary
               subtotal={subtotal}
               shippingCost={shippingEstimate}

@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, User, Menu, Home, Shirt, Store, Package } from 'lucide-react';
+import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, Shirt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { usePathname } from 'next/navigation';
@@ -12,28 +12,26 @@ import { useState, useEffect } from 'react';
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/products', label: 'Products', icon: Store },
-  // Add more links as needed, e.g., categories
-  // { href: '/products?category=shirts', label: 'Shirts', icon: Shirt },
-  // { href: '/products?category=accessories', label: 'Accessories', icon: Package },
+];
+
+const accountLinks = [
+  { href: '/login', label: 'Login', icon: LogIn },
+  { href: '/signup', label: 'Sign Up', icon: UserPlus },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
-  const [cartItemCount, setCartItemCount] = useState(0); // Mocked cart item count
+  // Initialize cartItemCount to 0
+  const [cartItemCount, setCartItemCount] = useState(0); 
 
-  useEffect(() => {
-    // In a real app, you'd fetch this from your cart state
-    // For now, let's simulate it
-    const mockCount = Math.floor(Math.random() * 5);
-    setCartItemCount(mockCount);
-  }, []);
-
+  // In a real app, you'd fetch cartItemCount from your global state management or API
+  // For now, it will remain 0 unless updated by actual cart interactions.
+  // The previous useEffect for random count is removed.
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="mr-6 flex items-center space-x-2">
-          {/* You can replace this with an SVG logo */}
           <Shirt className="h-7 w-7 text-primary" />
           <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
             Mens Club
@@ -67,9 +65,25 @@ export function Navbar() {
               )}
             </Button>
           </Link>
-          <Button variant="ghost" size="icon" aria-label="User Account">
-            <User className="h-5 w-5" />
-          </Button>
+          
+          {/* Desktop Account Links/Icon */}
+          <div className="hidden md:flex items-center space-x-2">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/login">
+                <LogIn className="mr-2 h-4 w-4" /> Login
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/signup">
+                <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+              </Link>
+            </Button>
+             {/* Placeholder for logged-in user icon */}
+            {/* <Button variant="ghost" size="icon" aria-label="User Account">
+              <User className="h-5 w-5" />
+            </Button> */}
+          </div>
+
 
           {/* Mobile Navigation */}
           <Sheet>
@@ -92,7 +106,21 @@ export function Navbar() {
                       key={link.href}
                       href={link.href}
                       className={cn(
-                        'flex items-center space-x-3 rounded-md p-2 text-base transition-colors hover:bg-accent hover:text-accent-foreground',
+                        'flex items-center space-x-3 rounded-md p-3 text-base transition-colors hover:bg-accent hover:text-accent-foreground',
+                        pathname === link.href ? 'bg-accent text-accent-foreground font-semibold' : 'text-foreground/80'
+                      )}
+                    >
+                      <link.icon className="h-5 w-5" />
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                  <hr className="my-3 border-border"/>
+                  {accountLinks.map((link) => (
+                     <Link
+                      key={link.href}
+                      href={link.href}
+                      className={cn(
+                        'flex items-center space-x-3 rounded-md p-3 text-base transition-colors hover:bg-accent hover:text-accent-foreground',
                         pathname === link.href ? 'bg-accent text-accent-foreground font-semibold' : 'text-foreground/80'
                       )}
                     >

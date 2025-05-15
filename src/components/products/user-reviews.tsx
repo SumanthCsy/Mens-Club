@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RatingStars } from '@/components/shared/rating-stars';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus, LogIn } from 'lucide-react';
+import Link from 'next/link';
 
 interface UserReviewsProps {
   reviews?: Review[];
@@ -15,6 +16,8 @@ interface UserReviewsProps {
 
 export function UserReviews({ reviews, averageRating, reviewCount }: UserReviewsProps) {
   const hasReviews = reviews && reviews.length > 0;
+  // Simulate a logged-in state. In a real app, this would come from an auth context.
+  const isLoggedIn = false; 
 
   return (
     <Card className="shadow-md border border-border/60">
@@ -31,10 +34,22 @@ export function UserReviews({ reviews, averageRating, reviewCount }: UserReviews
               </div>
             )}
           </div>
-          <Button variant="outline">
-            <MessageSquarePlus className="mr-2 h-4 w-4" />
-            Write a Review
-          </Button>
+          {isLoggedIn ? (
+            <Button variant="outline">
+              <MessageSquarePlus className="mr-2 h-4 w-4" />
+              Write a Review
+            </Button>
+          ) : (
+            <div className="text-right">
+              <Button variant="outline" disabled>
+                <MessageSquarePlus className="mr-2 h-4 w-4" />
+                Write a Review
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">
+                <Link href="/login" className="text-primary hover:underline">Login</Link> to write a review.
+              </p>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>

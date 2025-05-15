@@ -11,41 +11,81 @@ import type { CartItemData } from '@/types';
 import { Lock, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
 
 export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('online');
+  // Default to 'cod' (Cash on Delivery) since online is unavailable
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     // Simulate fetching cart items for summary
-    setCartItems(sampleCartItems); 
-  }, []);
+    // In a real app, this might come from a global state or API
+    if (sampleCartItems.length > 0) {
+        setCartItems(sampleCartItems);
+    } else {
+        // If cart is empty, consider redirecting or showing a message
+        toast({
+            title: "Your cart is empty",
+            description: "Please add items to your cart before proceeding to checkout.",
+            variant: "destructive",
+        });
+        router.push('/cart');
+    }
+  }, [router, toast]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingCost = 5.00; // Example, this could be dynamic
+  const shippingCost = cartItems.length > 0 ? 5.00 : 0; // Example, this could be dynamic
   const total = subtotal + shippingCost;
 
   const handleShippingSubmit = (data: any) => {
     console.log("Shipping Data:", data);
-    // Proceed to next step or validation
+    // This is a good place for validation before proceeding
     toast({
       title: "Shipping Details Saved",
       description: "Your shipping address has been updated.",
     });
+    // You might want to scroll to payment section or enable it here
   };
 
   const handlePlaceOrder = () => {
-    // Form validation for shipping should happen before this
-    // For now, just log and show toast
+    // Basic validation: ensure shipping form might have been "submitted" (though we don't enforce sequence here)
+    // and a payment method is selected.
+    if (!selectedPaymentMethod) {
+      toast({
+        title: "Payment Method Required",
+        description: "Please select a payment method.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (cartItems.length === 0) {
+        toast({
+            title: "Cannot Place Order",
+            description: "Your cart is empty. Please add items to your cart.",
+            variant: "destructive",
+        });
+        return;
+    }
+
     console.log("Placing order with method:", selectedPaymentMethod);
+    // Simulate order placement
     toast({
-      title: "Order Placed!",
-      description: `Your order has been successfully placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}. Thank you for shopping!`,
+      title: "Order Placed (Simulated)!",
+      description: `Your order has been successfully placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}. Thank you for shopping!`,
       duration: 5000,
     });
-    // Potentially redirect to an order confirmation page
-    // router.push('/order-confirmation');
+    
+    // Clear cart (simulated)
+    // In a real app, this would happen after successful payment/order creation on backend
+    setCartItems([]); 
+    
+    // Redirect to a confirmation page (optional)
+    // router.push('/order-confirmation'); 
   };
 
   return (
@@ -73,6 +113,7 @@ export default function CheckoutPage() {
             total={total}
             checkoutButtonText="Place Order Securely" 
             showPromoCodeInput={false} // Promo code usually applied in cart
+            checkoutLink="#" // Prevent direct navigation from summary button
           />
           <Button 
             size="lg" 
