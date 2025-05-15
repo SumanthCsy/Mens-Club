@@ -3,22 +3,23 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // Added for preview
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, PackagePlus, Save, UploadCloud } from 'lucide-react';
+import { ArrowLeft, PackagePlus, Save, UploadCloud, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/types';
+import { collection, addDoc } from "firebase/firestore";
+import { db } from '@/lib/firebase';
 
-// ProductFormDataimageUrl is now expected to be a data URI after image selection
 type ProductFormData = Omit<Product, 'id' | 'averageRating' | 'reviewCount' | 'reviews'> & {
   sizes: string;
   colors?: string;
   tags?: string;
-  images?: string; 
+  // images field is for additional comma-separated URLs, imageUrl is for the uploaded main image
 };
 
 const initialFormData: ProductFormData = {
@@ -26,7 +27,7 @@ const initialFormData: ProductFormData = {
   price: 0,
   originalPrice: undefined,
   imageUrl: '', // This will hold the data URI of the uploaded image
-  images: '',
+  images: '', // For additional comma-separated URLs
   description: '',
   sizes: '',
   colors: '',
@@ -41,6 +42,7 @@ const initialFormData: ProductFormData = {
 export default function AddProductPage() {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -55,7 +57,8 @@ export default function AddProductPage() {
           setImagePreview(dataUrl);
           setFormData(prev => ({
             ...prev,
-            imageUrl: dataUrl, // Store data URL in formData for the main image
+            imageUrl: dataUrl, 
+            dataAiHint: prev.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product", // Basic AI hint from filename
           }));
         };
         reader.readAsDataURL(file);
@@ -69,7 +72,6 @@ export default function AddProductPage() {
   };
   
   const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // This handler is for the comma-separated URLs, not file uploads for additional images (yet)
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -77,9 +79,9 @@ export default function AddProductPage() {
     }));
   };
 
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     if (!formData.imageUrl) {
       toast({
@@ -87,33 +89,72 @@ export default function AddProductPage() {
         description: "Please upload a main product image.",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
 
-    const productDataToSave: Product = {
+    // Prepare images array: main image first, then additional URLs
+    let finalImagesArray: string[] = [];
+    if (formData.imageUrl) {
+      finalImagesArray.push(formData.imageUrl); // The data URI of the uploaded image
+    }
+    if (formData.images) { // formData.images are comma-separated URLs
+      const additionalImageUrls = formData.images.split(',').map(s => s.trim()).filter(s => s);
+      finalImagesArray = [...finalImagesArray, ...additionalImageUrls];
+    }
+     // If only additional images were provided via URL and no file was uploaded, use the first one as imageUrl
+    // This case is less likely with the current UI but good for data integrity
+    if (!formData.imageUrl && finalImagesArray.length > 0) {
+        formData.imageUrl = finalImagesArray[0];
+    }
+
+
+    const productDataToSave: Omit<Product, 'id'> = {
       ...formData,
-      id: new Date().toISOString(), 
       price: Number(formData.price),
       originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
       stock: Number(formData.stock),
       sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s),
       colors: formData.colors?.split(',').map(s => s.trim()).filter(s => s) || [],
       tags: formData.tags?.split(',').map(s => s.trim()).filter(s => s) || [],
-      // If additional images field is empty but main image exists, use main image as the primary in 'images' array
-      images: formData.images?.split(',').map(s => s.trim()).filter(s => s).length 
-              ? formData.images.split(',').map(s => s.trim()).filter(s => s) 
-              : (formData.imageUrl ? [formData.imageUrl] : []),
+      images: finalImagesArray.length > 0 ? finalImagesArray : (formData.imageUrl ? [formData.imageUrl] : []),
+      // dataAiHint is already part of formData
+      // averageRating, reviewCount, reviews will be handled separately or initialized
+      averageRating: 0,
+      reviewCount: 0,
+      reviews: [],
     };
+    
+    // Note: Storing full data URIs for images in Firestore is generally not recommended for production due to size limits and cost.
+    // Consider Firebase Storage for image uploads and store the storage URL in Firestore.
+    // For this step, we'll proceed with storing the data URI.
 
-    console.log("Product Data to Save (includes image as data URL):", productDataToSave);
-    toast({
-      title: "Product Submitted (Simulated)",
-      description: `${productDataToSave.name} has been submitted. Check console for data. Image is included as a data URL.`,
-      duration: 7000,
-    });
-    // Reset form - including image preview
-    // setFormData(initialFormData);
-    // setImagePreview(null);
+    try {
+      const docRef = await addDoc(collection(db, "products"), productDataToSave);
+      toast({
+        title: "Product Added Successfully!",
+        description: `${productDataToSave.name} has been saved to the database with ID: ${docRef.id}.`,
+        duration: 7000,
+      });
+      // Reset form and image preview
+      setFormData(initialFormData);
+      setImagePreview(null);
+      const imageInput = document.getElementById('imageFile') as HTMLInputElement;
+      if (imageInput) {
+          imageInput.value = ''; // Clear the file input
+      }
+
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      toast({
+        title: "Error Saving Product",
+        description: "There was an issue saving the product. Please check the console for details.",
+        variant: "destructive",
+        duration: 7000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -136,7 +177,7 @@ export default function AddProductPage() {
       <Card className="shadow-xl border-border/60">
         <CardHeader>
           <CardTitle>Product Information</CardTitle>
-          <CardDescription>Enter all necessary details for the product.</CardDescription>
+          <CardDescription>Enter all necessary details for the product. Remember to upload a main image.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -202,7 +243,7 @@ export default function AddProductPage() {
                     src={imagePreview}
                     alt="Product Preview"
                     width={200}
-                    height={266} // Assuming a 3:4 aspect ratio for preview
+                    height={266} 
                     className="object-contain rounded-md"
                   />
                 </div>
@@ -210,15 +251,16 @@ export default function AddProductPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="images">Additional Image URLs (comma-separated)</Label>
+              <Label htmlFor="images">Additional Image URLs (comma-separated, optional)</Label>
               <Input 
                 id="images" 
                 name="images" 
                 value={formData.images || ''} 
-                onChange={handleAdditionalImagesChange} // Use specific handler for this field
+                onChange={handleAdditionalImagesChange}
                 placeholder="url1.png, url2.png, ..." 
                 className="text-base h-11"
               />
+              <p className="text-xs text-muted-foreground">Use this for externally hosted image URLs. The main image is uploaded above.</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -228,35 +270,43 @@ export default function AddProductPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="colors">Colors (comma-separated, Optional)</Label>
-                    <Input id="colors" name="colors" value={formData.colors} onChange={handleChange} placeholder="White, Blue, Black" className="text-base h-11"/>
+                    <Input id="colors" name="colors" value={formData.colors || ''} onChange={handleChange} placeholder="White, Blue, Black" className="text-base h-11"/>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <Label htmlFor="tags">Tags (comma-separated, Optional)</Label>
-                    <Input id="tags" name="tags" value={formData.tags} onChange={handleChange} placeholder="formal, cotton, new arrival" className="text-base h-11"/>
+                    <Input id="tags" name="tags" value={formData.tags || ''} onChange={handleChange} placeholder="formal, cotton, new arrival" className="text-base h-11"/>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="dataAiHint">AI Hint for Images (Optional)</Label>
-                    <Input id="dataAiHint" name="dataAiHint" value={formData.dataAiHint} onChange={handleChange} placeholder="e.g., men shirt" className="text-base h-11"/>
+                    <Label htmlFor="dataAiHint">AI Hint for Main Image (auto-filled, or custom)</Label>
+                    <Input id="dataAiHint" name="dataAiHint" value={formData.dataAiHint || ''} onChange={handleChange} placeholder="e.g., men shirt" className="text-base h-11"/>
+                     <p className="text-xs text-muted-foreground">Used for image search if placeholders are needed. Max 2 words.</p>
                 </div>
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" className="text-base">
-                <Save className="mr-2 h-5 w-5" /> Save Product
+              <Button type="submit" size="lg" className="text-base" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-5 w-5" /> Save Product
+                  </>
+                )}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
       <p className="mt-8 text-sm text-muted-foreground text-center">
-        Note: Product saving is currently simulated. Data will be logged to the console.
-        Full database integration is required to make products live on the website.
+        Products are now saved to Firebase Firestore. Displaying them on the website is the next step.
+        <br />
+        <strong>Note on Images:</strong> Currently, the main uploaded image is stored as a data URI in Firestore. For production, it's better to use Firebase Storage for images and store only the URL.
       </p>
     </div>
   );
 }
-
-    
