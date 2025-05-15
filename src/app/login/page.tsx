@@ -1,3 +1,4 @@
+
 // @/app/login/page.tsx
 "use client";
 
@@ -8,19 +9,32 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { LogIn, Mail, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export default function LoginPage() {
   const { toast } = useToast();
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Placeholder for login logic
-    console.log("Login form submitted");
-    toast({
-      title: "Login Attempted",
-      description: "Login functionality is not yet implemented.",
-    });
-    // In a real app, you would handle form data and authentication here
+    
+    if (email === 'admin@mensclub' && password === 'admin@mensclub') {
+      toast({
+        title: "Admin Login Successful!",
+        description: "Redirecting to your profile...",
+      });
+      // In a real app, you would set some authentication state here
+      router.push('/profile');
+    } else {
+      toast({
+        title: "Login Failed",
+        description: "Invalid credentials. Please try again or sign up.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -37,14 +51,30 @@ export default function LoginPage() {
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="you@example.com" required className="pl-10 h-11 text-base"/>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
                <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" required className="pl-10 h-11 text-base"/>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
             </div>
             <div className="flex items-center justify-between">

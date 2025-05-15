@@ -1,3 +1,4 @@
+
 // @/app/profile/page.tsx
 "use client";
 
@@ -7,22 +8,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { User, ShoppingCart, Package, LogOut, Edit3, Shield } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 // This is a placeholder. In a real app, user data would come from an auth context/API.
+// For demonstration, we're setting admin details by default.
 const userData = {
-  name: "Keshav Kumar",
-  email: "keshav@example.com",
-  avatarUrl: "https://placehold.co/100x100.png",
+  name: "Keshav Kumar (Admin)", // Updated to reflect admin
+  email: "admin@mensclub", // Updated to admin email
+  avatarUrl: "https://placehold.co/100x100.png", // Generic avatar
   memberSince: "2023-01-15",
-  isAdmin: false, // Set to true to see admin link example
+  isAdmin: true, // Set to true to show admin link
 };
 
 
 export default function ProfilePage() {
+  const { toast } = useToast();
+  const router = useRouter();
+  
   // Placeholder for logout functionality
   const handleLogout = () => {
     console.log("Logout action triggered");
-    // Add actual logout logic here (e.g., clear auth tokens, redirect)
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out. (Simulated)",
+    });
+    // In a real app, clear auth tokens and redirect to login
+    router.push('/login'); 
   };
 
   return (
@@ -51,7 +63,7 @@ export default function ProfilePage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Button variant="outline" asChild className="justify-start text-base py-6 h-auto">
-              <Link href="/profile/edit">
+              <Link href="/profile/edit"> {/* This page would need to be created */}
                 <Edit3 className="mr-3 h-5 w-5" /> Edit Profile
               </Link>
             </Button>
@@ -66,8 +78,8 @@ export default function ProfilePage() {
               </Link>
             </Button>
             {userData.isAdmin && (
-               <Button variant="outline" asChild className="justify-start text-base py-6 h-auto border-yellow-500 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-800">
-                <Link href="/admin/dashboard"> {/* Placeholder admin link */}
+               <Button variant="outline" asChild className="justify-start text-base py-6 h-auto border-yellow-500 text-yellow-700 hover:bg-yellow-50 hover:text-yellow-800 dark:border-yellow-600 dark:text-yellow-500 dark:hover:bg-yellow-900/30 dark:hover:text-yellow-400">
+                <Link href="/admin/dashboard"> {/* Placeholder admin link - this page needs to be created */}
                   <Shield className="mr-3 h-5 w-5" /> Admin Panel
                 </Link>
               </Button>
