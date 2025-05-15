@@ -14,8 +14,8 @@ import { useRouter } from 'next/navigation';
 // This is a placeholder. In a real app, user data would come from an auth context/API.
 // For demonstration, we're setting admin details by default.
 const userData = {
-  name: "Keshav Kumar (Admin)", // Updated to reflect admin
-  email: "admin@mensclub", // Updated to admin email
+  name: "Mens Club Admin", // Updated to Mens Club Admin
+  email: "admin@mensclub",
   avatarUrl: "https://placehold.co/100x100.png", // Generic avatar
   memberSince: "2023-01-15",
   isAdmin: true, // Set to true to show admin link
