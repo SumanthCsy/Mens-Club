@@ -9,7 +9,7 @@ export function HeroSection() {
     <section className="relative w-full h-[calc(100vh-4rem)] min-h-[500px] md:min-h-[600px] lg:min-h-[700px] flex items-center justify-center text-center overflow-hidden">
       {/* Background Image */}
       <Image
-        src="https://placehold.co/1920x1080.png" // Replace with a high-quality fashion image
+        src="https://placehold.co/1920x1080.png" // Updated to placeholder
         alt="Stylish men's fashion collection"
         layout="fill"
         objectFit="cover"
