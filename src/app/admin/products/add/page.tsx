@@ -3,28 +3,29 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // Added for preview
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, PackagePlus, Save } from 'lucide-react';
+import { ArrowLeft, PackagePlus, Save, UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/types';
 
+// ProductFormDataimageUrl is now expected to be a data URI after image selection
 type ProductFormData = Omit<Product, 'id' | 'averageRating' | 'reviewCount' | 'reviews'> & {
-  // Representing arrays as comma-separated strings for simplicity in form
   sizes: string;
   colors?: string;
   tags?: string;
-  images?: string; // Comma-separated image URLs
+  images?: string; 
 };
 
 const initialFormData: ProductFormData = {
   name: '',
   price: 0,
   originalPrice: undefined,
-  imageUrl: '',
+  imageUrl: '', // This will hold the data URI of the uploaded image
   images: '',
   description: '',
   sizes: '',
@@ -39,39 +40,80 @@ const initialFormData: ProductFormData = {
 
 export default function AddProductPage() {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+
+    if (name === 'imageFile' && e.target instanceof HTMLInputElement && e.target.files?.[0]) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = reader.result as string;
+          setImagePreview(dataUrl);
+          setFormData(prev => ({
+            ...prev,
+            imageUrl: dataUrl, // Store data URL in formData for the main image
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'price' || name === 'originalPrice' || name === 'stock' ? parseFloat(value) || 0 : value,
+      }));
+    }
+  };
+  
+  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // This handler is for the comma-separated URLs, not file uploads for additional images (yet)
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'price' || name === 'originalPrice' || name === 'stock' ? parseFloat(value) || 0 : value,
+      [name]: value,
     }));
   };
 
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Convert comma-separated strings back to arrays for the actual Product type
+    
+    if (!formData.imageUrl) {
+      toast({
+        title: "Image Required",
+        description: "Please upload a main product image.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const productDataToSave: Product = {
       ...formData,
-      id: new Date().toISOString(), // Placeholder ID
+      id: new Date().toISOString(), 
       price: Number(formData.price),
       originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
       stock: Number(formData.stock),
       sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s),
       colors: formData.colors?.split(',').map(s => s.trim()).filter(s => s) || [],
       tags: formData.tags?.split(',').map(s => s.trim()).filter(s => s) || [],
-      images: formData.images?.split(',').map(s => s.trim()).filter(s => s) || [formData.imageUrl], // Use main imageUrl if images field is empty
-      // averageRating, reviewCount, reviews would be handled by backend or reviews system
+      // If additional images field is empty but main image exists, use main image as the primary in 'images' array
+      images: formData.images?.split(',').map(s => s.trim()).filter(s => s).length 
+              ? formData.images.split(',').map(s => s.trim()).filter(s => s) 
+              : (formData.imageUrl ? [formData.imageUrl] : []),
     };
 
-    console.log("Product Data to Save:", productDataToSave);
+    console.log("Product Data to Save (includes image as data URL):", productDataToSave);
     toast({
       title: "Product Submitted (Simulated)",
-      description: `${productDataToSave.name} has been submitted. Check console for data.`,
+      description: `${productDataToSave.name} has been submitted. Check console for data. Image is included as a data URL.`,
+      duration: 7000,
     });
-    // Here you would typically send the data to your backend/Firebase
-    // setFormData(initialFormData); // Optionally reset form
+    // Reset form - including image preview
+    // setFormData(initialFormData);
+    // setImagePreview(null);
   };
 
   return (
@@ -141,13 +183,42 @@ export default function AddProductPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="imageUrl">Main Image URL</Label>
-              <Input id="imageUrl" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://placehold.co/600x800.png" required className="text-base h-11"/>
+              <Label htmlFor="imageFile">Main Product Image</Label>
+              <div className="flex items-center gap-4">
+                <Input 
+                  id="imageFile" 
+                  name="imageFile" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleChange} 
+                  required 
+                  className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                <UploadCloud className="h-6 w-6 text-muted-foreground"/>
+              </div>
+              {imagePreview && (
+                <div className="mt-4 p-2 border border-dashed border-border rounded-md inline-block">
+                  <Image
+                    src={imagePreview}
+                    alt="Product Preview"
+                    width={200}
+                    height={266} // Assuming a 3:4 aspect ratio for preview
+                    className="object-contain rounded-md"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="images">Additional Image URLs (comma-separated)</Label>
-              <Input id="images" name="images" value={formData.images} onChange={handleChange} placeholder="url1.png, url2.png, ..." className="text-base h-11"/>
+              <Input 
+                id="images" 
+                name="images" 
+                value={formData.images || ''} 
+                onChange={handleAdditionalImagesChange} // Use specific handler for this field
+                placeholder="url1.png, url2.png, ..." 
+                className="text-base h-11"
+              />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -180,6 +251,12 @@ export default function AddProductPage() {
           </form>
         </CardContent>
       </Card>
+      <p className="mt-8 text-sm text-muted-foreground text-center">
+        Note: Product saving is currently simulated. Data will be logged to the console.
+        Full database integration is required to make products live on the website.
+      </p>
     </div>
   );
 }
+
+    
