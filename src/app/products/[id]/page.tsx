@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-// import { getProductById, sampleProducts } from '@/lib/placeholder-data'; // Removed sample data
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
@@ -16,52 +15,41 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ProductCard } from '@/components/products/product-card'; 
 import Link from 'next/link';
+import { doc, getDoc } from "firebase/firestore";
+import { db } from '@/lib/firebase';
 
 
-function ProductDetailsClient({ productId }: { productId: string }) {
-  const [product, setProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
+async function getProductById(productId: string): Promise<Product | null> {
+  if (!productId) return null;
+  try {
+    const productRef = doc(db, "products", productId);
+    const productSnap = await getDoc(productRef);
 
-  useEffect(() => {
-    setIsLoading(true);
-    // In a real application, you would fetch the product from your backend/database here
-    // For example:
-    // async function fetchProduct() {
-    //   try {
-    //     const response = await fetch(`/api/products/${productId}`);
-    //     if (!response.ok) throw new Error('Product not found');
-    //     const data = await response.json();
-    //     setProduct(data);
-    //     if (data.sizes && data.sizes.length > 0) {
-    //       setSelectedSize(data.sizes[0]);
-    //     }
-    //   } catch (error) {
-    //     console.error("Failed to fetch product:", error);
-    //     setProduct(null);
-    //   } finally {
-    //     setIsLoading(false);
-    //   }
-    // }
-    // fetchProduct();
-
-    // Simulating no product found for now as placeholder data is removed
-    setTimeout(() => {
-      setProduct(null); 
-      setIsLoading(false);
-    }, 500); // Simulate network delay
-    
-  }, [productId]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg text-muted-foreground">Loading product details...</p>
-      </div>
-    );
+    if (productSnap.exists()) {
+      return { id: productSnap.id, ...productSnap.data() } as Product;
+    } else {
+      console.log("No such document!");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    return null;
   }
+}
+
+// This component remains client-side for interactivity
+function ProductDetailsClientContent({ initialProduct }: { initialProduct: Product | null }) {
+  const [product, setProduct] = useState<Product | null>(initialProduct);
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const { toast } = useToast();
+  
+  // Update selectedSize if product has sizes and one isn't already selected
+  useEffect(() => {
+    if (product && product.sizes && product.sizes.length > 0 && !selectedSize) {
+      setSelectedSize(product.sizes[0]);
+    }
+  }, [product, selectedSize]);
+
 
   if (!product) {
     return (
@@ -79,6 +67,7 @@ function ProductDetailsClient({ productId }: { productId: string }) {
   }
   
   // Related products would also be fetched from a database
+  // For now, let's assume this is empty or fetched separately if needed
   const relatedProducts: Product[] = []; 
 
   const handleAddToCart = () => {
@@ -90,18 +79,20 @@ function ProductDetailsClient({ productId }: { productId: string }) {
       });
       return;
     }
-    // Add to cart logic would interact with a cart state/API
     console.log(`Added ${product.name} (Size: ${selectedSize || 'N/A'}) to cart.`);
     toast({
       title: "Added to Cart!",
       description: `${product.name} (Size: ${selectedSize || 'N/A'}) has been added to your cart.`,
       action: (
-        <Button variant="outline" size="sm" onClick={() => window.location.href = '/cart'}>
+        <Button variant="outline" size="sm" onClick={() => router.push('/cart')}>
           View Cart
         </Button>
       ),
     });
   };
+  // useRouter hook is used in handleAddToCart, ensure it's imported if you uncomment that functionality
+  // import { useRouter } from 'next/navigation';
+  // const router = useRouter(); 
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -113,7 +104,7 @@ function ProductDetailsClient({ productId }: { productId: string }) {
             {product.brand && <p className="text-sm font-medium text-primary tracking-wide uppercase">{product.brand}</p>}
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">{product.name}</h1>
             <div className="flex items-center gap-3 pt-1">
-              {product.averageRating && product.reviewCount ? (
+              {product.averageRating && product.reviewCount && product.reviewCount > 0 ? (
                 <>
                   <RatingStars rating={product.averageRating} size={20} />
                   <span className="text-sm text-muted-foreground">({product.reviewCount} reviews)</span>
@@ -131,7 +122,7 @@ function ProductDetailsClient({ productId }: { productId: string }) {
             )}
           </div>
 
-          {product.stock && product.stock > 0 ? (
+          {typeof product.stock === 'number' && product.stock > 0 ? (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-5 w-5" />
               <p className="text-sm font-medium">In Stock ({product.stock} available)</p>
@@ -157,7 +148,7 @@ function ProductDetailsClient({ productId }: { productId: string }) {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={!product || product.stock === 0}>
+            <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={!product || (typeof product.stock === 'number' && product.stock === 0)}>
               <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
             </Button>
             <Button variant="outline" size="lg" className="flex-1 text-base">
@@ -193,9 +184,35 @@ function ProductDetailsClient({ productId }: { productId: string }) {
 }
 
 
-export default function ProductDetailsPage() {
-  const params = useParams();
-  const productId = typeof params.id === 'string' ? params.id : '';
+// This is the Server Component that fetches data
+export default function ProductDetailsPage({ params }: { params: { id: string } }) {
+  const productId = params.id;
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (productId) {
+      const fetchProduct = async () => {
+        setIsLoading(true);
+        const fetchedProduct = await getProductById(productId);
+        setProduct(fetchedProduct);
+        setIsLoading(false);
+      };
+      fetchProduct();
+    } else {
+      setIsLoading(false); // No ID, no product to fetch
+    }
+  }, [productId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading product details...</p>
+      </div>
+    );
+  }
   
-  return <ProductDetailsClient productId={productId} />;
+  return <ProductDetailsClientContent initialProduct={product} />;
 }
+

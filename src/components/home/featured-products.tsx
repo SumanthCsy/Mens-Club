@@ -1,16 +1,48 @@
 // @/components/home/featured-products.tsx
 import { ProductCard } from '@/components/products/product-card';
-// import { sampleProducts } from '@/lib/placeholder-data'; // Removed sample data
 import type { Product } from '@/types';
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { db } from '@/lib/firebase';
 
-export function FeaturedProducts() {
-  // In a real app, you'd fetch featured products from a database.
-  // For now, it defaults to an empty array.
-  const featured: Product[] = []; 
+// Revalidate every 60 seconds (or choose your preferred interval)
+export const revalidate = 60; 
+
+async function getFeaturedProducts(): Promise<Product[]> {
+  try {
+    const productsCol = collection(db, "products");
+    // Example: Fetch first 4 products, ordered by name (or a 'createdAt' field if available)
+    // For a true "featured" list, you might add a "isFeatured" boolean field to your products
+    // and query for `where("isFeatured", "==", true)`.
+    const q = query(productsCol, orderBy("name"), limit(4)); 
+    const productSnapshot = await getDocs(q);
+    const productList = productSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Product));
+    return productList;
+  } catch (error) {
+    console.error("Error fetching featured products:", error);
+    return [];
+  }
+}
+
+export async function FeaturedProducts() {
+  const featured = await getFeaturedProducts();
 
   if (featured.length === 0) {
     // Optionally, render nothing or a placeholder if no featured products
-    return null; 
+    return (
+      <section className="py-16 md:py-24 bg-background">
+        <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+            Featured Collection
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            No featured products available at the moment. Check back soon or add products through the admin panel!
+          </p>
+        </div>
+      </section>
+    );
   }
 
   return (

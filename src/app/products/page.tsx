@@ -1,6 +1,5 @@
 // @/app/products/page.tsx
 import { ProductCard } from '@/components/products/product-card';
-// import { sampleProducts } from '@/lib/placeholder-data'; // Removed sample data
 import { Filter, ListFilter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,17 +11,37 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from '@/components/ui/separator';
-import type { Product } from '@/types'; // Import Product type
+import type { Product } from '@/types';
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore"; // Added query, orderBy, limit
+import { db } from '@/lib/firebase';
 
 export const metadata = {
   title: 'All Products | Mens Club Keshavapatnam',
   description: 'Browse our full collection of premium men\'s fashion.',
 };
 
-export default function ProductsPage() {
-  // In a real app, products would be fetched from a database.
-  // For now, it defaults to an empty array.
-  const products: Product[] = []; 
+// Revalidate every 60 seconds (or choose your preferred interval)
+export const revalidate = 60; 
+
+async function getProducts(): Promise<Product[]> {
+  try {
+    const productsCol = collection(db, "products");
+    // Example: Order by name, or a 'createdAt' field if you add one
+    const q = query(productsCol, orderBy("name")); 
+    const productSnapshot = await getDocs(q);
+    const productList = productSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Product));
+    return productList;
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return []; // Return empty array on error
+  }
+}
+
+export default async function ProductsPage() {
+  const products = await getProducts();
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -79,18 +98,18 @@ export default function ProductsPage() {
           <Search className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
           <h2 className="text-2xl font-semibold text-foreground mb-3">No Products Found</h2>
           <p className="text-muted-foreground">
-            There are currently no products available. Please check back later.
+            There are currently no products available. Please check back later or add products via the admin panel.
           </p>
         </div>
       )}
 
       {/* Pagination (Placeholder) */}
-      {products.length > 0 && (
+      {products.length > 0 && ( // Only show pagination if there are products
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
             <Button variant="outline">1</Button>
-            <Button variant="outline" disabled>2</Button>
+            {/* Add more page numbers as needed */}
             <Button variant="outline" disabled>Next</Button>
           </div>
         </div>
