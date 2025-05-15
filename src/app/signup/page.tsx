@@ -1,3 +1,4 @@
+
 // @/app/signup/page.tsx
 "use client";
 
@@ -8,19 +9,56 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserPlus, Mail, KeyRound, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 export default function SignupPage() {
   const { toast } = useToast();
+  const router = useRouter();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    if (userRole) {
+      router.replace('/'); // Or '/profile'
+    }
+  }, [router]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Placeholder for signup logic
-    console.log("Signup form submitted");
-    toast({
-      title: "Signup Attempted",
-      description: "Account creation functionality is not yet implemented.",
-    });
-    // In a real app, you would handle form data and user registration here
+    setIsLoading(true);
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Signup Failed",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // Simulate API call delay
+    setTimeout(() => {
+      // Placeholder for signup logic
+      console.log("Signup form submitted:", { fullName, email, password });
+      // In a real app, you would handle form data and user registration here (e.g., with Firebase Auth)
+      
+      // Simulate successful signup
+      localStorage.setItem('userRole', 'user'); 
+      toast({
+        title: "Signup Successful!",
+        description: "Your account has been created. Redirecting...",
+      });
+      router.push('/'); // Redirect to homepage or login after signup
+      // window.location.reload(); // Force reload to update navbar state
+      setIsLoading(false);
+    }, 500);
   };
 
   return (
@@ -37,32 +75,76 @@ export default function SignupPage() {
               <Label htmlFor="fullName">Full Name</Label>
               <div className="relative">
                 <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="fullName" type="text" placeholder="John Doe" required className="pl-10 h-11 text-base"/>
+                <Input 
+                  id="fullName" 
+                  type="text" 
+                  placeholder="John Doe" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="you@example.com" required className="pl-10 h-11 text-base"/>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" required className="pl-10 h-11 text-base"/>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
              <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="confirmPassword" type="password" placeholder="••••••••" required className="pl-10 h-11 text-base"/>
+                <Input 
+                  id="confirmPassword" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
-            <Button type="submit" className="w-full text-lg py-3 h-auto">
-              <UserPlus className="mr-2 h-5 w-5" /> Create Account
+            <Button type="submit" className="w-full text-lg py-3 h-auto" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <UserPlus className="mr-2 h-5 w-5 animate-spin" /> Creating Account...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-5 w-5" /> Create Account
+                </>
+              )}
             </Button>
           </form>
         </CardContent>

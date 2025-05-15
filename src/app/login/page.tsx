@@ -10,31 +10,58 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { LogIn, Mail, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in (for better UX)
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'admin') {
+      router.replace('/admin/dashboard');
+    } else if (userRole === 'user') {
+      router.replace('/profile'); // Or '/'
+    }
+  }, [router]);
+
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsLoading(true);
     
-    if (email === 'admin@mensclub' && password === 'admin@mensclub') {
-      toast({
-        title: "Admin Login Successful!",
-        description: "Redirecting to the Admin Dashboard...",
-      });
-      // In a real app, you would set some authentication state here
-      router.push('/admin/dashboard'); // Directly redirect admin to their dashboard
-    } else {
-      toast({
-        title: "Login Failed",
-        description: "Invalid credentials. Please try again or sign up.",
-        variant: "destructive",
-      });
-    }
+    // Simulate API call delay
+    setTimeout(() => {
+      if (email === 'admin@mensclub' && password === 'admin@mensclub') {
+        localStorage.setItem('userRole', 'admin');
+        toast({
+          title: "Admin Login Successful!",
+          description: "Redirecting to the Admin Dashboard...",
+        });
+        router.push('/admin/dashboard'); 
+        // window.location.reload(); // Force reload to update navbar state
+      } else if (email && password) { // Simulate any other login as a regular user
+        localStorage.setItem('userRole', 'user');
+        toast({
+          title: "Login Successful!",
+          description: "Welcome back!",
+        });
+        router.push('/'); // Redirect regular users to homepage or profile
+        // window.location.reload();
+      }
+      else {
+        toast({
+          title: "Login Failed",
+          description: "Invalid credentials. Please try again or sign up.",
+          variant: "destructive",
+        });
+      }
+      setIsLoading(false);
+    }, 500); // Simulate network delay
   };
 
   return (
@@ -59,6 +86,7 @@ export default function LoginPage() {
                   className="pl-10 h-11 text-base"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -74,20 +102,29 @@ export default function LoginPage() {
                   className="pl-10 h-11 text-base"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2"> */}
                 {/* <Checkbox id="remember-me" />
                 <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label> */}
-              </div>
+              {/* </div> */}
               <Link href="#" className="text-sm text-primary hover:underline">
                 Forgot password?
               </Link>
             </div>
-            <Button type="submit" className="w-full text-lg py-3 h-auto">
-              <LogIn className="mr-2 h-5 w-5" /> Sign In
+            <Button type="submit" className="w-full text-lg py-3 h-auto" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <LogIn className="mr-2 h-5 w-5 animate-spin" /> Signing In...
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 h-5 w-5" /> Sign In
+                </>
+              )}
             </Button>
           </form>
         </CardContent>
