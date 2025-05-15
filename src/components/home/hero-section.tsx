@@ -9,14 +9,14 @@ export function HeroSection() {
     <section className="relative w-full h-[calc(100vh-4rem)] min-h-[500px] md:min-h-[600px] lg:min-h-[700px] flex items-center justify-center text-center overflow-hidden">
       {/* Background Image */}
       <Image
-        src="https://placehold.co/1920x1080.png" // Updated to placeholder
+        src="/banner.png" // Updated to use local image from public folder
         alt="Stylish men's fashion collection"
         layout="fill"
         objectFit="cover"
         quality={90}
         priority
         className="brightness-50"
-        data-ai-hint="men fashion model"
+        data-ai-hint="men fashion model" // Retained existing hint
       />
       
       {/* Overlay */}
