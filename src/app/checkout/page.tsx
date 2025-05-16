@@ -76,7 +76,7 @@ export default function CheckoutPage() {
     router.push('/'); // Redirect to homepage or an order confirmation page
   };
 
-  if (cartItems.length === 0 && !router.asPath.startsWith('/checkout')) { // Prevent flash if already redirecting
+  if (cartItems.length === 0 && router.asPath && !router.asPath.startsWith('/checkout')) { // Prevent flash if already redirecting
     return (
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
@@ -127,6 +127,7 @@ export default function CheckoutPage() {
             className="w-full text-base group mt-6" 
             onClick={handlePlaceOrder}
             disabled={cartItems.length === 0} 
+            suppressHydrationWarning={true}
           >
             <Lock className="mr-2 h-5 w-5" /> Place Order Securely
           </Button>
