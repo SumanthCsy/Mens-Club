@@ -9,6 +9,11 @@ export default {
   ],
   theme: {
   	extend: {
+      screens: { // Add custom breakpoints for finer control if needed
+        'xxs': '360px',
+        'xs': '480px',
+        // sm, md, lg, xl, 2xl are default Tailwind breakpoints
+      },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
