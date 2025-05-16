@@ -1,5 +1,5 @@
 // @/components/home/featured-products.tsx
-import { ProductCard } from '@/components/products/product-card';
+import { FeaturedProductHeroCard } from '@/components/home/featured-product-hero-card'; // Changed import
 import type { Product } from '@/types';
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from '@/lib/firebase';
@@ -10,10 +10,8 @@ export const revalidate = 60;
 async function getFeaturedProducts(): Promise<Product[]> {
   try {
     const productsCol = collection(db, "products");
-    // Example: Fetch first 4 products, ordered by name (or a 'createdAt' field if available)
-    // For a true "featured" list, you might add a "isFeatured" boolean field to your products
-    // and query for `where("isFeatured", "==", true)`.
-    const q = query(productsCol, orderBy("name"), limit(4)); 
+    // Fetch 2 products for the new hero card design
+    const q = query(productsCol, orderBy("name"), limit(2)); 
     const productSnapshot = await getDocs(q);
     const productList = productSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -30,7 +28,6 @@ export async function FeaturedProducts() {
   const featured = await getFeaturedProducts();
 
   if (featured.length === 0) {
-    // Optionally, render nothing or a placeholder if no featured products
     return (
       <section className="py-16 md:py-24 bg-background">
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 text-center">
@@ -57,9 +54,10 @@ export async function FeaturedProducts() {
           </p>
         </div>
         
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        {/* Updated grid for 2 hero cards on md and up, 1 on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           {featured.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <FeaturedProductHeroCard key={product.id} product={product} /> // Using the new card
           ))}
         </div>
       </div>
