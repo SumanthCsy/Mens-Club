@@ -62,13 +62,20 @@ export function ProductCard({ product }: ProductCardProps) {
           ): null}
         </div>
       </CardContent>
-      <CardFooter className="p-3 pt-0 flex items-center gap-2">
-        <Button asChild variant="outline" className="flex-1 text-xs py-2 px-3 h-auto sm:h-9 sm:text-sm sm:px-4 group/button">
+      <CardFooter className="p-3 pt-0 flex flex-col sm:flex-row items-center gap-2">
+        <Button 
+          asChild 
+          variant="outline" 
+          className="w-full text-xs py-2 px-3 h-auto group/button sm:h-9 sm:text-sm sm:px-4 sm:flex-1 sm:w-auto"
+        >
           <Link href={`/products/${product.id}`}>
             <Eye className="mr-1.5 h-4 w-4 sm:mr-2 group-hover/button:animate-pulse" /> View
           </Link>
         </Button>
-        <Button className="flex-1 text-xs py-2 px-3 h-auto sm:h-9 sm:text-sm sm:px-4 group/button" variant="default">
+        <Button 
+          className="w-full text-xs py-2 px-3 h-auto group/button sm:h-9 sm:text-sm sm:px-4 sm:flex-1 sm:w-auto" 
+          variant="default"
+        >
           <ShoppingCart className="mr-1.5 h-4 w-4 sm:mr-2 group-hover/button:animate-bounce" /> Add to Cart
         </Button>
       </CardFooter>
