@@ -51,7 +51,11 @@ export default function AdminDashboardPage() {
                     <PackageSearch className="mr-2 h-5 w-5" /> View All Products
                 </Link>
              </Button>
-             <Button variant="outline" className="w-full" disabled>Edit Products (Soon)</Button>
+             <Button asChild variant="outline" className="w-full">
+                <Link href="/admin/products/edit"> {/* General edit link might go to view page first */}
+                    Edit Products
+                </Link>
+             </Button>
           </CardContent>
         </Card>
 
@@ -64,7 +68,11 @@ export default function AdminDashboardPage() {
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full" disabled>View Orders (Soon)</Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/orders">
+                View Orders
+              </Link>
+            </Button>
             <Button variant="outline" className="w-full" disabled>Process Returns (Soon)</Button>
           </CardContent>
         </Card>
