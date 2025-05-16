@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Users, Loader2, AlertTriangle, Edit, Trash2, Eye } from 'lucide-react';
 import type { UserData } from '@/types';
-import { collection, getDocs, query, orderBy as firestoreOrderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy as firestoreOrderBy, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -30,10 +30,33 @@ export default function AdminViewUsersPage() {
         const userSnapshot = await getDocs(q);
         const userList = userSnapshot.docs.map(doc => {
           const data = doc.data();
+          // Ensure memberSince is consistently a string (ISO format) or a fallback
+          let memberSinceString: string;
+          if (data.memberSince) {
+            if (data.memberSince instanceof Timestamp) {
+              memberSinceString = data.memberSince.toDate().toISOString();
+            } else if (typeof data.memberSince === 'string') {
+              // Attempt to parse string dates, if invalid, it will be caught by rendering logic
+              memberSinceString = data.memberSince;
+            } else if (typeof data.memberSince === 'number') {
+              memberSinceString = new Date(data.memberSince).toISOString();
+            }
+            else {
+              // Fallback for unexpected types
+              console.warn(`Unexpected type for memberSince for user ${doc.id}:`, data.memberSince);
+              memberSinceString = new Date(0).toISOString(); // Default to epoch
+            }
+          } else {
+            // Default if memberSince is not present
+            memberSinceString = new Date().toISOString();
+          }
           return {
             uid: doc.id,
             ...data,
-            memberSince: data.memberSince ? (data.memberSince.toDate ? data.memberSince.toDate().toISOString() : data.memberSince) : new Date().toISOString()
+            email: data.email || 'N/A',
+            fullName: data.fullName || 'N/A',
+            role: data.role || 'user',
+            memberSince: memberSinceString,
           } as UserData;
         });
         setUsers(userList);
@@ -125,7 +148,17 @@ export default function AdminViewUsersPage() {
                           {user.role}
                         </span>
                       </TableCell>
-                      <TableCell>{user.memberSince ? format(new Date(user.memberSince), 'PP') : 'N/A'}</TableCell>
+                      <TableCell>
+                        {user.memberSince ? 
+                          (() => {
+                            const dateObj = new Date(user.memberSince);
+                            if (isNaN(dateObj.getTime())) {
+                              return 'N/A';
+                            }
+                            return format(dateObj, 'PP');
+                          })()
+                          : 'N/A'}
+                      </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center gap-2">
                           <Button variant="outline" size="icon" className="h-8 w-8" disabled>
@@ -150,3 +183,4 @@ export default function AdminViewUsersPage() {
     </div>
   );
 }
+
