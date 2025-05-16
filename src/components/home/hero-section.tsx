@@ -15,15 +15,15 @@ export function HeroSection() {
         objectFit="cover"
         quality={90}
         priority
-        className="brightness-50"
+        // Removed className="brightness-50" to make the image brighter
         data-ai-hint="men fashion model"
       />
       
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+      {/* Overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
 
       {/* Content */}
-      <div className="relative z-10 p-4 sm:p-6 md:p-8 max-w-3xl text-white">
+      <div className="relative z-10 p-4 xxs:p-5 xs:p-6 text-white w-full max-w-3xl mx-auto">
         <h1 className="text-4xl xxs:text-4xl xs:text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-4 sm:mb-6 drop-shadow-xl">
           Elevate Your Style
         </h1>
