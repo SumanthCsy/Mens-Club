@@ -10,14 +10,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, Trash2, Eye, PlusCircle, PackageSearch, Loader2, AlertTriangle } from 'lucide-react';
 import type { Product } from '@/types';
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, doc, deleteDoc } from "firebase/firestore"; // Added doc, deleteDoc
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ViewProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // To track which product is being deleted
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,13 +61,25 @@ export default function ViewProductsPage() {
     fetchProducts();
   }, [toast]);
 
-  const handleDeleteProduct = (productId: string, productName: string) => {
-    // Placeholder for delete functionality
-    console.log(`Attempting to delete product: ${productName} (ID: ${productId})`);
-    toast({
-      title: "Delete Action (Simulated)",
-      description: `Delete functionality for ${productName} is not yet implemented.`,
-    });
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    setIsDeleting(productId);
+    try {
+      await deleteDoc(doc(db, "products", productId));
+      setProducts(prevProducts => prevProducts.filter(product => product.id !== productId));
+      toast({
+        title: "Product Deleted!",
+        description: `${productName} has been successfully deleted.`,
+      });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast({
+        title: "Error Deleting Product",
+        description: `Could not delete ${productName}. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
   if (isLoading) {
@@ -149,12 +173,32 @@ export default function ViewProductsPage() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button variant="outline" size="icon" disabled className="h-8 w-8"> {/* Disabled until edit is implemented */}
-                            <Edit className="h-4 w-4" />
+                          <Button variant="outline" size="icon" asChild className="h-8 w-8">
+                            <Link href={`/admin/products/edit/${product.id}`} title="Edit Product">
+                              <Edit className="h-4 w-4" />
+                            </Link>
                           </Button>
-                          <Button variant="destructive" size="icon" onClick={() => handleDeleteProduct(product.id, product.name)} disabled className="h-8 w-8"> {/* Disabled until delete is implemented */}
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon" className="h-8 w-8" disabled={isDeleting === product.id}>
+                                {isDeleting === product.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the product "{product.name}".
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteProduct(product.id, product.name)} className="bg-destructive hover:bg-destructive/90">
+                                  Yes, delete product
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
