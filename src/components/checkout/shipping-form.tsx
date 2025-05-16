@@ -36,8 +36,16 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
   const form = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingFormSchema),
     defaultValues: {
-      country: "India",
-      ...initialData,
+      email: "",
+      fullName: "",
+      addressLine1: "",
+      addressLine2: "", // Explicit default for optional field
+      city: "",
+      stateProvince: "",
+      postalCode: "",
+      country: "India",  // Keep existing default
+      phoneNumber: "",  // Explicit default for optional field
+      ...initialData,   // Spread initialData last to allow overrides
     },
   });
 
