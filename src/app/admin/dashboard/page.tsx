@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard } from 'lucide-react';
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   // This page assumes an admin user is logged in.
@@ -38,7 +38,7 @@ export default function AdminDashboardPage() {
               <CardTitle className="text-2xl font-semibold">Product Management</CardTitle>
               <ShoppingBag className="h-8 w-8 text-primary" />
             </div>
-            <CardDescription>Add new products, edit existing ones, or remove them from your store.</CardDescription>
+            <CardDescription>Add new products, view, edit, or remove them from your store.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button asChild className="w-full">
@@ -46,7 +46,11 @@ export default function AdminDashboardPage() {
                 <PlusCircle className="mr-2 h-5 w-5" /> Add New Product
               </Link>
             </Button>
-             <Button variant="outline" className="w-full" disabled>View All Products (Soon)</Button>
+             <Button asChild variant="outline" className="w-full">
+                <Link href="/admin/products/view">
+                    <PackageSearch className="mr-2 h-5 w-5" /> View All Products
+                </Link>
+             </Button>
              <Button variant="outline" className="w-full" disabled>Edit Products (Soon)</Button>
           </CardContent>
         </Card>
@@ -87,7 +91,7 @@ export default function AdminDashboardPage() {
             </div>
             <CardDescription>View sales reports, customer insights, and store performance analytics.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <Button variant="outline" className="w-full" disabled>View Sales Analytics (Soon)</Button>
             <Button variant="outline" className="w-full" disabled>Customer Reports (Soon)</Button>
           </CardContent>
