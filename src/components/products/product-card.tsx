@@ -1,3 +1,4 @@
+
 // @/components/products/product-card.tsx
 import Image from 'next/image';
 import Link from 'next/link';
@@ -52,12 +53,12 @@ export function ProductCard({ product }: ProductCardProps) {
               </p>
             )}
           </div>
-          {product.averageRating && product.reviewCount && (
+          {product.averageRating && typeof product.reviewCount === 'number' && product.reviewCount > 0 ? (
              <div className="flex items-center gap-1">
               <RatingStars rating={product.averageRating} size={14} />
               <span className="text-xs text-muted-foreground">({product.reviewCount})</span>
             </div>
-          )}
+          ): null}
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex items-center gap-2">

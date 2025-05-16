@@ -25,7 +25,7 @@ export default function LoginPage() {
     if (userRole === 'admin') {
       router.replace('/admin/dashboard');
     } else if (userRole === 'user') {
-      router.replace('/profile'); // Or '/'
+      router.replace('/profile');
     }
   }, [router]);
 
@@ -34,24 +34,34 @@ export default function LoginPage() {
     event.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call delay
     setTimeout(() => {
       if (email === 'admin@mensclub' && password === 'admin@mensclub') {
         localStorage.setItem('userRole', 'admin');
+        localStorage.setItem('userName', 'Mens Club Admin'); // Admin's name
+        localStorage.setItem('userEmail', email);
         toast({
           title: "Admin Login Successful!",
           description: "Redirecting to the Admin Dashboard...",
         });
         router.push('/admin/dashboard'); 
-        // window.location.reload(); // Force reload to update navbar state
       } else if (email && password) { // Simulate any other login as a regular user
+        // Try to get name from localStorage (e.g., if they signed up before)
+        // For simulation, if not found, use a generic name or part of the email.
+        let userName = localStorage.getItem('userName');
+        if (!userName || localStorage.getItem('userEmail') !== email) {
+          // If email doesn't match stored email for userName, or userName isn't set
+          userName = email.split('@')[0] || 'Valued User'; // Simple fallback
+          localStorage.setItem('userName', userName);
+        }
+        
         localStorage.setItem('userRole', 'user');
+        localStorage.setItem('userEmail', email); // Store/update email on login
+        
         toast({
           title: "Login Successful!",
-          description: "Welcome back!",
+          description: `Welcome back, ${userName}!`,
         });
-        router.push('/'); // Redirect regular users to homepage or profile
-        // window.location.reload();
+        router.push('/'); 
       }
       else {
         toast({
@@ -61,7 +71,7 @@ export default function LoginPage() {
         });
       }
       setIsLoading(false);
-    }, 500); // Simulate network delay
+    }, 500); 
   };
 
   return (
@@ -107,10 +117,6 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              {/* <div className="flex items-center space-x-2"> */}
-                {/* <Checkbox id="remember-me" />
-                <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label> */}
-              {/* </div> */}
               <Link href="#" className="text-sm text-primary hover:underline">
                 Forgot password?
               </Link>

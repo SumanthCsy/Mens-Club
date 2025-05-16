@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Mail, KeyRound, User as UserIcon } from 'lucide-react';
+import { UserPlus, Mail, KeyRound, User as UserIcon, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -17,6 +17,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,18 +46,20 @@ export default function SignupPage() {
 
     // Simulate API call delay
     setTimeout(() => {
-      // Placeholder for signup logic
-      console.log("Signup form submitted:", { fullName, email, password });
-      // In a real app, you would handle form data and user registration here (e.g., with Firebase Auth)
+      console.log("Signup form submitted:", { fullName, email, mobileNumber, password });
       
-      // Simulate successful signup
-      localStorage.setItem('userRole', 'user'); 
+      // Simulate successful signup & store user info in localStorage
+      localStorage.setItem('userRole', 'user');
+      localStorage.setItem('userName', fullName);
+      localStorage.setItem('userEmail', email);
+      // Mobile number could also be stored if needed for profile display
+      // localStorage.setItem('userMobile', mobileNumber); 
+
       toast({
         title: "Signup Successful!",
-        description: "Your account has been created. Redirecting...",
+        description: `Welcome, ${fullName}! Your account has been created. Redirecting...`,
       });
-      router.push('/'); // Redirect to homepage or login after signup
-      // window.location.reload(); // Force reload to update navbar state
+      router.push('/'); 
       setIsLoading(false);
     }, 500);
   };
@@ -99,6 +102,22 @@ export default function SignupPage() {
                   className="pl-10 h-11 text-base"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mobileNumber">Mobile Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                  id="mobileNumber" 
+                  type="tel" 
+                  placeholder="9876543210" 
+                  required 
+                  className="pl-10 h-11 text-base"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
                   disabled={isLoading}
                 />
               </div>
