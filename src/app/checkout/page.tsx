@@ -3,24 +3,29 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ShippingForm } from '@/components/checkout/shipping-form';
+import { ShippingForm, type ShippingFormValues } from '@/components/checkout/shipping-form';
 import { PaymentMethodSelector } from '@/components/checkout/payment-method-selector';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
-import { Lock, ArrowLeft, ShoppingCart } from 'lucide-react';
+import { Lock, ArrowLeft, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/context/cart-context'; // Import useCart
+import { useCart } from '@/context/cart-context';
+import { auth, db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import type { Order, OrderItem, ShippingAddress as ShippingAddressType } from '@/types';
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod'); // Default to COD
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
+  const [shippingData, setShippingData] = useState<ShippingFormValues | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (cartItems.length === 0 && !isPlacingOrder) { // Prevent redirect if order was just placed
         toast({
             title: "Your cart is empty",
             description: "Please add items to your cart before proceeding to checkout.",
@@ -28,55 +33,123 @@ export default function CheckoutPage() {
         });
         router.push('/cart');
     }
-  }, [cartItems, router, toast]);
+  }, [cartItems, router, toast, isPlacingOrder]);
 
-  const shippingCost = cartItems.length > 0 ? 50.00 : 0; // Example fixed shipping in INR
-  const total = cartTotal + shippingCost;
+  const shippingCost = cartItems.length > 0 ? 50.00 : 0;
+  const grandTotal = cartTotal + shippingCost;
 
-  const handleShippingSubmit = (data: any) => {
-    // In a real app, you'd save this to user profile or order details
-    console.log("Shipping Data:", data);
+  const handleShippingSubmit = (data: ShippingFormValues) => {
+    setShippingData(data);
     toast({
       title: "Shipping Details Saved",
-      description: "Your shipping address has been updated.",
+      description: "Your shipping address has been confirmed.",
     });
-    // You might want to proceed to next step or enable payment section here
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (!auth.currentUser) {
+      toast({ title: "Login Required", description: "Please login to place an order.", variant: "destructive" });
+      router.push('/login?redirect=/checkout');
+      return;
+    }
     if (cartItems.length === 0) {
-        toast({
-            title: "Cannot Place Order",
-            description: "Your cart is empty. Please add items to your cart.",
-            variant: "destructive",
-        });
-        return;
+      toast({ title: "Cannot Place Order", description: "Your cart is empty.", variant: "destructive" });
+      return;
+    }
+    if (!shippingData) {
+      toast({ title: "Shipping Details Required", description: "Please submit your shipping details.", variant: "destructive" });
+      return;
     }
     if (!selectedPaymentMethod) {
-      toast({
-        title: "Payment Method Required",
-        description: "Please select a payment method.",
-        variant: "destructive",
-      });
+      toast({ title: "Payment Method Required", description: "Please select a payment method.", variant: "destructive" });
       return;
     }
     
-    // Simulate order placement
-    console.log("Placing order with method:", selectedPaymentMethod, "and items:", cartItems);
-    // In a real app, this would involve API calls to your backend to process the order
-    // and payment gateway integration if online payment is selected.
+    setIsPlacingOrder(true);
 
-    toast({
-      title: "Order Placed (Simulated)!",
-      description: `Your order has been successfully placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}. Thank you for shopping!`,
-      duration: 7000,
-    });
-    
-    clearCart(); // Clear cart items from context and localStorage
-    router.push('/'); // Redirect to homepage or an order confirmation page
+    const orderItems: OrderItem[] = cartItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+      selectedSize: item.selectedSize,
+      selectedColor: item.selectedColor,
+      imageUrl: item.imageUrl,
+      sku: item.sku,
+    }));
+
+    const orderToSave: Omit<Order, 'id'> = {
+      userId: auth.currentUser.uid,
+      customerEmail: shippingData.email, // Using email from shipping form
+      items: orderItems,
+      subtotal: cartTotal,
+      shippingCost: shippingCost,
+      grandTotal: grandTotal,
+      shippingAddress: shippingData as ShippingAddressType, // Cast since structure matches
+      paymentMethod: selectedPaymentMethod,
+      status: 'Pending',
+      createdAt: serverTimestamp(),
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "orders"), orderToSave);
+      toast({
+        title: "Order Placed Successfully!",
+        description: `Your order #${docRef.id.substring(0,8)} has been placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}.`,
+        duration: 7000,
+      });
+
+      // Send email notification to admin
+      try {
+        const emailResponse = await fetch('/api/send-order-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            orderId: docRef.id,
+            customerEmail: orderToSave.customerEmail,
+            grandTotal: orderToSave.grandTotal,
+            adminEmail: "sumanthcherla12@gmail.com" // The target admin email
+          }),
+        });
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.json();
+          console.error('Failed to send order notification email:', errorData);
+          toast({
+            title: "Notification Error",
+            description: "Order placed, but failed to send admin notification.",
+            variant: "destructive",
+            duration: 5000
+          });
+        } else {
+            const successData = await emailResponse.json();
+            console.log('Admin notification email sent successfully:', successData.message);
+        }
+      } catch (emailError) {
+        console.error('Error calling send-order-email API:', emailError);
+         toast({
+            title: "Notification Error",
+            description: "Order placed, but encountered an issue sending admin notification.",
+            variant: "destructive",
+            duration: 5000
+          });
+      }
+
+      clearCart();
+      router.push('/'); 
+    } catch (error) {
+      console.error("Error placing order: ", error);
+      toast({
+        title: "Order Placement Failed",
+        description: "There was an issue placing your order. Please try again.",
+        variant: "destructive",
+        duration: 7000,
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
-  if (cartItems.length === 0 && router.asPath && !router.asPath.startsWith('/checkout')) { // Prevent flash if already redirecting
+  if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
     return (
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
@@ -88,7 +161,6 @@ export default function CheckoutPage() {
         </div>
     );
   }
-
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -106,7 +178,10 @@ export default function CheckoutPage() {
 
       <div className="grid lg:grid-cols-3 gap-8 md:gap-12 items-start">
         <div className="lg:col-span-2 space-y-8">
-          <ShippingForm onSubmit={handleShippingSubmit} />
+          <ShippingForm 
+            onSubmit={handleShippingSubmit} 
+            initialData={auth.currentUser ? { email: auth.currentUser.email || '' } : {}}
+          />
           <PaymentMethodSelector
             selectedMethod={selectedPaymentMethod}
             onMethodChange={setSelectedPaymentMethod}
@@ -117,20 +192,30 @@ export default function CheckoutPage() {
           <CartSummary
             subtotal={cartTotal}
             shippingCost={shippingCost}
-            total={total}
+            total={grandTotal}
             checkoutButtonText="Place Order Securely" 
-            showPromoCodeInput={true} // Can be true if you have promo logic
+            showPromoCodeInput={true}
             checkoutLink="#" // Handled by external button below
           />
           <Button 
             size="lg" 
             className="w-full text-base group mt-6" 
             onClick={handlePlaceOrder}
-            disabled={cartItems.length === 0} 
+            disabled={cartItems.length === 0 || isPlacingOrder || !shippingData} 
             suppressHydrationWarning={true}
           >
-            <Lock className="mr-2 h-5 w-5" /> Place Order Securely
+            {isPlacingOrder ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <Lock className="mr-2 h-5 w-5" />
+            )}
+            Place Order Securely
           </Button>
+          {!shippingData && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+                Please save your shipping details to enable order placement.
+            </p>
+          )}
         </div>
       </div>
     </div>

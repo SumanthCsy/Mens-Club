@@ -1,3 +1,4 @@
+
 // @/components/checkout/shipping-form.tsx
 "use client";
 
@@ -10,8 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '../ui/separator';
+import type { ShippingAddress } from '@/types'; // Import ShippingAddress type
 
 const shippingFormSchema = z.object({
+  email: z.string().email({ message: "Invalid email address." }),
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   addressLine1: z.string().min(5, { message: "Address is too short." }),
   addressLine2: z.string().optional(),
@@ -20,20 +23,21 @@ const shippingFormSchema = z.object({
   postalCode: z.string().min(5, { message: "Postal code must be at least 5 characters." }),
   country: z.string().min(2, { message: "Country name is too short." }),
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }).optional(),
-  email: z.string().email({ message: "Invalid email address." }),
 });
 
-type ShippingFormValues = z.infer<typeof shippingFormSchema>;
+export type ShippingFormValues = z.infer<typeof shippingFormSchema>;
 
 interface ShippingFormProps {
   onSubmit: (data: ShippingFormValues) => void;
+  initialData?: Partial<ShippingFormValues>; // Optional initial data
 }
 
-export function ShippingForm({ onSubmit }: ShippingFormProps) {
+export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
   const form = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingFormSchema),
-    defaultValues: { // Pre-fill with defaults or user data if available
-      country: "India", // Example default
+    defaultValues: {
+      country: "India",
+      ...initialData,
     },
   });
 
@@ -50,9 +54,9 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email Address</FormLabel>
+                  <FormLabel>Email Address for Shipping Updates</FormLabel>
                   <FormControl>
-                    <Input placeholder="you@example.com" {...field} className="h-11 text-base" />
+                    <Input placeholder="you@example.com" {...field} className="h-11 text-base" suppressHydrationWarning={true} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -65,7 +69,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} className="h-11 text-base"/>
+                    <Input placeholder="John Doe" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -78,7 +82,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                 <FormItem>
                   <FormLabel>Address Line 1</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Main St" {...field} className="h-11 text-base"/>
+                    <Input placeholder="123 Main St" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -91,7 +95,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                 <FormItem>
                   <FormLabel>Address Line 2 (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Apt, Suite, Building" {...field} className="h-11 text-base"/>
+                    <Input placeholder="Apt, Suite, Building" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -105,7 +109,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                   <FormItem>
                     <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input placeholder="Keshavapatnam" {...field} className="h-11 text-base"/>
+                      <Input placeholder="Keshavapatnam" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -118,7 +122,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                   <FormItem>
                     <FormLabel>State / Province</FormLabel>
                     <FormControl>
-                      <Input placeholder="Telangana" {...field} className="h-11 text-base"/>
+                      <Input placeholder="Telangana" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -133,7 +137,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                   <FormItem>
                     <FormLabel>Postal Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="505451" {...field} className="h-11 text-base"/>
+                      <Input placeholder="505451" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -146,7 +150,7 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                   <FormItem>
                     <FormLabel>Country</FormLabel>
                     <FormControl>
-                      <Input placeholder="India" {...field} className="h-11 text-base"/>
+                      <Input placeholder="India" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -160,15 +164,17 @@ export function ShippingForm({ onSubmit }: ShippingFormProps) {
                 <FormItem>
                   <FormLabel>Phone Number (Optional)</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="+91 XXXXX XXXXX" {...field} className="h-11 text-base"/>
+                    <Input type="tel" placeholder="+91 XXXXX XXXXX" {...field} className="h-11 text-base" suppressHydrationWarning={true}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <Separator className="my-8" />
-            {/* Submit button is typically outside this form, in the parent checkout page */}
-            {/* <Button type="submit" size="lg" className="w-full">Continue to Payment</Button> */}
+             {/* Submit button moved to parent CheckoutPage, but form needs its own submit handler */}
+             <Button type="submit" size="lg" className="w-full">
+              Save Shipping Details
+            </Button>
           </form>
         </Form>
       </CardContent>

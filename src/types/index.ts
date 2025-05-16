@@ -1,5 +1,4 @@
 
-
 export interface Review {
   id: string;
   author: string;
@@ -45,5 +44,44 @@ export interface UserData {
   role: 'user' | 'admin';
   memberSince?: string; 
   avatarUrl?: string; 
-  // Add other fields as needed, e.g., shippingAddresses, orderHistoryIds
+}
+
+// Types for Order and Shipping
+export interface OrderItem {
+  id: string; // Product ID
+  name: string;
+  quantity: number;
+  price: number; // Price per unit at the time of order
+  selectedSize: string;
+  selectedColor?: string;
+  imageUrl: string;
+  sku?: string;
+}
+
+export interface ShippingAddress {
+  fullName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+  country: string;
+  phoneNumber?: string;
+  email: string; // Customer's email for shipping, might be different from auth email
+}
+
+export interface Order {
+  id?: string; // Firestore will generate this if not provided when adding
+  userId: string; // UID of the user who placed the order
+  customerEmail: string; // Email of the user who placed the order (from shipping/auth)
+  items: OrderItem[];
+  subtotal: number;
+  shippingCost: number;
+  discount?: number; // Optional discount amount
+  grandTotal: number;
+  shippingAddress: ShippingAddress;
+  paymentMethod: string;
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  createdAt: any; // Firestore ServerTimestamp, will be resolved to Timestamp
+  // Potentially other fields like orderNotes, trackingNumber etc.
 }
