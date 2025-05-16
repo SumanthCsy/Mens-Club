@@ -9,15 +9,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Users, Loader2, AlertTriangle, Edit, Trash2, Eye } from 'lucide-react';
 import type { UserData } from '@/types';
-import { collection, getDocs, query, orderBy as firestoreOrderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, orderBy as firestoreOrderBy, Timestamp, doc, deleteDoc } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminViewUsersPage() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Tracks which user is being deleted
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,30 +40,25 @@ export default function AdminViewUsersPage() {
         const usersCol = collection(db, "users");
         const q = query(usersCol, firestoreOrderBy("memberSince", "desc"));
         const userSnapshot = await getDocs(q);
-        const userList = userSnapshot.docs.map(doc => {
-          const data = doc.data();
-          // Ensure memberSince is consistently a string (ISO format) or a fallback
+        const userList = userSnapshot.docs.map(docSnapshot => {
+          const data = docSnapshot.data();
           let memberSinceString: string;
           if (data.memberSince) {
             if (data.memberSince instanceof Timestamp) {
               memberSinceString = data.memberSince.toDate().toISOString();
             } else if (typeof data.memberSince === 'string') {
-              // Attempt to parse string dates, if invalid, it will be caught by rendering logic
               memberSinceString = data.memberSince;
             } else if (typeof data.memberSince === 'number') {
               memberSinceString = new Date(data.memberSince).toISOString();
-            }
-            else {
-              // Fallback for unexpected types
-              console.warn(`Unexpected type for memberSince for user ${doc.id}:`, data.memberSince);
-              memberSinceString = new Date(0).toISOString(); // Default to epoch
+            } else {
+              console.warn(`Unexpected type for memberSince for user ${docSnapshot.id}:`, data.memberSince);
+              memberSinceString = new Date(0).toISOString(); 
             }
           } else {
-            // Default if memberSince is not present
             memberSinceString = new Date().toISOString();
           }
           return {
-            uid: doc.id,
+            uid: docSnapshot.id,
             ...data,
             email: data.email || 'N/A',
             fullName: data.fullName || 'N/A',
@@ -75,6 +82,30 @@ export default function AdminViewUsersPage() {
 
     fetchUsers();
   }, [toast]);
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    setIsDeleting(userId);
+    try {
+      // Delete user document from Firestore "users" collection
+      await deleteDoc(doc(db, "users", userId));
+      setUsers(prevUsers => prevUsers.filter(user => user.uid !== userId));
+      toast({
+        title: "User Data Deleted!",
+        description: `User data for ${userName} has been removed from Firestore. Note: Their Auth account is not deleted by this action.`,
+        duration: 7000,
+      });
+    } catch (error) {
+      console.error("Error deleting user data:", error);
+      toast({
+        title: "Error Deleting User Data",
+        description: `Could not delete data for ${userName}. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -132,7 +163,7 @@ export default function AdminViewUsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Member Since</TableHead>
-                    <TableHead className="text-center w-[130px]">Actions</TableHead>
+                    <TableHead className="text-center w-[180px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -151,11 +182,16 @@ export default function AdminViewUsersPage() {
                       <TableCell>
                         {user.memberSince ? 
                           (() => {
-                            const dateObj = new Date(user.memberSince);
-                            if (isNaN(dateObj.getTime())) {
-                              return 'N/A';
+                            try {
+                                const dateObj = new Date(user.memberSince);
+                                if (isNaN(dateObj.getTime())) {
+                                return 'N/A (Invalid Date)';
+                                }
+                                return format(dateObj, 'PP');
+                            } catch (e) {
+                                console.error("Error formatting date for user.memberSince", user.memberSince, e);
+                                return 'N/A (Format Error)';
                             }
-                            return format(dateObj, 'PP');
                           })()
                           : 'N/A'}
                       </TableCell>
@@ -164,12 +200,38 @@ export default function AdminViewUsersPage() {
                           <Button variant="outline" size="icon" className="h-8 w-8" disabled>
                             <Eye className="h-4 w-4" /> {/* Placeholder for View User Details */}
                           </Button>
-                          <Button variant="outline" size="icon" className="h-8 w-8" disabled>
-                            <Edit className="h-4 w-4" /> {/* Placeholder for Edit User */}
+                          <Button variant="outline" size="icon" asChild className="h-8 w-8">
+                            <Link href={`/admin/users/edit/${user.uid}`} title="Edit User Data">
+                              <Edit className="h-4 w-4" />
+                            </Link>
                           </Button>
-                          <Button variant="destructive" size="icon" className="h-8 w-8" disabled>
-                            <Trash2 className="h-4 w-4" /> {/* Placeholder for Delete User */}
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon" className="h-8 w-8" disabled={isDeleting === user.uid}>
+                                {isDeleting === user.uid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action will permanently delete the user data for "{user.fullName || user.email}" from Firestore. 
+                                  It will NOT delete their Firebase Authentication account.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(user.uid, user.fullName || user.email)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                  disabled={isDeleting === user.uid}
+                                >
+                                  {isDeleting === user.uid ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                  Yes, delete user data
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -183,4 +245,3 @@ export default function AdminViewUsersPage() {
     </div>
   );
 }
-
