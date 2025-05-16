@@ -1,5 +1,5 @@
 // @/components/home/featured-products.tsx
-import { FeaturedProductHeroCard } from '@/components/home/featured-product-hero-card'; // Changed import
+import { ProductCard } from '@/components/products/product-card';
 import type { Product } from '@/types';
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from '@/lib/firebase';
@@ -10,8 +10,8 @@ export const revalidate = 60;
 async function getFeaturedProducts(): Promise<Product[]> {
   try {
     const productsCol = collection(db, "products");
-    // Fetch 2 products for the new hero card design
-    const q = query(productsCol, orderBy("name"), limit(2)); 
+    // Fetch up to 4 products for the featured section
+    const q = query(productsCol, orderBy("name"), limit(4)); 
     const productSnapshot = await getDocs(q);
     const productList = productSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -54,10 +54,10 @@ export async function FeaturedProducts() {
           </p>
         </div>
         
-        {/* Updated grid for 2 hero cards on md and up, 1 on mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+        {/* Original grid layout for 2-3-4 products per line */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {featured.map((product) => (
-            <FeaturedProductHeroCard key={product.id} product={product} /> // Using the new card
+            <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </div>
