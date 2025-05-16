@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch } from 'lucide-react';
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   // This page assumes an admin user is logged in.
@@ -52,7 +52,7 @@ export default function AdminDashboardPage() {
                 </Link>
              </Button>
              <Button asChild variant="outline" className="w-full">
-                <Link href="/admin/products/edit"> {/* General edit link might go to view page first */}
+                <Link href="/admin/products/view"> {/* General edit link might go to view page first */}
                     Edit Products
                 </Link>
              </Button>
@@ -68,12 +68,16 @@ export default function AdminDashboardPage() {
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="default" className="w-full">
               <Link href="/admin/orders">
                 View Orders
               </Link>
             </Button>
-            <Button variant="outline" className="w-full" disabled>Process Returns (Soon)</Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/orders/returns">
+                 <Undo2 className="mr-2 h-5 w-5" /> Process Returns
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 
@@ -86,8 +90,16 @@ export default function AdminDashboardPage() {
             <CardDescription>Manage customer accounts, roles, and permissions.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full" disabled>View Users (Soon)</Button>
-            <Button variant="outline" className="w-full" disabled>Manage Roles (Soon)</Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/users/view">
+                 <Users className="mr-2 h-5 w-5" /> View Users
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/users/roles">
+                <UserCog className="mr-2 h-5 w-5" /> Manage Roles
+              </Link>
+            </Button>
           </CardContent>
         </Card>
         
@@ -100,8 +112,16 @@ export default function AdminDashboardPage() {
             <CardDescription>View sales reports, customer insights, and store performance analytics.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full" disabled>View Sales Analytics (Soon)</Button>
-            <Button variant="outline" className="w-full" disabled>Customer Reports (Soon)</Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/analytics/sales">
+                View Sales Analytics
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/admin/analytics/customers">
+                Customer Reports
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 
@@ -114,8 +134,16 @@ export default function AdminDashboardPage() {
             <CardDescription>Moderate product reviews and manage customer inquiries.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full" disabled>Manage Reviews (Soon)</Button>
-            <Button variant="outline" className="w-full" disabled>View Inquiries (Soon)</Button>
+            <Button asChild variant="outline" className="w-full">
+               <Link href="/admin/interactions/reviews">
+                Manage Reviews
+               </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+               <Link href="/admin/interactions/inquiries">
+                 View Inquiries
+               </Link>
+            </Button>
           </CardContent>
         </Card>
         
@@ -128,11 +156,21 @@ export default function AdminDashboardPage() {
             <CardDescription>Configure payment gateways, shipping options, and customize store theme.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-             <Button variant="outline" className="w-full" disabled>
-                <Palette className="mr-2 h-5 w-5" /> Theme Customization (Soon)
+             <Button asChild variant="outline" className="w-full">
+                <Link href="/admin/settings/theme">
+                    <Palette className="mr-2 h-5 w-5" /> Theme Customization
+                </Link>
             </Button>
-            <Button variant="outline" className="w-full" disabled>Payment Settings (Soon)</Button>
-            <Button variant="outline" className="w-full" disabled>Shipping Configuration (Soon)</Button>
+            <Button asChild variant="outline" className="w-full">
+                <Link href="/admin/settings/payments">
+                    <CreditCard className="mr-2 h-5 w-5" /> Payment Settings
+                </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+                 <Link href="/admin/settings/shipping">
+                    <Truck className="mr-2 h-5 w-5" /> Shipping Configuration
+                 </Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
