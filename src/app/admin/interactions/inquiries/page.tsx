@@ -28,13 +28,13 @@ export default function AdminViewInquiriesPage() {
       <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Customer Inquiries</CardTitle>
-            <CardDescription>Respond to customer messages and support tickets.</CardDescription>
+            <CardDescription>Respond to customer messages, contact form submissions, and support tickets.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="text-center py-10">
                 <MessageCircleQuestion className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground text-lg">Inquiry management feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for updates!</p>
+                <p className="text-sm text-muted-foreground">This section will integrate with your contact forms or support system. Check back soon!</p>
             </div>
         </CardContent>
       </Card>

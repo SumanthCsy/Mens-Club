@@ -28,13 +28,13 @@ export default function AdminSalesAnalyticsPage() {
       <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Sales Reports</CardTitle>
-            <CardDescription>Track sales trends, top products, and revenue.</CardDescription>
+            <CardDescription>Track sales trends, top-selling products, revenue over time, and more.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="text-center py-10">
                 <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground text-lg">Sales analytics feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for interactive charts and reports!</p>
+                <p className="text-sm text-muted-foreground">Interactive charts and detailed reports are coming soon!</p>
             </div>
         </CardContent>
       </Card>

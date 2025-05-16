@@ -34,7 +34,7 @@ export default function AdminProcessReturnsPage() {
             <div className="text-center py-10">
                 <Undo2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground text-lg">Return processing feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for updates!</p>
+                <p className="text-sm text-muted-foreground">This section will allow admins to manage return requests, authorize returns, and track returned items. Check back soon for updates!</p>
             </div>
         </CardContent>
       </Card>

@@ -28,13 +28,13 @@ export default function AdminPaymentSettingsPage() {
       <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Payment Gateway Configuration</CardTitle>
-            <CardDescription>Manage your accepted payment methods.</CardDescription>
+            <CardDescription>Manage your accepted payment methods, like Stripe, PayPal, or Cash on Delivery settings.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="text-center py-10">
                 <CreditCard className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground text-lg">Payment settings feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for updates!</p>
+                <p className="text-sm text-muted-foreground">Integration with payment gateways is coming soon!</p>
             </div>
         </CardContent>
       </Card>

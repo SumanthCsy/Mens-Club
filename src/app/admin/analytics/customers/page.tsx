@@ -28,7 +28,7 @@ export default function AdminCustomerReportsPage() {
        <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Customer Insights</CardTitle>
-            <CardDescription>Understand your customer base better.</CardDescription>
+            <CardDescription>Understand your customer base better with data on demographics, purchase history, and engagement.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="text-center py-10">

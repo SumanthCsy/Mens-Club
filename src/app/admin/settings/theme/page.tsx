@@ -28,13 +28,13 @@ export default function AdminThemeSettingsPage() {
       <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Store Theme Settings</CardTitle>
-            <CardDescription>Modify colors, fonts, and layout options.</CardDescription>
+            <CardDescription>Modify colors, fonts, logo, and layout options for your e-commerce site.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="text-center py-10">
                 <Palette className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground text-lg">Theme customization feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for updates!</p>
+                <p className="text-sm text-muted-foreground">Controls for theme colors, fonts, and more are coming soon!</p>
             </div>
         </CardContent>
       </Card>

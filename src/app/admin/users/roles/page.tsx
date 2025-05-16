@@ -28,13 +28,13 @@ export default function AdminManageRolesPage() {
        <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Role Management</CardTitle>
-            <CardDescription>Configure user roles and permissions.</CardDescription>
+            <CardDescription>Configure user roles (e.g., User, Editor, Admin) and their associated permissions.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="text-center py-10">
                 <UserCog className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground text-lg">Role management feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for updates!</p>
+                <p className="text-sm text-muted-foreground">This will allow detailed control over user capabilities. Check back soon!</p>
             </div>
         </CardContent>
       </Card>
