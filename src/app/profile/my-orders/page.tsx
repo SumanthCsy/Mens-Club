@@ -1,77 +1,80 @@
+
 // @/app/profile/my-orders/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2 } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { auth, db } from '@/lib/firebase'; // Assuming you might fetch orders from here later
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'; // For future order fetching
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, getDocs, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-
-// Define a type for your order structure if not already in types/index.ts
-interface OrderItem {
-  name: string;
-  quantity: number;
-  price: number;
-  // add other item properties like productId, imageUrl etc.
-}
-
-interface Order {
-  id: string;
-  date: string; // Or Date object, then format for display
-  total: number;
-  status: string;
-  items: OrderItem[];
-  // Add other order properties like userId, shippingAddress etc.
-}
-
+import type { Order, OrderItem } from '@/types'; // Import Order and OrderItem from global types
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MyOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]); // Initialize with empty array
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setCurrentUser(user);
-        // TODO: Fetch actual orders for this user from Firestore
-        // For now, it will remain an empty array, showing "No Orders Yet"
-        // Example of how you might fetch orders in the future:
-        /*
-        const fetchOrders = async (userId: string) => {
-          try {
-            const ordersRef = collection(db, "orders");
-            // Query orders for the current user, ordered by date
-            const q = query(ordersRef, where("userId", "==", userId), orderBy("date", "desc"));
-            const querySnapshot = await getDocs(q);
-            const fetchedOrders = querySnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            } as Order));
-            setOrders(fetchedOrders);
-          } catch (error) {
-            console.error("Error fetching orders: ", error);
-            // Handle error, maybe show a toast
-          } finally {
-            setIsLoading(false);
-          }
-        };
-        fetchOrders(user.uid);
-        */
-        setIsLoading(false); // Remove this if/when actual fetching is implemented
       } else {
         setCurrentUser(null);
         setIsLoading(false);
         // Optionally redirect to login if no user
-        // router.push('/login');
+        // router.push('/login?redirect=/profile/my-orders');
       }
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      const fetchOrders = async (userId: string) => {
+        setIsLoading(true);
+        try {
+          const ordersRef = collection(db, "orders");
+          const q = query(
+            ordersRef,
+            where("userId", "==", userId),
+            firestoreOrderBy("createdAt", "desc")
+          );
+          const querySnapshot = await getDocs(q);
+          const fetchedOrders = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              // Ensure createdAt is a Date object for formatting
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+            } as Order;
+          });
+          setOrders(fetchedOrders);
+        } catch (error) {
+          console.error("Error fetching orders: ", error);
+          toast({
+            title: "Error Fetching Orders",
+            description: "Could not load your orders. Please try again.",
+            variant: "destructive"
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchOrders(currentUser.uid);
+    } else {
+        // If no current user, set loading to false and orders to empty (or handle redirect)
+        setIsLoading(false);
+        setOrders([]);
+    }
+  }, [currentUser, toast]);
 
 
   if (isLoading) {
@@ -83,12 +86,26 @@ export default function MyOrdersPage() {
     );
   }
 
+  if (!currentUser) {
+     return (
+      <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
+        <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+        <p className="text-lg text-destructive mb-4">Please log in to view your orders.</p>
+        <Button asChild>
+          <Link href="/login?redirect=/profile/my-orders">Login</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="mb-10">
-        <Link href="/profile" className="text-sm text-primary hover:underline flex items-center mb-2">
-          <ArrowLeft className="mr-1 h-4 w-4" /> Back to Profile
-        </Link>
+        <Button variant="outline" size="sm" asChild className="mb-4">
+          <Link href="/profile">
+             <ArrowLeft className="mr-1 h-4 w-4" /> Back to Profile
+          </Link>
+        </Button>
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">My Orders</h1>
         <p className="mt-3 text-lg text-muted-foreground">
           Track your past and current orders.
@@ -120,9 +137,9 @@ export default function MyOrdersPage() {
             <Card key={order.id} className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60">
               <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold">Order {order.id}</CardTitle>
+                  <CardTitle className="text-xl font-semibold">Order #{order.id?.substring(0, 8)}...</CardTitle>
                   <CardDescription className="text-sm">
-                    Placed on: {new Date(order.date).toLocaleDateString()}
+                    Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}
                   </CardDescription>
                 </div>
                 <div className="flex flex-col sm:items-end gap-1 sm:gap-0">
@@ -131,21 +148,22 @@ export default function MyOrdersPage() {
                       ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
                       ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
                       ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
+                      ${order.status === 'Pending' ? 'bg-orange-100 text-orange-700' : ''}
                       ${order.status === 'Cancelled' ? 'bg-red-100 text-red-700' : ''}
                     `}
                   >
                     {order.status}
                   </span>
-                  <p className="text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.total.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.grandTotal.toFixed(2)}</p>
                 </div>
               </CardHeader>
               <Separator />
               <CardContent className="pt-4 pb-2">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Items:</h4>
+                <h4 className="text-sm font-medium text-muted-foreground mb-2">Items ({order.items.length}):</h4>
                 <ul className="space-y-1 text-sm">
                   {order.items.map((item, index) => (
-                    <li key={index} className="flex justify-between">
-                      <span>{item.name} (x{item.quantity})</span>
+                    <li key={item.id + (item.selectedSize || '') + index} className="flex justify-between">
+                      <span>{item.name} (Size: {item.selectedSize || 'N/A'}, Qty: {item.quantity})</span>
                       <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                     </li>
                   ))}
@@ -163,13 +181,11 @@ export default function MyOrdersPage() {
           ))}
         </div>
       )}
-       {/* Pagination (Placeholder if many orders) */}
        {orders.length > 5 && ( // Placeholder, actual pagination logic would be needed
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
             <Button variant="outline">1</Button>
-            {/* Add more page numbers as needed */}
             <Button variant="outline" disabled>Next</Button>
           </div>
         </div>
