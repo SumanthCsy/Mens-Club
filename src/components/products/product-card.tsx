@@ -36,7 +36,7 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </CardHeader>
       </Link>
-      <CardContent className="p-3 sm:p-4 flex-grow">
+      <CardContent className="p-3 xxs:p-3 xs:p-4 sm:p-4 flex-grow">
         <Link href={`/products/${product.id}`} className="block">
           <CardTitle className="text-sm xxs:text-base sm:text-lg font-semibold leading-tight hover:text-primary transition-colors mb-1 truncate">
             {product.name}
@@ -62,14 +62,14 @@ export function ProductCard({ product }: ProductCardProps) {
           ): null}
         </div>
       </CardContent>
-      <CardFooter className="p-2 xxs:p-3 sm:p-4 pt-0 flex items-center gap-2 sm:gap-3">
-        <Button asChild variant="outline" className="flex-1 text-xs xxs:text-sm py-2 h-auto sm:h-9 group/button">
+      <CardFooter className="p-3 pt-0 flex items-center gap-2">
+        <Button asChild variant="outline" className="flex-1 text-xs py-2 px-3 h-auto sm:h-9 sm:text-sm sm:px-4 group/button">
           <Link href={`/products/${product.id}`}>
-            <Eye className="mr-1 sm:mr-2 h-3 w-3 xxs:h-3.5 xxs:w-3.5 sm:h-4 sm:w-4 group-hover/button:animate-pulse" /> View
+            <Eye className="mr-1.5 h-4 w-4 sm:mr-2 group-hover/button:animate-pulse" /> View
           </Link>
         </Button>
-        <Button className="flex-1 text-xs xxs:text-sm py-2 h-auto sm:h-9 group/button" variant="default">
-          <ShoppingCart className="mr-1 sm:mr-2 h-3 w-3 xxs:h-3.5 xxs:w-3.5 sm:h-4 sm:w-4 group-hover/button:animate-bounce" /> Add to Cart
+        <Button className="flex-1 text-xs py-2 px-3 h-auto sm:h-9 sm:text-sm sm:px-4 group/button" variant="default">
+          <ShoppingCart className="mr-1.5 h-4 w-4 sm:mr-2 group-hover/button:animate-bounce" /> Add to Cart
         </Button>
       </CardFooter>
     </Card>
