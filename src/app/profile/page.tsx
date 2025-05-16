@@ -5,55 +5,68 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, ShoppingCart, Package, LogOut, Edit3, Shield } from 'lucide-react';
+import { User, ShoppingCart, Package, LogOut, Edit3 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-// This is a placeholder. In a real app, user data would come from an auth context/API.
-// For demonstration, we're setting admin details by default.
-const userData = {
-  name: "Mens Club Admin", // Updated to Mens Club Admin
-  email: "admin@mensclub",
-  avatarUrl: "https://placehold.co/100x100.png", // Generic avatar
-  memberSince: "2023-01-15",
-  isAdmin: true, // Set to true to show admin link
+// Placeholder for generic user display data.
+// In a real app, this would be fetched based on the logged-in user's ID.
+const placeholderUserData = {
+  name: "Mens Club User",
+  email: "user@example.com", // This email is just for display, not for logic
+  avatarUrl: "https://placehold.co/100x100.png",
+  memberSince: "2024-01-01", // Example date
 };
 
 
 export default function ProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // If this is the admin user, redirect to the admin dashboard
-    // In a real app, this logic would be based on actual authentication state
-    if (userData.email === 'admin@mensclub') {
+    const role = localStorage.getItem('userRole');
+    setCurrentUserRole(role);
+    setIsLoading(false);
+
+    if (!role) {
+      // Not logged in, redirect to login
+      router.replace('/login');
+    } else if (role === 'admin') {
+      // Admin logged in, redirect to admin dashboard
       router.replace('/admin/dashboard');
     }
+    // If role === 'user', this component will render the profile UI
   }, [router]);
 
-  // If redirecting, render nothing or a loader
-  if (userData.email === 'admin@mensclub') {
+  const handleLogout = () => {
+    localStorage.removeItem('userRole');
+    setCurrentUserRole(null); // Update state
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    });
+    router.push('/login'); 
+  };
+
+  if (isLoading || !currentUserRole || currentUserRole === 'admin') {
+    // Show loading indicator or nothing if redirecting or not a 'user'
     return (
       <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
-        <p>Redirecting to admin dashboard...</p>
+        <p>Loading profile or redirecting...</p>
+        {/* Optionally, add a spinner here */}
       </div>
     );
   }
   
-  // Placeholder for logout functionality
-  const handleLogout = () => {
-    console.log("Logout action triggered");
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out. (Simulated)",
-    });
-    // In a real app, clear auth tokens and redirect to login
-    router.push('/login'); 
-  };
+  // At this point, currentUserRole must be 'user'.
+  // We use placeholderUserData for display structure.
+  // In a real app, you'd fetch actual user data.
+  const displayUserData = placeholderUserData; 
 
   return (
     <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -61,15 +74,15 @@ export default function ProfilePage() {
         <CardHeader className="pb-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <Avatar className="h-24 w-24 border-2 border-primary">
-              <AvatarImage src={userData.avatarUrl} alt={userData.name} data-ai-hint="person avatar"/>
+              <AvatarImage src={displayUserData.avatarUrl} alt={displayUserData.name} data-ai-hint="person avatar"/>
               <AvatarFallback className="text-3xl">
-                {userData.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {displayUserData.name.split(' ').map(n => n[0]).join('').toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-3xl font-bold text-foreground">{userData.name}</CardTitle>
-              <CardDescription className="text-lg text-muted-foreground">{userData.email}</CardDescription>
-              <p className="text-sm text-muted-foreground mt-1">Member since: {new Date(userData.memberSince).toLocaleDateString()}</p>
+              <CardTitle className="text-3xl font-bold text-foreground">{displayUserData.name}</CardTitle>
+              <CardDescription className="text-lg text-muted-foreground">{displayUserData.email}</CardDescription>
+              <p className="text-sm text-muted-foreground mt-1">Member since: {new Date(displayUserData.memberSince).toLocaleDateString()}</p>
             </div>
           </div>
         </CardHeader>
@@ -95,7 +108,6 @@ export default function ProfilePage() {
                 <ShoppingCart className="mr-3 h-5 w-5" /> My Cart
               </Link>
             </Button>
-            {/* The admin panel link is no longer needed here as admin is redirected */}
           </div>
 
           <Separator className="my-8" />
