@@ -15,7 +15,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full rounded-lg border border-border/60">
-      <Link href={`/products/${product.id}`} className="block">
+      <Link href={`/products/${product.id}`} className="block group">
         <CardHeader className="p-0 relative">
           <div className="aspect-[3/4] w-full overflow-hidden">
             <Image
@@ -44,11 +44,11 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-baseline gap-2">
             <p className="text-xl font-bold text-primary">
-              ${product.price.toFixed(2)}
+              ₹{product.price.toFixed(2)}
             </p>
             {product.originalPrice && product.originalPrice > product.price && (
               <p className="text-sm text-muted-foreground line-through">
-                ${product.originalPrice.toFixed(2)}
+                ₹{product.originalPrice.toFixed(2)}
               </p>
             )}
           </div>
@@ -61,13 +61,13 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex items-center gap-2">
-        <Button asChild variant="outline" className="flex-1 group">
+        <Button asChild variant="outline" className="flex-1 group/button">
           <Link href={`/products/${product.id}`}>
-            <Eye className="mr-2 h-4 w-4 group-hover:animate-pulse" /> View
+            <Eye className="mr-2 h-4 w-4 group-hover/button:animate-pulse" /> View
           </Link>
         </Button>
-        <Button className="flex-1 group" variant="default">
-          <ShoppingCart className="mr-2 h-4 w-4 group-hover:animate-bounce" /> Add to Cart
+        <Button className="flex-1 group/button" variant="default">
+          <ShoppingCart className="mr-2 h-4 w-4 group-hover/button:animate-bounce" /> Add to Cart
         </Button>
       </CardFooter>
     </Card>

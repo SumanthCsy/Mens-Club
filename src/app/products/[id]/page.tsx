@@ -2,7 +2,7 @@
 "use client"; 
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation'; // Added useRouter
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
@@ -42,6 +42,7 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
   const [product, setProduct] = useState<Product | null>(initialProduct);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
+  const router = useRouter(); // Initialize router
   
   // Update selectedSize if product has sizes and one isn't already selected
   useEffect(() => {
@@ -90,9 +91,6 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
       ),
     });
   };
-  // useRouter hook is used in handleAddToCart, ensure it's imported if you uncomment that functionality
-  // import { useRouter } from 'next/navigation';
-  // const router = useRouter(); 
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -215,4 +213,3 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
   
   return <ProductDetailsClientContent initialProduct={product} />;
 }
-

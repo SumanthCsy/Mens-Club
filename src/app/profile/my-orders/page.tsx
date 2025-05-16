@@ -12,26 +12,26 @@ const sampleOrders = [
   {
     id: "ORD-2024-001",
     date: "2024-07-20",
-    total: 168.99,
+    total: 1689.99, // Assuming INR
     status: "Delivered",
     items: [
-      { name: "Classic Oxford Shirt", quantity: 1, price: 79.99 },
-      { name: "Slim-Fit Chinos", quantity: 1, price: 89.00 },
+      { name: "Classic Oxford Shirt", quantity: 1, price: 799.99 },
+      { name: "Slim-Fit Chinos", quantity: 1, price: 890.00 },
     ],
   },
   {
     id: "ORD-2024-002",
     date: "2024-07-25",
-    total: 110.00,
+    total: 1100.00, // Assuming INR
     status: "Shipped",
-    items: [{ name: "Merino Wool V-Neck Sweater", quantity: 1, price: 110.00 }],
+    items: [{ name: "Merino Wool V-Neck Sweater", quantity: 1, price: 1100.00 }],
   },
   {
     id: "ORD-2024-003",
     date: "2024-07-28",
-    total: 65.00,
+    total: 650.00, // Assuming INR
     status: "Processing",
-    items: [{ name: "Designer Silk Tie", quantity: 1, price: 65.00 }],
+    items: [{ name: "Designer Silk Tie", quantity: 1, price: 650.00 }],
   },
 ];
 
@@ -91,7 +91,7 @@ export default function MyOrdersPage() {
                   >
                     {order.status}
                   </span>
-                  <p className="text-lg font-bold text-primary mt-1 sm:mt-0">${order.total.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.total.toFixed(2)}</p>
                 </div>
               </CardHeader>
               <Separator />
@@ -101,7 +101,7 @@ export default function MyOrdersPage() {
                   {order.items.map((item, index) => (
                     <li key={index} className="flex justify-between">
                       <span>{item.name} (x{item.quantity})</span>
-                      <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                     </li>
                   ))}
                 </ul>

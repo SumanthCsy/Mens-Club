@@ -26,7 +26,7 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const [cartItemCount, setCartItemCount] = useState(0);
+  const [cartItemCount, setCartItemCount] = useState(0); // Default cart count to 0
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -39,6 +39,11 @@ export function Navbar() {
       setIsLoggedIn(true);
       setUserRole(role);
     }
+
+    // Simulate cart item count update (replace with actual cart logic later)
+    // For now, it remains 0 unless you add items to the cart via its own logic.
+    // const currentCartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    // setCartItemCount(currentCartItems.length);
   }, []);
 
   const handleLogout = () => {
@@ -50,6 +55,7 @@ export function Navbar() {
       description: "You have been successfully logged out.",
     });
     router.push('/login');
+    // Consider router.refresh() if navbar state isn't updating fast enough
   };
   
   // Account links for when user is logged in (used in mobile sheet)
@@ -65,21 +71,20 @@ export function Navbar() {
 
   if (!isMounted) {
     // Avoid rendering mismatched UI during hydration
-    // You can render a loading skeleton or null
     return (
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Shirt className="h-7 w-7 text-primary" />
-            <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+           <Link href="/" className="flex items-center space-x-2 mr-2 sm:mr-4">
+            <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+            <span className="font-bold text-lg sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
               Mens Club
             </span>
           </Link>
           {/* Placeholder for icons while loading */}
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-muted rounded-full animate-pulse"></div>
-            <div className="h-10 w-10 bg-muted rounded-full animate-pulse hidden md:block"></div>
-            <div className="h-10 w-10 bg-muted rounded-full animate-pulse md:hidden"></div>
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-muted rounded-full animate-pulse"></div>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-muted rounded-full animate-pulse hidden md:block"></div>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-muted rounded-full animate-pulse md:hidden"></div>
           </div>
         </div>
       </header>
@@ -89,9 +94,9 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="mr-6 flex items-center space-x-2">
-          <Shirt className="h-7 w-7 text-primary" />
-          <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+        <Link href="/" className="flex items-center space-x-2 mr-2 sm:mr-4 md:mr-6">
+          <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+          <span className="font-bold text-lg sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
             Mens Club
           </span>
         </Link>
@@ -112,9 +117,9 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="flex items-center space-x-1 sm:space-x-3">
+        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
           <Link href="/cart" passHref>
-            <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative">
+            <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative h-9 w-9 sm:h-10 sm:w-10">
               <ShoppingCart className="h-5 w-5" />
               {cartItemCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
@@ -156,11 +161,11 @@ export function Navbar() {
           {/* Mobile Navigation */}
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon" aria-label="Open Menu">
-                <Menu className="h-6 w-6" />
+              <Button variant="ghost" size="icon" aria-label="Open Menu" className="h-9 w-9 sm:h-10 sm:w-10">
+                <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[340px] p-0">
+            <SheetContent side="right" className="w-[280px] sm:w-[320px] p-0">
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">
@@ -203,7 +208,7 @@ export function Navbar() {
                     ) : (
                     <SheetClose asChild key={`mobile-auth-${link.href}`}>
                       <Link
-                        href={link.href}
+                        href={link.href!} // Add non-null assertion if href can be undefined for button types
                         className={cn(
                           'flex items-center space-x-3 rounded-md p-3 text-base transition-colors hover:bg-accent hover:text-accent-foreground',
                           pathname === link.href ? 'bg-accent text-accent-foreground font-semibold' : 'text-foreground/80'
