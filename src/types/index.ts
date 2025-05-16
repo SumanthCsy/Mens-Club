@@ -1,4 +1,5 @@
 
+
 export interface Review {
   id: string;
   author: string;
@@ -13,8 +14,8 @@ export interface Product {
   name: string;
   price: number;
   originalPrice?: number; // For sales/discounts
-  imageUrl: string; // Should ideally be a URL from Firebase Storage
-  images?: string[]; // For product gallery, also ideally URLs
+  imageUrl: string; // Main image URL (can be data URI temporarily or Firebase Storage URL)
+  images?: string[]; // For product gallery, including main image + additional. All ideally URLs.
   description: string;
   sizes: string[];
   colors?: string[];
