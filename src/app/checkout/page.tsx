@@ -25,7 +25,8 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (cartItems.length === 0 && !isPlacingOrder) { // Prevent redirect if order was just placed
+    // Prevent redirect if order was just placed or if already on checkout
+    if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
         toast({
             title: "Your cart is empty",
             description: "Please add items to your cart before proceeding to checkout.",
@@ -80,18 +81,19 @@ export default function CheckoutPage() {
 
     const orderToSave: Omit<Order, 'id'> = {
       userId: auth.currentUser.uid,
-      customerEmail: shippingData.email, // Using email from shipping form
+      customerEmail: shippingData.email, 
       items: orderItems,
       subtotal: cartTotal,
       shippingCost: shippingCost,
       grandTotal: grandTotal,
-      shippingAddress: shippingData as ShippingAddressType, // Cast since structure matches
+      shippingAddress: shippingData as ShippingAddressType, 
       paymentMethod: selectedPaymentMethod,
       status: 'Pending',
       createdAt: serverTimestamp(),
     };
 
     try {
+      console.log("Attempting to place order with data:", JSON.stringify(orderToSave, null, 2));
       const docRef = await addDoc(collection(db, "orders"), orderToSave);
       toast({
         title: "Order Placed Successfully!",
@@ -108,7 +110,7 @@ export default function CheckoutPage() {
             orderId: docRef.id,
             customerEmail: orderToSave.customerEmail,
             grandTotal: orderToSave.grandTotal,
-            adminEmail: "sumanthcherla12@gmail.com" // The target admin email
+            adminEmail: "sumanthcherla12@gmail.com" 
           }),
         });
         if (!emailResponse.ok) {
@@ -136,13 +138,23 @@ export default function CheckoutPage() {
 
       clearCart();
       router.push('/'); 
-    } catch (error) {
-      console.error("Error placing order: ", error);
+    } catch (error: any) {
+      console.error("Error placing order in Firestore: ", error);
+      let description = "There was an issue placing your order. Please try again.";
+      if (error.code && error.message) { 
+        description = `Error: ${error.code} - ${error.message}. Check console for more details.`;
+      } else if (error.message) {
+        description = error.message;
+      }
+      // Log the full error object for more details
+      console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+
+
       toast({
         title: "Order Placement Failed",
-        description: "There was an issue placing your order. Please try again.",
+        description: description,
         variant: "destructive",
-        duration: 7000,
+        duration: 10000, // Increased duration for better visibility of detailed error
       });
     } finally {
       setIsPlacingOrder(false);
@@ -195,7 +207,7 @@ export default function CheckoutPage() {
             total={grandTotal}
             checkoutButtonText="Place Order Securely" 
             showPromoCodeInput={true}
-            checkoutLink="#" // Handled by external button below
+            checkoutLink="#" 
           />
           <Button 
             size="lg" 
@@ -211,7 +223,7 @@ export default function CheckoutPage() {
             )}
             Place Order Securely
           </Button>
-          {!shippingData && (
+          {!shippingData && cartItems.length > 0 && (
             <p className="text-xs text-muted-foreground text-center mt-2">
                 Please save your shipping details to enable order placement.
             </p>
