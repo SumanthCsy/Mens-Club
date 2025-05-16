@@ -15,7 +15,7 @@ interface HeroBannerCardProps {
 
 export function HeroBannerCard({ title, description, imageUrl, imageHint, link }: HeroBannerCardProps) {
   return (
-    <Link href={link} className="block group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 border border-border/30">
+    <Link href={link} className="block group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-border/30">
       <div className={cn(
         "aspect-[3/2] sm:aspect-[4/3] md:aspect-[16/9]", // Adjust aspect ratio as needed
         "w-full" 
