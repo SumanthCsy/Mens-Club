@@ -13,8 +13,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/cart-context';
 import { auth, db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { Order, OrderItem, ShippingAddress as ShippingAddressType } from '@/types';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
+import type { Order, OrderItem, ShippingAddress as ShippingAddressType, UserData } from '@/types';
+import type { User } from 'firebase/auth';
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
@@ -23,9 +24,47 @@ export default function CheckoutPage() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [initialShippingData, setInitialShippingData] = useState<Partial<ShippingFormValues>>({});
 
   useEffect(() => {
-    // Prevent redirect if order was just placed or if already on checkout
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        setCurrentUser(user);
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        let prefillData: Partial<ShippingFormValues> = { email: user.email || '' };
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data() as UserData;
+          if (userData.defaultShippingAddress) {
+            // Ensure all fields from defaultShippingAddress are mapped, providing defaults for missing ones
+            prefillData = {
+              ...prefillData,
+              fullName: userData.defaultShippingAddress.fullName || '',
+              addressLine1: userData.defaultShippingAddress.addressLine1 || '',
+              addressLine2: userData.defaultShippingAddress.addressLine2 || '',
+              city: userData.defaultShippingAddress.city || '',
+              stateProvince: userData.defaultShippingAddress.stateProvince || '',
+              postalCode: userData.defaultShippingAddress.postalCode || '',
+              country: userData.defaultShippingAddress.country || 'India',
+              phoneNumber: userData.defaultShippingAddress.phoneNumber || '',
+              // Ensure email from shipping address takes precedence if available, else auth email
+              email: userData.defaultShippingAddress.email || user.email || '', 
+            };
+          }
+        }
+        setInitialShippingData(prefillData);
+      } else {
+        setCurrentUser(null);
+        // Optionally redirect to login if user is not authenticated for checkout
+        // router.push('/login?redirect=/checkout');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+
+  useEffect(() => {
     if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
         toast({
             title: "Your cart is empty",
@@ -48,7 +87,7 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!auth.currentUser) {
+    if (!currentUser) {
       toast({ title: "Login Required", description: "Please login to place an order.", variant: "destructive" });
       router.push('/login?redirect=/checkout');
       return;
@@ -68,38 +107,58 @@ export default function CheckoutPage() {
     
     setIsPlacingOrder(true);
 
-    const orderItems: OrderItem[] = cartItems.map(item => ({
+    const orderItemsForDb: OrderItem[] = cartItems.map(item => ({
       id: item.id,
       name: item.name,
       quantity: item.quantity,
       price: item.price,
       selectedSize: item.selectedSize,
-      selectedColor: item.selectedColor,
-      imageUrl: item.imageUrl,
-      sku: item.sku,
+      selectedColor: item.selectedColor || null, // Convert undefined to null
+      imageUrl: item.imageUrl, // Assuming imageUrl is always present on CartItemData
+      sku: item.sku || null, // Convert undefined to null
     }));
 
+    const shippingAddressForDb: ShippingAddressType = {
+      fullName: shippingData.fullName,
+      addressLine1: shippingData.addressLine1,
+      addressLine2: shippingData.addressLine2 || null, // Convert undefined to null
+      city: shippingData.city,
+      stateProvince: shippingData.stateProvince,
+      postalCode: shippingData.postalCode,
+      country: shippingData.country,
+      phoneNumber: shippingData.phoneNumber || null, // Convert undefined to null
+      email: shippingData.email, // This email is from the shipping form
+    };
+
     const orderToSave: Omit<Order, 'id'> = {
-      userId: auth.currentUser.uid,
-      customerEmail: shippingData.email, 
-      items: orderItems,
+      userId: currentUser.uid,
+      customerEmail: shippingData.email, // Email used in shipping form for contact
+      items: orderItemsForDb,
       subtotal: cartTotal,
       shippingCost: shippingCost,
       grandTotal: grandTotal,
-      shippingAddress: shippingData as ShippingAddressType, 
+      shippingAddress: shippingAddressForDb,
       paymentMethod: selectedPaymentMethod,
       status: 'Pending',
       createdAt: serverTimestamp(),
+      // discount is optional; if not provided, it won't be saved, which is fine.
+      // If you had a discount variable that could be undefined, ensure it's:
+      // ...(currentDiscountValue && { discount: currentDiscountValue })
     };
 
     try {
-      console.log("Attempting to place order with data:", JSON.stringify(orderToSave, null, 2));
       const docRef = await addDoc(collection(db, "orders"), orderToSave);
       toast({
         title: "Order Placed Successfully!",
         description: `Your order #${docRef.id.substring(0,8)} has been placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}.`,
         duration: 7000,
       });
+
+      // Update user's default shipping address
+      if (currentUser) {
+        const userDocRef = doc(db, "users", currentUser.uid);
+        await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb });
+      }
 
       // Send email notification to admin
       try {
@@ -139,29 +198,28 @@ export default function CheckoutPage() {
       clearCart();
       router.push('/'); 
     } catch (error: any) {
-      console.error("Error placing order in Firestore: ", error);
+      console.error("Data being sent to Firestore:", JSON.stringify(orderToSave, null, 2));
+      console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+
       let description = "There was an issue placing your order. Please try again.";
       if (error.code && error.message) { 
-        description = `Error: ${error.code} - ${error.message}. Check console for more details.`;
+        description = `Error: ${error.message}. Please check console for more details.`;
       } else if (error.message) {
         description = error.message;
       }
-      // Log the full error object for more details
-      console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-
-
+      
       toast({
         title: "Order Placement Failed",
         description: description,
         variant: "destructive",
-        duration: 10000, // Increased duration for better visibility of detailed error
+        duration: 10000, 
       });
     } finally {
       setIsPlacingOrder(false);
     }
   };
 
-  if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
+  if (cartItems.length === 0 && router.asPath && !router.asPath.startsWith('/checkout') && !isPlacingOrder) {
     return (
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
@@ -192,7 +250,7 @@ export default function CheckoutPage() {
         <div className="lg:col-span-2 space-y-8">
           <ShippingForm 
             onSubmit={handleShippingSubmit} 
-            initialData={auth.currentUser ? { email: auth.currentUser.email || '' } : {}}
+            initialData={initialShippingData} // Use fetched or default initial data
           />
           <PaymentMethodSelector
             selectedMethod={selectedPaymentMethod}
