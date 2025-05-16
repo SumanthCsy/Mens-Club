@@ -14,6 +14,8 @@ import { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import type { UserData } from '@/types';
+
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -30,14 +32,19 @@ export default function LoginPage() {
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
+          const userData = userDocSnap.data() as UserData;
           if (userData.role === 'admin') {
             router.replace('/admin/dashboard');
           } else {
-            router.replace('/'); // Or '/profile' for regular users
+            router.replace('/'); 
           }
         } else {
-          router.replace('/'); // Fallback if no user doc
+           // Fallback if no user doc, e.g., admin only in Auth
+           if (user.email === 'admin@mensclub') {
+             router.replace('/admin/dashboard');
+           } else {
+            router.replace('/'); 
+           }
         }
       }
     });
@@ -53,38 +60,74 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Fetch user role and name from Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       let userName = "User";
-      let userRole = "user";
+      let userRole = "user"; // Default to 'user'
 
       if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
+        const userData = userDocSnap.data() as UserData;
         userName = userData.fullName || user.email?.split('@')[0] || "User";
         userRole = userData.role || "user";
+      } else {
+        // If no user document in Firestore, but user authenticated successfully via Firebase Auth
+        console.warn(`User document not found in Firestore for UID: ${user.uid}. Email: ${user.email}`);
+        if (user.email === 'admin@mensclub') {
+          // Fallback to assign admin role if email matches.
+          // This is a safeguard; ideally, admin's Firestore doc should exist with role: 'admin'.
+          userRole = 'admin';
+          userName = 'Admin Mens Club'; 
+          toast({
+            title: "Admin Alert",
+            description: "Admin Firestore document not found. Assigned admin role based on email. Please ensure Firestore 'users' collection is correctly set up for the admin.",
+            variant: "destructive",
+            duration: 10000, 
+          });
+        } else {
+          // For regular users, if their Firestore doc is missing, they'll be treated as 'user' role
+          // but might lack profile details like fullName.
+          userRole = 'user'; 
+          userName = user.email?.split('@')[0] || "User"; 
+           toast({
+            title: "Profile Data Missing",
+            description: "Your user profile details could not be fully loaded. Some information may be missing.",
+            variant: "default",
+            duration: 7000,
+          });
+        }
       }
       
-      if (userRole === 'admin' && email === 'admin@mensclub') { // Double check for admin special case
+      if (userRole === 'admin' && email === 'admin@mensclub') { 
         toast({
           title: "Admin Login Successful!",
           description: "Redirecting to the Admin Dashboard...",
         });
         router.push('/admin/dashboard'); 
-      } else {
+      } else if (userRole === 'user') { 
         toast({
           title: "Login Successful!",
           description: `Welcome back, ${userName}!`,
         });
         router.push('/'); 
+      } else {
+        // Fallback if role is neither 'admin' nor 'user'
+        toast({
+          title: "Login Successful (Role Undetermined)",
+          description: `Welcome, ${userName}! Redirecting to homepage. Please check your account setup if full features are not available.`,
+           variant: "default",
+           duration: 7000,
+        });
+        router.push('/');
       }
     } catch (error: any) {
       console.error("Login error: ", error);
+      // This is where "invalid auth credentials" error from Firebase will be caught and displayed
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please try again or sign up.",
+        description: error.message || "Invalid credentials. Please ensure your email and password are correct, or sign up if you are a new user.",
         variant: "destructive",
+        duration: 7000,
       });
     } finally {
       setIsLoading(false);
