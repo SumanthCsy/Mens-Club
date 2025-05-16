@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -95,5 +96,14 @@
     /* Gradient is applied in layout.tsx via Tailwind classes */
     /* @apply bg-background text-foreground; */ /* Standard background/foreground for components if not overridden */
     @apply text-foreground; /* Ensure foreground color is applied */
+  }
+}
+
+@keyframes toast-progress-bar {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
   }
 }
