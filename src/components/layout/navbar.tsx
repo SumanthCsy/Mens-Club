@@ -26,7 +26,7 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const [cartItemCount, setCartItemCount] = useState(0);
+  const [cartItemCount, setCartItemCount] = useState(0); // In a real app, this would come from cart state
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [currentUserData, setCurrentUserData] = useState<UserData | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -36,25 +36,30 @@ export function Navbar() {
       setIsLoadingAuth(true);
       if (user) {
         setCurrentUser(user);
-        // Fetch user details from Firestore
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           setCurrentUserData(userDocSnap.data() as UserData);
         } else {
-          // User exists in Auth but not in Firestore (edge case, maybe direct admin creation)
-          // For admin@mensclub, create a fallback if doc doesn't exist
+          // Fallback if Firestore doc doesn't exist (e.g., admin created only in Auth)
           if (user.email === 'admin@mensclub') {
             setCurrentUserData({ 
               uid: user.uid, 
               email: user.email, 
-              fullName: 'Mens Club Admin', 
+              fullName: 'Admin Mens Club', // Consistent admin name
               role: 'admin',
-              memberSince: new Date().toISOString(),
+              memberSince: new Date().toISOString(), // Or user.metadata.creationTime
             });
           } else {
-            setCurrentUserData(null); // Or some default user data
-             console.warn("User document not found in Firestore for UID:", user.uid);
+            // For regular users, if doc is missing, treat as minimal data
+             setCurrentUserData({
+              uid: user.uid,
+              email: user.email || 'N/A',
+              fullName: user.displayName || 'User',
+              role: 'user',
+              memberSince: user.metadata.creationTime || new Date().toISOString(),
+            });
+            console.warn("User document not found in Firestore for UID:", user.uid);
           }
         }
       } else {
@@ -64,9 +69,9 @@ export function Navbar() {
       setIsLoadingAuth(false);
     });
 
-    // Simulate cart item count (replace with actual cart logic)
-    // const currentCartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
-    // setCartItemCount(currentCartItems.length);
+    // Placeholder for cart item count updates
+    // e.g., listen to cart changes from a global state/context
+    // setCartItemCount(actualCartService.getItemCount());
 
     return () => unsubscribe();
   }, []);
@@ -81,7 +86,6 @@ export function Navbar() {
       setCurrentUser(null);
       setCurrentUserData(null);
       router.push('/login');
-      // router.refresh(); // Force refresh if navbar state issues persist
     } catch (error) {
       console.error("Logout error:", error);
       toast({
@@ -127,9 +131,9 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center space-x-2 mr-2 sm:mr-4 md:mr-6">
+        <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
           <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-          <span className="font-bold text-lg sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+          <span className="font-bold text-md xxs:text-lg xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
             Mens Club
           </span>
         </Link>
@@ -151,8 +155,8 @@ export function Navbar() {
 
         <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
           <Link href="/cart" passHref>
-            <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative h-9 w-9 sm:h-10 sm:w-10">
-              <ShoppingCart className="h-5 w-5" />
+            <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative h-8 w-8 xxs:h-9 xxs:w-9 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+              <ShoppingCart className="h-4 w-4 xxs:h-5 xxs:w-5 xs:h-5 xs:w-5" />
               {cartItemCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                   {cartItemCount}
@@ -162,11 +166,11 @@ export function Navbar() {
           </Link>
           
           <div className="hidden md:flex items-center space-x-2">
-            {currentUser ? (
+            {currentUser && currentUserData ? (
               <>
-                <Button variant="ghost" size="icon" asChild aria-label="Profile">
-                  <Link href={currentUserData?.role === 'admin' ? '/admin/dashboard' : '/profile'}>
-                    {currentUserData?.role === 'admin' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                <Button variant="ghost" size="icon" asChild aria-label={currentUserData.role === 'admin' ? 'Admin Dashboard' : 'Profile'}>
+                  <Link href={currentUserData.role === 'admin' ? '/admin/dashboard' : '/profile'}>
+                    {currentUserData.role === 'admin' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -191,11 +195,11 @@ export function Navbar() {
 
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon" aria-label="Open Menu" className="h-9 w-9 sm:h-10 sm:w-10">
+              <Button variant="ghost" size="icon" aria-label="Open Menu" className="h-8 w-8 xxs:h-9 xxs:w-9 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
                 <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[280px] sm:w-[320px] p-0">
+            <SheetContent side="right" className="w-[260px] xxs:w-[280px] xs:w-[300px] sm:w-[320px] p-0">
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">
@@ -220,14 +224,14 @@ export function Navbar() {
                     </SheetClose>
                   ))}
                   <hr className="my-3 border-border"/>
-                  {(currentUser ? accountLinksLoggedIn : accountLinksLoggedOut).map((link) => (
+                  {(currentUser && currentUserData ? accountLinksLoggedIn : accountLinksLoggedOut).map((link) => (
                     link.isButton ? (
                        <SheetClose asChild key={`mobile-action-${link.label}`}>
                         <Button
                             variant="ghost"
                             onClick={link.onClick}
                             className={cn(
-                                'flex items-center space-x-3 rounded-md p-3 text-base transition-colors hover:bg-accent hover:text-accent-foreground justify-start',
+                                'flex items-center space-x-3 rounded-md p-3 text-base transition-colors hover:bg-accent hover:text-accent-foreground justify-start w-full',
                                 'text-foreground/80'
                             )}
                         >
