@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, Mail, KeyRound, User as UserIcon, Phone } from 'lucide-react';
+import { UserPlus, Mail, KeyRound, User as UserIcon, Phone, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function SignupPage() {
   const { toast } = useToast();
@@ -22,15 +25,17 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
-    const userRole = localStorage.getItem('userRole');
-    if (userRole) {
-      router.replace('/'); // Or '/profile'
-    }
+    // Redirect if already logged in
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        router.replace('/'); // Or '/profile'
+      }
+    });
+    return () => unsubscribe();
   }, [router]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
 
@@ -44,24 +49,35 @@ export default function SignupPage() {
       return;
     }
 
-    // Simulate API call delay
-    setTimeout(() => {
-      console.log("Signup form submitted:", { fullName, email, mobileNumber, password });
-      
-      // Simulate successful signup & store user info in localStorage
-      localStorage.setItem('userRole', 'user');
-      localStorage.setItem('userName', fullName);
-      localStorage.setItem('userEmail', email);
-      // Mobile number could also be stored if needed for profile display
-      // localStorage.setItem('userMobile', mobileNumber); 
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Store additional user info in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        fullName: fullName,
+        email: user.email,
+        mobileNumber: mobileNumber,
+        role: 'user', // Default role for new signups
+        memberSince: new Date().toISOString(),
+      });
 
       toast({
         title: "Signup Successful!",
         description: `Welcome, ${fullName}! Your account has been created. Redirecting...`,
       });
       router.push('/'); 
+    } catch (error: any) {
+      console.error("Error signing up:", error);
+      toast({
+        title: "Signup Failed",
+        description: error.message || "Could not create your account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -157,7 +173,7 @@ export default function SignupPage() {
             <Button type="submit" className="w-full text-lg py-3 h-auto" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <UserPlus className="mr-2 h-5 w-5 animate-spin" /> Creating Account...
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating Account...
                 </>
               ) : (
                 <>

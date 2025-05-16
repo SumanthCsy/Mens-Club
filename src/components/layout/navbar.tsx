@@ -3,88 +3,121 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, Shirt, LogOut, Shield } from 'lucide-react';
+import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, Shirt, LogOut, Shield, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import type { User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import type { UserData } from '@/types';
+
 
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/products', label: 'Products', icon: Store },
 ];
 
-// Account links for when user is not logged in (used in mobile sheet)
-const accountLinksLoggedOut = [
-  { href: '/login', label: 'Login', icon: LogIn },
-  { href: '/signup', label: 'Sign Up', icon: UserPlus },
-];
-
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const [cartItemCount, setCartItemCount] = useState(0); // Default cart count to 0
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUserData, setCurrentUserData] = useState<UserData | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    setIsMounted(true);
-    // Check login state from localStorage on mount
-    const role = localStorage.getItem('userRole');
-    if (role) {
-      setIsLoggedIn(true);
-      setUserRole(role);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setIsLoadingAuth(true);
+      if (user) {
+        setCurrentUser(user);
+        // Fetch user details from Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setCurrentUserData(userDocSnap.data() as UserData);
+        } else {
+          // User exists in Auth but not in Firestore (edge case, maybe direct admin creation)
+          // For admin@mensclub, create a fallback if doc doesn't exist
+          if (user.email === 'admin@mensclub') {
+            setCurrentUserData({ 
+              uid: user.uid, 
+              email: user.email, 
+              fullName: 'Mens Club Admin', 
+              role: 'admin',
+              memberSince: new Date().toISOString(),
+            });
+          } else {
+            setCurrentUserData(null); // Or some default user data
+             console.warn("User document not found in Firestore for UID:", user.uid);
+          }
+        }
+      } else {
+        setCurrentUser(null);
+        setCurrentUserData(null);
+      }
+      setIsLoadingAuth(false);
+    });
 
-    // Simulate cart item count update (replace with actual cart logic later)
-    // For now, it remains 0 unless you add items to the cart via its own logic.
+    // Simulate cart item count (replace with actual cart logic)
     // const currentCartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
     // setCartItemCount(currentCartItems.length);
+
+    return () => unsubscribe();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('userRole');
-    setIsLoggedIn(false);
-    setUserRole(null);
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
-    router.push('/login');
-    // Consider router.refresh() if navbar state isn't updating fast enough
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+      setCurrentUser(null);
+      setCurrentUserData(null);
+      router.push('/login');
+      // router.refresh(); // Force refresh if navbar state issues persist
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout Failed",
+        description: "Could not log you out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
-  // Account links for when user is logged in (used in mobile sheet)
   const accountLinksLoggedIn = [
     { 
-      href: userRole === 'admin' ? '/admin/dashboard' : '/profile', 
-      label: userRole === 'admin' ? 'Admin Dashboard' : 'Profile', 
-      icon: userRole === 'admin' ? Shield : User 
+      href: currentUserData?.role === 'admin' ? '/admin/dashboard' : '/profile', 
+      label: currentUserData?.role === 'admin' ? 'Admin Dashboard' : 'Profile', 
+      icon: currentUserData?.role === 'admin' ? Shield : User 
     },
     { onClick: handleLogout, label: 'Logout', icon: LogOut, isButton: true },
   ];
 
+  const accountLinksLoggedOut = [
+    { href: '/login', label: 'Login', icon: LogIn },
+    { href: '/signup', label: 'Sign Up', icon: UserPlus },
+  ];
 
-  if (!isMounted) {
-    // Avoid rendering mismatched UI during hydration
+  if (isLoadingAuth) {
     return (
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-           <Link href="/" className="flex items-center space-x-2 mr-2 sm:mr-4">
+           <Link href="/" className="flex items-center space-x-2 mr-2 sm:mr-4 md:mr-6">
             <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
             <span className="font-bold text-lg sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
               Mens Club
             </span>
           </Link>
-          {/* Placeholder for icons while loading */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-muted rounded-full animate-pulse"></div>
-            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-muted rounded-full animate-pulse hidden md:block"></div>
-            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-muted rounded-full animate-pulse md:hidden"></div>
+          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         </div>
       </header>
@@ -101,7 +134,6 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           {navLinks.map((link) => (
             <Link
@@ -129,13 +161,12 @@ export function Navbar() {
             </Button>
           </Link>
           
-          {/* Desktop Account Links/Icon */}
           <div className="hidden md:flex items-center space-x-2">
-            {isLoggedIn ? (
+            {currentUser ? (
               <>
                 <Button variant="ghost" size="icon" asChild aria-label="Profile">
-                  <Link href={userRole === 'admin' ? '/admin/dashboard' : '/profile'}>
-                    {userRole === 'admin' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                  <Link href={currentUserData?.role === 'admin' ? '/admin/dashboard' : '/profile'}>
+                    {currentUserData?.role === 'admin' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -158,7 +189,6 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile Navigation */}
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon" aria-label="Open Menu" className="h-9 w-9 sm:h-10 sm:w-10">
@@ -190,7 +220,7 @@ export function Navbar() {
                     </SheetClose>
                   ))}
                   <hr className="my-3 border-border"/>
-                  {(isLoggedIn ? accountLinksLoggedIn : accountLinksLoggedOut).map((link) => (
+                  {(currentUser ? accountLinksLoggedIn : accountLinksLoggedOut).map((link) => (
                     link.isButton ? (
                        <SheetClose asChild key={`mobile-action-${link.label}`}>
                         <Button
@@ -208,7 +238,7 @@ export function Navbar() {
                     ) : (
                     <SheetClose asChild key={`mobile-auth-${link.href}`}>
                       <Link
-                        href={link.href!} // Add non-null assertion if href can be undefined for button types
+                        href={link.href!} 
                         className={cn(
                           'flex items-center space-x-3 rounded-md p-3 text-base transition-colors hover:bg-accent hover:text-accent-foreground',
                           pathname === link.href ? 'bg-accent text-accent-foreground font-semibold' : 'text-foreground/80'

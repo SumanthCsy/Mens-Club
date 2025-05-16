@@ -1,3 +1,4 @@
+
 export interface Review {
   id: string;
   author: string;
@@ -12,8 +13,8 @@ export interface Product {
   name: string;
   price: number;
   originalPrice?: number; // For sales/discounts
-  imageUrl: string;
-  images?: string[]; // For product gallery
+  imageUrl: string; // Should ideally be a URL from Firebase Storage
+  images?: string[]; // For product gallery, also ideally URLs
   description: string;
   sizes: string[];
   colors?: string[];
@@ -32,4 +33,16 @@ export interface CartItemData extends Product {
   quantity: number;
   selectedSize: string;
   selectedColor?: string;
+}
+
+// For user data stored in Firestore
+export interface UserData {
+  uid: string;
+  email: string;
+  fullName?: string;
+  mobileNumber?: string;
+  role: 'user' | 'admin';
+  memberSince?: string; 
+  avatarUrl?: string; 
+  // Add other fields as needed, e.g., shippingAddresses, orderHistoryIds
 }

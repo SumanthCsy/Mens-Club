@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, Mail, KeyRound } from 'lucide-react';
+import { LogIn, Mail, KeyRound, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { auth, db } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -19,59 +22,73 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already logged in (for better UX)
   useEffect(() => {
-    const userRole = localStorage.getItem('userRole');
-    if (userRole === 'admin') {
-      router.replace('/admin/dashboard');
-    } else if (userRole === 'user') {
-      router.replace('/profile');
-    }
+    // Redirect if already logged in
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        // Check user role from Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          if (userData.role === 'admin') {
+            router.replace('/admin/dashboard');
+          } else {
+            router.replace('/'); // Or '/profile' for regular users
+          }
+        } else {
+          router.replace('/'); // Fallback if no user doc
+        }
+      }
+    });
+    return () => unsubscribe();
   }, [router]);
 
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
     
-    setTimeout(() => {
-      if (email === 'admin@mensclub' && password === 'admin@mensclub') {
-        localStorage.setItem('userRole', 'admin');
-        localStorage.setItem('userName', 'Mens Club Admin'); // Admin's name
-        localStorage.setItem('userEmail', email);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Fetch user role and name from Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      let userName = "User";
+      let userRole = "user";
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        userName = userData.fullName || user.email?.split('@')[0] || "User";
+        userRole = userData.role || "user";
+      }
+      
+      if (userRole === 'admin' && email === 'admin@mensclub') { // Double check for admin special case
         toast({
           title: "Admin Login Successful!",
           description: "Redirecting to the Admin Dashboard...",
         });
         router.push('/admin/dashboard'); 
-      } else if (email && password) { // Simulate any other login as a regular user
-        // Try to get name from localStorage (e.g., if they signed up before)
-        // For simulation, if not found, use a generic name or part of the email.
-        let userName = localStorage.getItem('userName');
-        if (!userName || localStorage.getItem('userEmail') !== email) {
-          // If email doesn't match stored email for userName, or userName isn't set
-          userName = email.split('@')[0] || 'Valued User'; // Simple fallback
-          localStorage.setItem('userName', userName);
-        }
-        
-        localStorage.setItem('userRole', 'user');
-        localStorage.setItem('userEmail', email); // Store/update email on login
-        
+      } else {
         toast({
           title: "Login Successful!",
           description: `Welcome back, ${userName}!`,
         });
         router.push('/'); 
       }
-      else {
-        toast({
-          title: "Login Failed",
-          description: "Invalid credentials. Please try again or sign up.",
-          variant: "destructive",
-        });
-      }
+    } catch (error: any) {
+      console.error("Login error: ", error);
+      toast({
+        title: "Login Failed",
+        description: error.message || "Invalid credentials. Please try again or sign up.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 500); 
+    }
   };
 
   return (
@@ -124,7 +141,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full text-lg py-3 h-auto" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <LogIn className="mr-2 h-5 w-5 animate-spin" /> Signing In...
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Signing In...
                 </>
               ) : (
                 <>
