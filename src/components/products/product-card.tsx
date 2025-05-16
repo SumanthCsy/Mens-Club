@@ -30,7 +30,7 @@ export function ProductCard({ product }: ProductCardProps) {
             />
           </div>
           {product.originalPrice && product.originalPrice > product.price && (
-            <Badge variant="destructive" className="absolute top-2 right-2 sm:top-3 sm:right-3 text-xs px-2 py-0.5">
+            <Badge variant="destructive" className="absolute top-2 right-2 text-xs px-2 py-0.5">
               SALE
             </Badge>
           )}
@@ -38,14 +38,14 @@ export function ProductCard({ product }: ProductCardProps) {
       </Link>
       <CardContent className="p-3 sm:p-4 flex-grow">
         <Link href={`/products/${product.id}`} className="block">
-          <CardTitle className="text-base sm:text-lg font-semibold leading-tight hover:text-primary transition-colors mb-1 truncate">
+          <CardTitle className="text-sm xxs:text-base sm:text-lg font-semibold leading-tight hover:text-primary transition-colors mb-1 truncate">
             {product.name}
           </CardTitle>
         </Link>
         <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">{product.brand || product.category}</p>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-          <div className="flex items-baseline gap-2 mb-1 sm:mb-0">
-            <p className="text-lg sm:text-xl font-bold text-primary">
+          <div className="flex items-baseline gap-1 xxs:gap-2 mb-1 sm:mb-0">
+            <p className="text-base xxs:text-lg sm:text-xl font-bold text-primary">
               ₹{product.price.toFixed(2)}
             </p>
             {product.originalPrice && product.originalPrice > product.price && (
@@ -62,23 +62,16 @@ export function ProductCard({ product }: ProductCardProps) {
           ): null}
         </div>
       </CardContent>
-      <CardFooter className="p-3 sm:p-4 pt-0 flex items-center gap-2 sm:gap-3">
-        <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm py-2 h-auto sm:h-10 group/button">
+      <CardFooter className="p-2 xxs:p-3 sm:p-4 pt-0 flex items-center gap-2 sm:gap-3">
+        <Button asChild variant="outline" className="flex-1 text-xs xxs:text-sm py-2 h-auto sm:h-9 group/button">
           <Link href={`/products/${product.id}`}>
-            <Eye className="mr-1 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover/button:animate-pulse" /> View
+            <Eye className="mr-1 sm:mr-2 h-3 w-3 xxs:h-3.5 xxs:w-3.5 sm:h-4 sm:w-4 group-hover/button:animate-pulse" /> View
           </Link>
         </Button>
-        <Button className="flex-1 text-xs sm:text-sm py-2 h-auto sm:h-10 group/button" variant="default">
-          <ShoppingCart className="mr-1 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover/button:animate-bounce" /> Add to Cart
+        <Button className="flex-1 text-xs xxs:text-sm py-2 h-auto sm:h-9 group/button" variant="default">
+          <ShoppingCart className="mr-1 sm:mr-2 h-3 w-3 xxs:h-3.5 xxs:w-3.5 sm:h-4 sm:w-4 group-hover/button:animate-bounce" /> Add to Cart
         </Button>
       </CardFooter>
     </Card>
   );
 }
-
-// Note: For RatingStars to accept smSize, its props would need to be updated.
-// For now, I've just made the base size slightly smaller.
-// If RatingStars needs to be responsive:
-// Interface: size?: number; smSize?: number;
-// Logic: const currentSize = useIsMobile() ? size : (smSize || size); (requires useIsMobile hook or similar logic)
-// Or pass responsive Tailwind classes to starClassName. For simplicity, just adjusted base size.

@@ -27,7 +27,7 @@ export function HeroSection() {
         <h1 className="text-4xl xxs:text-4xl xs:text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-4 sm:mb-6 drop-shadow-xl">
           Elevate Your Style
         </h1>
-        <p className="text-md sm:text-lg md:text-xl text-neutral-200 mb-8 sm:mb-10 max-w-xl mx-auto drop-shadow-lg">
+        <p className="text-md xxs:text-md xs:text-lg sm:text-lg md:text-xl text-neutral-200 mb-8 sm:mb-10 max-w-xl mx-auto drop-shadow-lg">
           Discover premium men's fashion curated for the modern gentleman. Quality, comfort, and sophistication in every piece.
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4">
@@ -46,16 +46,3 @@ export function HeroSection() {
     </section>
   );
 }
-
-// Added custom breakpoints in tailwind.config.ts for xxs and xs if needed for finer control, e.g.:
-// theme: {
-//   extend: {
-//     screens: {
-//       'xxs': '360px',
-//       'xs': '480px',
-//     }
-//   }
-// }
-// However, for this change, using existing sm, md, lg breakpoints should suffice for better scaling.
-// The text-4xl will be the base, scaling up.
-// Padding and button sizes also adjusted for mobile.
