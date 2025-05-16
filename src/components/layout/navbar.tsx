@@ -15,7 +15,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { UserData } from '@/types';
-
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
@@ -26,7 +26,7 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const [cartItemCount, setCartItemCount] = useState(0); // In a real app, this would come from cart state
+  const { cartCount } = useCart(); // Get cartCount from context
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [currentUserData, setCurrentUserData] = useState<UserData | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -41,17 +41,15 @@ export function Navbar() {
         if (userDocSnap.exists()) {
           setCurrentUserData(userDocSnap.data() as UserData);
         } else {
-          // Fallback if Firestore doc doesn't exist (e.g., admin created only in Auth)
           if (user.email === 'admin@mensclub') {
             setCurrentUserData({ 
               uid: user.uid, 
               email: user.email, 
-              fullName: 'Admin Mens Club', // Consistent admin name
+              fullName: 'Admin Mens Club', 
               role: 'admin',
-              memberSince: new Date().toISOString(), // Or user.metadata.creationTime
+              memberSince: user.metadata.creationTime || new Date().toISOString(),
             });
           } else {
-            // For regular users, if doc is missing, treat as minimal data
              setCurrentUserData({
               uid: user.uid,
               email: user.email || 'N/A',
@@ -68,11 +66,6 @@ export function Navbar() {
       }
       setIsLoadingAuth(false);
     });
-
-    // Placeholder for cart item count updates
-    // e.g., listen to cart changes from a global state/context
-    // setCartItemCount(actualCartService.getItemCount());
-
     return () => unsubscribe();
   }, []);
 
@@ -114,9 +107,9 @@ export function Navbar() {
     return (
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-           <Link href="/" className="flex items-center space-x-2 mr-2 sm:mr-4 md:mr-6">
+           <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
             <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-            <span className="font-bold text-lg sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+            <span className="font-bold text-md xxs:text-lg xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
               Mens Club
             </span>
           </Link>
@@ -157,9 +150,9 @@ export function Navbar() {
           <Link href="/cart" passHref>
             <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative h-8 w-8 xxs:h-9 xxs:w-9 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
               <ShoppingCart className="h-4 w-4 xxs:h-5 xxs:w-5 xs:h-5 xs:w-5" />
-              {cartItemCount > 0 && (
+              {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                  {cartItemCount}
+                  {cartCount}
                 </span>
               )}
             </Button>
@@ -199,7 +192,7 @@ export function Navbar() {
                 <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[260px] xxs:w-[280px] xs:w-[300px] sm:w-[320px] p-0">
+            <SheetContent side="right" className="w-[280px] sm:w-[320px] p-0"> {/* Adjusted width */}
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">

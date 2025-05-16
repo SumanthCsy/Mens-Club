@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
@@ -5,6 +6,7 @@ import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from '@/lib/utils';
+import { CartProvider } from '@/context/cart-context'; // Import CartProvider
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -34,10 +36,12 @@ export default function RootLayout({
           "min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-foreground flex flex-col"
         )}
       >
-        <Navbar />
-        <main className="flex-grow">{children}</main>
-        <Footer />
-        <Toaster />
+        <CartProvider> {/* Wrap with CartProvider */}
+          <Navbar />
+          <main className="flex-grow">{children}</main>
+          <Footer />
+          <Toaster />
+        </CartProvider>
       </body>
     </html>
   );

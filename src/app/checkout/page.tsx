@@ -1,3 +1,4 @@
+
 // @/app/checkout/page.tsx
 "use client";
 
@@ -6,48 +7,40 @@ import { ShippingForm } from '@/components/checkout/shipping-form';
 import { PaymentMethodSelector } from '@/components/checkout/payment-method-selector';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
-// import { sampleCartItems } from '@/lib/placeholder-data'; // Removed sample data
-import type { CartItemData } from '@/types';
-import { Lock, ArrowLeft } from 'lucide-react';
+import { Lock, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 export default function CheckoutPage() {
-  // Cart items would typically come from a global state or context, not directly from samples
-  const [cartItems, setCartItems] = useState<CartItemData[]>([]); 
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
+  const { cartItems, cartTotal, clearCart } = useCart();
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod'); // Default to COD
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    // In a real app, cart items would be fetched from a global state / context / localStorage
-    // For now, we assume it's managed elsewhere and might be empty.
-    // The cart summary will reflect the items passed to it.
-    // If cartItems state remains empty, summary will show 0.
-
-    // Redirect if cart is empty (this check should ideally use the actual cart state management)
-    if (cartItems.length === 0) { // This check becomes more critical now
+    if (cartItems.length === 0) {
         toast({
             title: "Your cart is empty",
             description: "Please add items to your cart before proceeding to checkout.",
-            variant: "default", // Changed to default for less aggressive messaging
+            variant: "default",
         });
         router.push('/cart');
     }
-  }, [cartItems, router, toast]); // Depend on cartItems to re-check if it changes
+  }, [cartItems, router, toast]);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingCost = cartItems.length > 0 ? 50.00 : 0; // Example fixed shipping in INR
-  const total = subtotal + shippingCost;
+  const total = cartTotal + shippingCost;
 
   const handleShippingSubmit = (data: any) => {
+    // In a real app, you'd save this to user profile or order details
     console.log("Shipping Data:", data);
     toast({
       title: "Shipping Details Saved",
       description: "Your shipping address has been updated.",
     });
+    // You might want to proceed to next step or enable payment section here
   };
 
   const handlePlaceOrder = () => {
@@ -68,21 +61,44 @@ export default function CheckoutPage() {
       return;
     }
     
+    // Simulate order placement
     console.log("Placing order with method:", selectedPaymentMethod, "and items:", cartItems);
+    // In a real app, this would involve API calls to your backend to process the order
+    // and payment gateway integration if online payment is selected.
+
     toast({
       title: "Order Placed (Simulated)!",
       description: `Your order has been successfully placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}. Thank you for shopping!`,
-      duration: 5000,
+      duration: 7000,
     });
     
-    setCartItems([]); // Clear cart (simulated)
-    // router.push('/order-confirmation'); // Optional: Redirect to a confirmation page
+    clearCart(); // Clear cart items from context and localStorage
+    router.push('/'); // Redirect to homepage or an order confirmation page
   };
+
+  if (cartItems.length === 0 && !router.asPath.startsWith('/checkout')) { // Prevent flash if already redirecting
+    return (
+        <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
+            <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
+            <h1 className="text-2xl font-semibold">Your cart is empty.</h1>
+            <p className="text-muted-foreground mt-2 mb-6">Redirecting you to continue shopping...</p>
+            <Button asChild>
+                <Link href="/products">Shop Now</Link>
+            </Button>
+        </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="mb-10 text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">Checkout</h1>
+         <Button variant="outline" size="sm" asChild className="mb-4 float-left">
+          <Link href="/cart">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Cart
+          </Link>
+        </Button>
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground pt-2">Checkout</h1>
         <p className="mt-3 text-lg text-muted-foreground">
           Almost there! Please complete your order details.
         </p>
@@ -99,12 +115,12 @@ export default function CheckoutPage() {
 
         <div className="lg:col-span-1 lg:sticky lg:top-24">
           <CartSummary
-            subtotal={subtotal}
+            subtotal={cartTotal}
             shippingCost={shippingCost}
             total={total}
             checkoutButtonText="Place Order Securely" 
-            showPromoCodeInput={false}
-            checkoutLink="#" // Handled by external button
+            showPromoCodeInput={true} // Can be true if you have promo logic
+            checkoutLink="#" // Handled by external button below
           />
           <Button 
             size="lg" 
@@ -113,11 +129,6 @@ export default function CheckoutPage() {
             disabled={cartItems.length === 0} 
           >
             <Lock className="mr-2 h-5 w-5" /> Place Order Securely
-          </Button>
-          <Button asChild variant="link" className="mt-4 w-full text-primary">
-            <Link href="/cart">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Cart
-            </Link>
           </Button>
         </div>
       </div>

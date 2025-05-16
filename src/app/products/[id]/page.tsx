@@ -1,8 +1,9 @@
+
 // @/app/products/[id]/page.tsx
 "use client"; 
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation'; // Added useRouter
+import { useParams, useRouter } from 'next/navigation';
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
@@ -17,7 +18,7 @@ import { ProductCard } from '@/components/products/product-card';
 import Link from 'next/link';
 import { doc, getDoc } from "firebase/firestore";
 import { db } from '@/lib/firebase';
-
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 async function getProductById(productId: string): Promise<Product | null> {
   if (!productId) return null;
@@ -37,20 +38,18 @@ async function getProductById(productId: string): Promise<Product | null> {
   }
 }
 
-// This component remains client-side for interactivity
 function ProductDetailsClientContent({ initialProduct }: { initialProduct: Product | null }) {
   const [product, setProduct] = useState<Product | null>(initialProduct);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
-  const router = useRouter(); // Initialize router
-  
-  // Update selectedSize if product has sizes and one isn't already selected
+  const router = useRouter();
+  const { addToCart } = useCart(); // Get addToCart from context
+
   useEffect(() => {
     if (product && product.sizes && product.sizes.length > 0 && !selectedSize) {
       setSelectedSize(product.sizes[0]);
     }
   }, [product, selectedSize]);
-
 
   if (!product) {
     return (
@@ -67,12 +66,11 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
     );
   }
   
-  // Related products would also be fetched from a database
-  // For now, let's assume this is empty or fetched separately if needed
   const relatedProducts: Product[] = []; 
 
   const handleAddToCart = () => {
-    if (!selectedSize && product.sizes && product.sizes.length > 0) {
+    if (!product) return;
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
       toast({
         title: "Size Required",
         description: "Please select a size before adding to cart.",
@@ -80,16 +78,13 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
       });
       return;
     }
-    console.log(`Added ${product.name} (Size: ${selectedSize || 'N/A'}) to cart.`);
-    toast({
-      title: "Added to Cart!",
-      description: `${product.name} (Size: ${selectedSize || 'N/A'}) has been added to your cart.`,
-      action: (
-        <Button variant="outline" size="sm" onClick={() => router.push('/cart')}>
-          View Cart
-        </Button>
-      ),
-    });
+    if (typeof product.stock === 'number' && product.stock < 1) {
+      toast({ title: "Out of Stock", description: "This item is currently out of stock.", variant: "destructive"});
+      return;
+    }
+
+    addToCart(product, selectedSize || (product.sizes?.[0] || 'N/A')); // Use default size if none explicitly selected but sizes exist
+    // The toast notification is now handled within the addToCart context function.
   };
 
   return (
@@ -181,8 +176,6 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
   );
 }
 
-
-// This is the Server Component that fetches data
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const productId = params.id;
   const [product, setProduct] = useState<Product | null>(null);
@@ -198,7 +191,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
       };
       fetchProduct();
     } else {
-      setIsLoading(false); // No ID, no product to fetch
+      setIsLoading(false); 
     }
   }, [productId]);
 

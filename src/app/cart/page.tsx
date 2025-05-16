@@ -1,44 +1,33 @@
+
 // @/app/cart/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { CartItemCard } from '@/components/cart/cart-item-card';
 import { CartSummary } from '@/components/cart/cart-summary';
-import type { CartItemData } from '@/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft, Loader2 } from 'lucide-react';
+import { useCart } from '@/context/cart-context'; // Import useCart
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Keep loading state for potential async ops
+  const { cartItems, removeFromCart, updateCartItemQuantity, cartTotal } = useCart();
+  const [isLoading, setIsLoading] = useState(true); // Keep loading state
 
   useEffect(() => {
-    // In a real app, cart items might be fetched from localStorage or an API
-    // For now, it starts empty.
+    // Cart items are now managed by context, which handles localStorage.
+    // We can set loading to false once context is likely initialized.
+    // A small delay or check might be needed if context initialization itself is async
+    // but for localStorage sync, it should be quick.
     setIsLoading(false); 
   }, []);
 
-  const handleRemoveItem = (itemId: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
-    // TODO: Update persistent cart storage (localStorage/API)
-  };
 
-  const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-    // TODO: Update persistent cart storage (localStorage/API)
-  };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   // Shipping could be calculated based on cart items or address later
   const shippingEstimate = cartItems.length > 0 ? 50.00 : 0; // Example fixed shipping in INR
-  const total = subtotal + shippingEstimate;
+  const total = cartTotal + shippingEstimate;
 
-  if (isLoading) {
+  if (isLoading) { // This might only show briefly or not at all if context loads fast
      return (
       <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
         <Loader2 className="mx-auto h-12 w-12 text-primary mb-4 animate-spin" />
@@ -69,17 +58,17 @@ export default function CartPage() {
           <div className="lg:col-span-2 space-y-6">
             {cartItems.map(item => (
               <CartItemCard
-                key={item.id}
+                key={item.id + (item.selectedSize || '')} // Ensure key is unique if sizes differ
                 item={item}
-                onRemoveItem={handleRemoveItem}
-                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={removeFromCart}
+                onUpdateQuantity={updateCartItemQuantity}
               />
             ))}
           </div>
 
           <div className="lg:col-span-1 lg:sticky lg:top-24">
             <CartSummary
-              subtotal={subtotal}
+              subtotal={cartTotal}
               shippingCost={shippingEstimate}
               total={total}
             />
