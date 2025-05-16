@@ -6,7 +6,7 @@ const heroCardData = [
     id: '1',
     title: 'New Arrivals',
     description: 'Fresh styles just landed. Explore the latest trends.',
-    imageUrl: '/banner.png', // Placeholder, user will update
+    imageUrl: '/bng1.jpg', // Placeholder, user will update
     imageHint: 'fashion new arrivals',
     link: '/products?category=new-arrivals', // Example link
   },
@@ -14,7 +14,7 @@ const heroCardData = [
     id: '2',
     title: 'Seasonal Collection',
     description: 'Curated outfits for the current season.',
-    imageUrl: '/banner.png', // Placeholder
+    imageUrl: '/bng2.jpg', // Placeholder
     imageHint: 'seasonal fashion',
     link: '/products?category=seasonal', // Example link
   },
@@ -22,7 +22,7 @@ const heroCardData = [
     id: '3',
     title: 'Limited Time Offers',
     description: 'Grab these deals before they are gone!',
-    imageUrl: '/banner.png', // Placeholder
+    imageUrl: '/bng3.jpg', // Placeholder
     imageHint: 'fashion sale',
     link: '/sale', // Example link
   },
@@ -30,7 +30,7 @@ const heroCardData = [
     id: '4',
     title: 'Wardrobe Essentials',
     description: 'Timeless pieces for every gentleman.',
-    imageUrl: '/banner.png', // Placeholder
+    imageUrl: '/bng4.jpg', // Placeholder
     imageHint: 'classic men clothing',
     link: '/products?category=essentials', // Example link
   },
