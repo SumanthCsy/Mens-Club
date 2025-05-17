@@ -1,33 +1,65 @@
 // @/components/home/featured-products.tsx
+"use client";
+
+import { useState, useEffect } from 'react';
 import { ProductCard } from '@/components/products/product-card';
 import type { Product } from '@/types';
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { db } from '@/lib/firebase';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
-// Revalidate every 60 seconds (or choose your preferred interval)
-export const revalidate = 60; 
+export function FeaturedProducts() {
+  const [featured, setFeatured] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-async function getFeaturedProducts(): Promise<Product[]> {
-  try {
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+
     const productsCol = collection(db, "products");
-    // Fetch up to 12 products for the featured section
-    const q = query(productsCol, orderBy("name"), limit(12)); 
-    const productSnapshot = await getDocs(q);
-    const productList = productSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Product));
-    return productList;
-  } catch (error) {
-    console.error("Error fetching featured products:", error);
-    return [];
+    const q = query(productsCol, orderBy("name"), limit(12));
+
+    const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const productList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Product));
+      setFeatured(productList);
+      setIsLoading(false);
+    }, (err) => {
+      console.error("Error fetching featured products with onSnapshot:", err);
+      setError("Failed to load featured products in real-time.");
+      setIsLoading(false);
+    });
+
+    // Cleanup listener on component unmount
+    return () => unsubscribe();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <section className="py-16 md:py-24 bg-background">
+        <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 text-center">
+          <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin mb-4" />
+          <p className="text-lg text-muted-foreground">Loading featured products...</p>
+        </div>
+      </section>
+    );
   }
-}
 
-export async function FeaturedProducts() {
-  const featured = await getFeaturedProducts();
+  if (error) {
+    return (
+      <section className="py-16 md:py-24 bg-background">
+        <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+          <p className="text-lg text-destructive">{error}</p>
+        </div>
+      </section>
+    );
+  }
 
-  if (featured.length === 0) {
+  if (featured.length === 0 && !isLoading) {
     return (
       <section className="py-16 md:py-24 bg-background">
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 text-center">
@@ -35,7 +67,7 @@ export async function FeaturedProducts() {
             Featured Collection
           </h2>
           <p className="text-lg text-muted-foreground">
-            No featured products available at the moment. Check back soon or add products through the admin panel!
+            No featured products available at the moment. Add products to see them here!
           </p>
         </div>
       </section>

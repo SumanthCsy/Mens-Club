@@ -1,4 +1,3 @@
-
 // @/app/admin/products/view/page.tsx
 "use client";
 
@@ -10,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, Trash2, Eye, PlusCircle, PackageSearch, Loader2, AlertTriangle } from 'lucide-react';
 import type { Product } from '@/types';
-import { collection, getDocs, query, orderBy, doc, deleteDoc } from "firebase/firestore"; // Added doc, deleteDoc
+import { collection, query, orderBy, doc, deleteDoc, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -29,43 +28,38 @@ export default function ViewProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null); // To track which product is being deleted
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const productsCol = collection(db, "products");
-        const q = query(productsCol, orderBy("name"));
-        const productSnapshot = await getDocs(q);
-        const productList = productSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Product));
-        setProducts(productList);
-      } catch (err) {
-        console.error("Error fetching products:", err);
-        setError("Failed to fetch products. Please try again.");
-        toast({
-          title: "Error",
-          description: "Could not load products from the database.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(true);
+    setError(null);
 
-    fetchProducts();
-  }, [toast]);
+    const productsCol = collection(db, "products");
+    const q = query(productsCol, orderBy("name"));
+
+    const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const productList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Product));
+      setProducts(productList);
+      setIsLoading(false);
+    }, (err) => {
+      console.error("Error fetching products with onSnapshot:", err);
+      setError("Failed to load products in real-time.");
+      setIsLoading(false);
+    });
+
+    // Cleanup listener on component unmount
+    return () => unsubscribe();
+  }, []);
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     setIsDeleting(productId);
     try {
       await deleteDoc(doc(db, "products", productId));
-      setProducts(prevProducts => prevProducts.filter(product => product.id !== productId));
+      // No need to manually filter products state, onSnapshot will update it
       toast({
         title: "Product Deleted!",
         description: `${productName} has been successfully deleted.`,
@@ -114,7 +108,7 @@ export default function ViewProductsPage() {
                 <PackageSearch className="h-10 w-10 text-primary" />
                 <div>
                     <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">Manage Products</h1>
-                    <p className="mt-1 text-md text-muted-foreground">View, edit, or delete existing products.</p>
+                    <p className="mt-1 text-md text-muted-foreground">View, edit, or delete existing products. Updates in real-time.</p>
                 </div>
             </div>
             <Button asChild>
@@ -128,7 +122,7 @@ export default function ViewProductsPage() {
       <Card className="shadow-xl border-border/60">
         <CardHeader>
           <CardTitle>All Products ({products.length})</CardTitle>
-          <CardDescription>A list of all products currently in your store.</CardDescription>
+          <CardDescription>A list of all products currently in your store. Sorted by name.</CardDescription>
         </CardHeader>
         <CardContent>
           {products.length === 0 ? (

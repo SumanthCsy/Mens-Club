@@ -1,4 +1,3 @@
-
 // @/app/products/[id]/page.tsx
 "use client"; 
 
@@ -16,50 +15,85 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ProductCard } from '@/components/products/product-card'; 
 import Link from 'next/link';
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, Unsubscribe } from "firebase/firestore"; // Added onSnapshot, Unsubscribe
 import { db } from '@/lib/firebase';
-import { useCart } from '@/context/cart-context'; // Import useCart
+import { useCart } from '@/context/cart-context';
 
-async function getProductById(productId: string): Promise<Product | null> {
-  if (!productId) return null;
-  try {
-    const productRef = doc(db, "products", productId);
-    const productSnap = await getDoc(productRef);
-
-    if (productSnap.exists()) {
-      return { id: productSnap.id, ...productSnap.data() } as Product;
-    } else {
-      console.log("No such document!");
-      return null;
-    }
-  } catch (error) {
-    console.error("Error fetching product by ID:", error);
-    return null;
-  }
-}
-
-function ProductDetailsClientContent({ initialProduct }: { initialProduct: Product | null }) {
-  const [product, setProduct] = useState<Product | null>(initialProduct);
+function ProductDetailsClientContent({ initialProductData, productId }: { initialProductData: Product | null, productId: string }) {
+  const [product, setProduct] = useState<Product | null>(initialProductData);
+  const [isLoading, setIsLoading] = useState(!initialProductData); // Start loading if no initial data
+  const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
-  const router = useRouter();
-  const { addToCart } = useCart(); // Get addToCart from context
+  const { addToCart } = useCart();
 
   useEffect(() => {
+    // Set initial selected size if product exists and has sizes
     if (product && product.sizes && product.sizes.length > 0 && !selectedSize) {
       setSelectedSize(product.sizes[0]);
     }
   }, [product, selectedSize]);
 
-  if (!product) {
+  useEffect(() => {
+    if (!productId) {
+      setError("Product ID is missing.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    const productRef = doc(db, "products", productId);
+
+    const unsubscribe: Unsubscribe = onSnapshot(productRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProduct({ id: docSnap.id, ...docSnap.data() } as Product);
+      } else {
+        setError("Product not found.");
+        setProduct(null);
+      }
+      setIsLoading(false);
+    }, (err) => {
+      console.error("Error fetching product details with onSnapshot:", err);
+      setError("Failed to load product details in real-time.");
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe(); // Cleanup listener
+  }, [productId]);
+
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading product details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <div className="text-center py-20">
         <AlertTriangle className="mx-auto h-16 w-16 text-destructive mb-4" />
-        <h1 className="text-3xl font-bold text-destructive mb-2">Product Not Found</h1>
+        <h1 className="text-3xl font-bold text-destructive mb-2">{error}</h1>
         <p className="text-lg text-muted-foreground">
-          Sorry, we couldn't find the product you're looking for.
+          Sorry, we couldn't find or load the product you're looking for.
         </p>
         <Button asChild className="mt-6">
+          <Link href="/products">Back to Products</Link>
+        </Button>
+      </div>
+    );
+  }
+  
+  if (!product) {
+    // This case should be covered by error state, but as a fallback:
+    return (
+      <div className="text-center py-20">
+        <AlertTriangle className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-3xl font-bold text-muted-foreground mb-2">Product Unavailable</h1>
+         <Button asChild className="mt-6">
           <Link href="/products">Back to Products</Link>
         </Button>
       </div>
@@ -83,8 +117,7 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
       return;
     }
 
-    addToCart(product, selectedSize || (product.sizes?.[0] || 'N/A')); // Use default size if none explicitly selected but sizes exist
-    // The toast notification is now handled within the addToCart context function.
+    addToCart(product, selectedSize || (product.sizes?.[0] || 'N/A'));
   };
 
   return (
@@ -178,31 +211,6 @@ function ProductDetailsClientContent({ initialProduct }: { initialProduct: Produ
 
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const productId = params.id;
-  const [product, setProduct] = useState<Product | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (productId) {
-      const fetchProduct = async () => {
-        setIsLoading(true);
-        const fetchedProduct = await getProductById(productId);
-        setProduct(fetchedProduct);
-        setIsLoading(false);
-      };
-      fetchProduct();
-    } else {
-      setIsLoading(false); 
-    }
-  }, [productId]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg text-muted-foreground">Loading product details...</p>
-      </div>
-    );
-  }
-  
-  return <ProductDetailsClientContent initialProduct={product} />;
+  // No initial data fetching here for full client-side real-time updates
+  return <ProductDetailsClientContent initialProductData={null} productId={productId} />;
 }
