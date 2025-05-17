@@ -21,14 +21,15 @@ import { collection, query, where, onSnapshot, Unsubscribe, doc, getDoc } from "
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { UserData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const newOrderMessages = [
   "New order Received ✅",
   "You received a new order 🔔"
 ];
 
-// **IMPORTANT**: Replace this with your actual VAPID public key
-const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; // User needs to generate and replace this
+// **IMPORTANT**: Replace this with your actual VAPID public key for push notifications
+const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; 
 
 async function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -51,7 +52,8 @@ export function GlobalAdminNotifications() {
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   
-  const [showInitialPendingOrderModal, setShowInitialPendingOrderModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [alertModalType, setAlertModalType] = useState<'initial' | 'newOrder' | null>(null);
   const [hasShownInitialNotificationThisSession, setHasShownInitialNotificationThisSession] = useState(false);
   const previousPendingOrdersCountRef = useRef<number | null>(null);
 
@@ -102,7 +104,19 @@ export function GlobalAdminNotifications() {
     if (!isPushSupported || !isAdmin) return;
 
     try {
-      const swRegistration = await navigator.serviceWorker.register('/sw.js'); // User needs to create public/sw.js
+      if (VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY_HERE') {
+        console.warn("VAPID_PUBLIC_KEY is not set. Push subscription cannot proceed effectively.");
+        toast({
+            title: "Push Setup Incomplete",
+            description: "VAPID public key is missing. Background push notifications might not work correctly.",
+            variant: "destructive",
+            duration: 10000
+        });
+        // Optionally, don't attempt to register SW if VAPID key is missing
+        // return; 
+      }
+
+      const swRegistration = await navigator.serviceWorker.register('/sw.js'); 
       console.log('Service Worker registered:', swRegistration);
 
       const permission = await Notification.requestPermission();
@@ -110,16 +124,6 @@ export function GlobalAdminNotifications() {
 
       if (permission === 'granted') {
         toast({ title: "Browser Notifications Enabled!", description: "You'll now receive new order alerts." });
-        
-        if (VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY_HERE') {
-            console.warn("VAPID_PUBLIC_KEY is not set. Push subscription will fail or use browser's default sender.");
-            toast({
-                title: "Push Setup Incomplete",
-                description: "VAPID public key is missing. Background push notifications might not work correctly.",
-                variant: "destructive",
-                duration: 10000
-            });
-        }
         
         const applicationServerKey = await urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         const subscription = await swRegistration.pushManager.subscribe({
@@ -129,8 +133,6 @@ export function GlobalAdminNotifications() {
         
         console.log('User is subscribed to push notifications:', subscription);
         // TODO: Send this 'subscription' object to your backend and save it
-        // (e.g., in Firestore under the admin's user document).
-        // Example: await saveSubscriptionToBackend(subscription);
         toast({
             title: "Push Subscription (Simulated Save)",
             description: "Push subscription successful! (Backend save needed for actual background pushes).",
@@ -159,23 +161,18 @@ export function GlobalAdminNotifications() {
         setPendingOrdersCount(currentCount);
 
         if (previousPendingOrdersCountRef.current === null) { // First time loading for this admin session
-          previousPendingOrdersCountRef.current = currentCount;
           if (currentCount > 0 && !hasShownInitialNotificationThisSession) {
-            setShowInitialPendingOrderModal(true);
+            setAlertModalType('initial');
+            setShowNotificationModal(true);
           }
-        } else if (currentCount > (previousPendingOrdersCountRef.current ?? 0)) { // New order(s) arrived
-          // If push notifications are set up and granted, the backend should handle sending the push.
-          // For in-browser notifications (when tab is active and push not fully set up or as fallback):
+        } else if (currentCount > previousPendingOrdersCountRef.current) { // New order(s) arrived
+          setAlertModalType('newOrder');
+          setShowNotificationModal(true);
+          
           if (notificationPermission === 'granted' && isPushSupported) {
-            // This browser notification can still be useful if the admin has the tab open
-            // but backend push might be delayed or for immediate visual cue.
             const message = newOrderMessages[lastNotificationMessageIndex];
             new Notification(message, { icon: '/mclogo.png', body: 'A new order requires your attention.' });
             setLastNotificationMessageIndex((prevIndex) => (prevIndex + 1) % newOrderMessages.length);
-            const audio = new Audio('/success.mp3');
-            audio.play().catch(error => {
-              console.warn("Audio autoplay prevented for new order notification:", error);
-            });
           } else if (notificationPermission === 'default' && isPushSupported) {
             toast({
                 title: "New Order Received!",
@@ -184,6 +181,10 @@ export function GlobalAdminNotifications() {
                 duration: 10000
             });
           }
+          const audio = new Audio('/success.mp3');
+          audio.play().catch(error => {
+            console.warn("Audio autoplay prevented for new order notification:", error);
+          });
            console.log("New order arrived. Browser notifications permission:", notificationPermission, "Push supported:", isPushSupported);
         }
         previousPendingOrdersCountRef.current = currentCount;
@@ -192,7 +193,8 @@ export function GlobalAdminNotifications() {
       });
     } else {
       setPendingOrdersCount(0);
-      setShowInitialPendingOrderModal(false);
+      setShowNotificationModal(false);
+      setAlertModalType(null);
       previousPendingOrdersCountRef.current = null;
     }
 
@@ -211,7 +213,7 @@ export function GlobalAdminNotifications() {
             <BellRing className="h-6 w-6 text-primary mt-0.5 shrink-0"/>
             <div>
               <p className="text-foreground font-medium mb-1">Get Real-Time Order Alerts!</p>
-              <p className="text-muted-foreground mb-3 text-xs">Enable browser push notifications to receive instant alerts for new orders, even when the site isn't open.</p>
+              <p className="text-muted-foreground mb-3 text-xs">Enable browser push notifications for instant alerts for new orders.</p>
               <Button onClick={subscribeUserToPush} size="sm" className="w-full">
                 Enable Notifications
               </Button>
@@ -227,7 +229,7 @@ export function GlobalAdminNotifications() {
             </div>
         )
     }
-    if (isAdmin && !isPushSupported && typeof window !== 'undefined') { // Check for window to avoid SSR issues
+    if (isAdmin && !isPushSupported && typeof window !== 'undefined') { 
         return (
              <div className="fixed bottom-4 left-4 z-[101] bg-yellow-100 border border-yellow-300 text-yellow-700 shadow-lg rounded-lg p-3 max-w-sm text-xs">
                 <AlertTriangle className="inline mr-1 h-3 w-3"/> Push notifications are not supported by this browser or setup.
@@ -237,24 +239,35 @@ export function GlobalAdminNotifications() {
     return null;
   };
 
+  const handleModalClose = () => {
+    if (alertModalType === 'initial') {
+      setHasShownInitialNotificationThisSession(true);
+    }
+    setShowNotificationModal(false);
+    setAlertModalType(null);
+  };
+
   return (
     <>
       {renderPermissionRequester()}
-      {isAdmin && showInitialPendingOrderModal && pendingOrdersCount > 0 && (
-        <AlertDialog open={showInitialPendingOrderModal} onOpenChange={(open) => {if(!open) {setShowInitialPendingOrderModal(false); setHasShownInitialNotificationThisSession(true);}}}>
+      {(showNotificationModal && alertModalType) && (
+        <AlertDialog open={showNotificationModal} onOpenChange={(open) => !open && handleModalClose()}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center">
-                <BellRing className="h-6 w-6 mr-2 text-primary" />
-                Pending Orders Alert
+                <BellRing className={cn("h-6 w-6 mr-2 text-primary", alertModalType === 'newOrder' && "animate-pulse")} />
+                {alertModalType === 'newOrder' ? "New Order Received!" : "Pending Orders Alert"}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                You have {pendingOrdersCount} order(s) with "Pending" status that require your attention.
+                {alertModalType === 'newOrder' 
+                  ? `A new order has been placed. You now have ${pendingOrdersCount} total pending order(s).`
+                  : `You have ${pendingOrdersCount} order(s) with "Pending" status that require your attention.`
+                }
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {setShowInitialPendingOrderModal(false); setHasShownInitialNotificationThisSession(true);}}>Dismiss</AlertDialogCancel>
-              <AlertDialogAction asChild onClick={() => {setShowInitialPendingOrderModal(false); setHasShownInitialNotificationThisSession(true);}}>
+              <AlertDialogCancel onClick={handleModalClose}>Dismiss</AlertDialogCancel>
+              <AlertDialogAction asChild onClick={handleModalClose}>
                 <Link href="/admin/orders">View Orders</Link>
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -264,3 +277,4 @@ export function GlobalAdminNotifications() {
     </>
   );
 }
+
