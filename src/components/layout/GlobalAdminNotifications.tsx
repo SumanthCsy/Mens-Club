@@ -1,4 +1,3 @@
-
 // @/components/layout/GlobalAdminNotifications.tsx
 "use client";
 
@@ -29,6 +28,7 @@ const newOrderMessages = [
 ];
 
 // **IMPORTANT**: Replace this with your actual VAPID public key for push notifications
+// You can generate VAPID keys using: npx web-push generate-vapid-keys
 const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; 
 
 async function urlBase64ToUint8Array(base64String: string) {
@@ -61,10 +61,16 @@ export function GlobalAdminNotifications() {
   const [lastNotificationMessageIndex, setLastNotificationMessageIndex] = useState(0);
   const { toast } = useToast();
   const [isPushSupported, setIsPushSupported] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
-      setIsPushSupported(true);
+    if (typeof window !== 'undefined') {
+      if ('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
+        setIsPushSupported(true);
+      }
+      // Preload audio
+      audioRef.current = new Audio('/success.mp3');
+      audioRef.current.load(); // Explicitly load
     }
   }, []);
 
@@ -100,8 +106,27 @@ export function GlobalAdminNotifications() {
     return () => unsubscribeAuth();
   }, [isPushSupported]);
 
+  const playSuccessSound = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0; // Rewind to start
+      audioRef.current.play().catch(error => {
+        console.warn("Audio autoplay prevented for new order notification:", error);
+        // Fallback or UI indication that sound couldn't play can be added here if needed
+        toast({
+          title: "Audio Alert Blocked",
+          description: "New order sound was blocked by the browser. Please interact with the page first.",
+          variant: "default",
+          duration: 5000
+        })
+      });
+    } else {
+        console.warn("Audio element not ready or success.mp3 not found in /public folder.")
+    }
+  };
+
+
   const subscribeUserToPush = async () => {
-    if (!isPushSupported || !isAdmin) return;
+    if (!isPushSupported || !isAdmin || !navigator.serviceWorker) return;
 
     try {
       if (VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY_HERE') {
@@ -123,7 +148,7 @@ export function GlobalAdminNotifications() {
       setNotificationPermission(permission);
 
       if (permission === 'granted') {
-        toast({ title: "Browser Notifications Enabled!", description: "You'll now receive new order alerts." });
+        toast({ title: "Browser Push Notifications Enabled!", description: "You'll now receive new order alerts." });
         
         const applicationServerKey = await urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         const subscription = await swRegistration.pushManager.subscribe({
@@ -132,10 +157,11 @@ export function GlobalAdminNotifications() {
         });
         
         console.log('User is subscribed to push notifications:', subscription);
-        // TODO: Send this 'subscription' object to your backend and save it
+        // TODO: Send this 'subscription' object to your backend and save it with the admin's user profile
+        // Example: await fetch('/api/save-push-subscription', { method: 'POST', body: JSON.stringify(subscription), headers: {'Content-Type': 'application/json'} });
         toast({
             title: "Push Subscription (Simulated Save)",
-            description: "Push subscription successful! (Backend save needed for actual background pushes).",
+            description: "Push subscription successful! Backend save needed for actual background pushes.",
             duration: 7000
         });
 
@@ -166,36 +192,40 @@ export function GlobalAdminNotifications() {
             setShowNotificationModal(true);
           }
         } else if (currentCount > previousPendingOrdersCountRef.current) { // New order(s) arrived
-          setAlertModalType('newOrder');
+          setAlertModalType('newOrder'); // This will show the in-app modal
           setShowNotificationModal(true);
+          playSuccessSound();
           
           if (notificationPermission === 'granted' && isPushSupported) {
+            // This is for browser tab notifications (not background push, that's handled by SW)
             const message = newOrderMessages[lastNotificationMessageIndex];
             new Notification(message, { icon: '/mclogo.png', body: 'A new order requires your attention.' });
             setLastNotificationMessageIndex((prevIndex) => (prevIndex + 1) % newOrderMessages.length);
           } else if (notificationPermission === 'default' && isPushSupported) {
-            toast({
-                title: "New Order Received!",
-                description: "Enable browser/push notifications for instant alerts.",
-                action: <Button onClick={subscribeUserToPush} size="sm">Enable Notifications</Button>,
-                duration: 10000
-            });
+             // If in-app modal for new order is too much, this toast is an alternative
+            // toast({
+            //     title: "New Order Received!",
+            //     description: "Enable browser/push notifications for instant alerts.",
+            //     action: <Button onClick={subscribeUserToPush} size="sm">Enable Notifications</Button>,
+            //     duration: 10000
+            // });
           }
-          const audio = new Audio('/success.mp3');
-          audio.play().catch(error => {
-            console.warn("Audio autoplay prevented for new order notification:", error);
-          });
            console.log("New order arrived. Browser notifications permission:", notificationPermission, "Push supported:", isPushSupported);
         }
         previousPendingOrdersCountRef.current = currentCount;
       }, (error) => {
         console.error("Error fetching pending orders for global notification:", error);
+         toast({
+          title: "Error Loading Pending Orders",
+          description: "Could not update pending order count.",
+          variant: "destructive"
+        });
       });
     } else {
       setPendingOrdersCount(0);
       setShowNotificationModal(false);
       setAlertModalType(null);
-      previousPendingOrdersCountRef.current = null;
+      previousPendingOrdersCountRef.current = null; // Reset when admin logs out or is not admin
     }
 
     return () => {
@@ -203,6 +233,7 @@ export function GlobalAdminNotifications() {
         unsubscribeOrders();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, currentUser, isLoadingAuth, hasShownInitialNotificationThisSession, notificationPermission, lastNotificationMessageIndex, toast, isPushSupported]);
   
   const renderPermissionRequester = () => {
@@ -210,12 +241,12 @@ export function GlobalAdminNotifications() {
       return (
         <div className="fixed bottom-4 left-4 z-[101] bg-card border border-border shadow-lg rounded-lg p-4 max-w-md text-sm">
           <div className="flex items-start gap-3">
-            <BellRing className="h-6 w-6 text-primary mt-0.5 shrink-0"/>
+            <Bell className="h-6 w-6 text-primary mt-0.5 shrink-0"/>
             <div>
-              <p className="text-foreground font-medium mb-1">Get Real-Time Order Alerts!</p>
-              <p className="text-muted-foreground mb-3 text-xs">Enable browser push notifications for instant alerts for new orders.</p>
+              <p className="text-foreground font-medium mb-1">Get Instant New Order Alerts!</p>
+              <p className="text-muted-foreground mb-3 text-xs">Enable browser push notifications to be alerted of new orders, even when the site isn't focused.</p>
               <Button onClick={subscribeUserToPush} size="sm" className="w-full">
-                Enable Notifications
+                Enable Push Notifications
               </Button>
             </div>
           </div>
@@ -247,6 +278,8 @@ export function GlobalAdminNotifications() {
     setAlertModalType(null);
   };
 
+  if (isLoadingAuth) return null; // Don't render anything until auth state is known
+
   return (
     <>
       {renderPermissionRequester()}
@@ -277,4 +310,3 @@ export function GlobalAdminNotifications() {
     </>
   );
 }
-
