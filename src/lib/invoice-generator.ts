@@ -7,8 +7,11 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 /**
- * Simulates invoice generation and triggers a download of a plain text file
- * representing the invoice, with a format inspired by common invoice layouts.
+ * Simulates invoice generation and triggers a download of a file with a .pdf extension,
+ * containing a plain text representation of the invoice.
+ *
+ * IMPORTANT: The content of this file is plain text, not a true binary PDF.
+ * PDF viewers will likely not open it correctly or may display it as corrupted.
  *
  * @param order The order object for which to simulate invoice generation.
  */
@@ -44,7 +47,7 @@ Phone: ${order.shippingAddress.phoneNumber || 'N/A'}
 
 Shipping Address:
 ${order.shippingAddress.addressLine1}
-${order.shippingAddress.addressLine2 ? order.shippingAddress.addressLine2 + '\n' : ''}${order.shippingAddress.city}, ${order.shippingAddress.stateProvince} ${order.shippingAddress.postalCode}
+${order.shippingAddress.addressLine2 ? order.shippingAddress.addressLine2 + '\\n' : ''}${order.shippingAddress.city}, ${order.shippingAddress.stateProvince} ${order.shippingAddress.postalCode}
 ${order.shippingAddress.country}
 
 --------------------------------------------------
@@ -93,15 +96,16 @@ Terms & Conditions (Example):
 
 ==================================================
 This is a simulated invoice generated on ${invoiceDateTime}.
+The content of this file is PLAIN TEXT.
 `;
 
-  // Create a Blob with the text content, set MIME type to text/plain
-  const blob = new Blob([invoiceContent.trim()], { type: 'text/plain' });
+  // Create a Blob with the text content, set MIME type to application/pdf
+  const blob = new Blob([invoiceContent.trim()], { type: 'application/pdf' });
 
   // Create a temporary link element to trigger the download
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `invoice-${order.id}-simulated.txt`; // Filename for the download with .txt extension
+  link.download = `invoice-${order.id}-simulated.pdf`; // Filename for the download with .pdf extension
 
   // Append to body, click, and remove
   document.body.appendChild(link);
@@ -110,14 +114,14 @@ This is a simulated invoice generated on ${invoiceDateTime}.
   URL.revokeObjectURL(link.href); // Clean up the object URL
 
   toast({
-    title: 'Simulated Text Invoice Downloaded',
-    description: `A plain text file (invoice-${order.id}-simulated.txt) with order details has been downloaded. Actual styled PDF generation would require a dedicated library.`,
-    duration: 9000,
+    title: 'Simulated Invoice Downloaded as PDF',
+    description: `A file named invoice-${order.id}-simulated.pdf (containing plain text) has been downloaded. It may not open correctly in PDF viewers. True PDF generation is a future feature.`,
+    duration: 12000, // Longer duration for this important note
   });
 
   // Log to console as well, for developer reference
-  console.log(`--- Simulated TEXT Invoice Generation & Download for Order: ${order.id} ---`);
+  console.log(`--- Simulated TEXT Invoice Generation & Download (as .pdf) for Order: ${order.id} ---`);
   console.log("Content:\n", invoiceContent.trim());
-  console.log("INFO: This is a simulation. To implement actual PDF generation, use a library like jsPDF.");
+  console.log("INFO: This is a simulation. The downloaded .pdf file contains plain text. To implement actual PDF generation, use a library like jsPDF.");
 }
 
