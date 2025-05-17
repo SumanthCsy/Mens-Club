@@ -44,6 +44,7 @@ export interface UserData {
   role: 'user' | 'admin';
   memberSince?: string; 
   avatarUrl?: string; 
+  defaultShippingAddress?: ShippingAddress;
 }
 
 // Types for Order and Shipping
@@ -53,20 +54,20 @@ export interface OrderItem {
   quantity: number;
   price: number; // Price per unit at the time of order
   selectedSize: string;
-  selectedColor?: string;
+  selectedColor: string | null; // Ensure it can be null
   imageUrl: string;
-  sku?: string;
+  sku: string | null; // Ensure it can be null
 }
 
 export interface ShippingAddress {
   fullName: string;
   addressLine1: string;
-  addressLine2?: string;
+  addressLine2: string | null; // Ensure it can be null
   city: string;
   stateProvince: string;
   postalCode: string;
   country: string;
-  phoneNumber?: string;
+  phoneNumber: string | null; // Ensure it can be null
   email: string; // Customer's email for shipping, might be different from auth email
 }
 
@@ -77,11 +78,13 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   shippingCost: number;
-  discount?: number; // Optional discount amount
+  discount?: number | null; // Optional discount amount, can be null
   grandTotal: number;
   shippingAddress: ShippingAddress;
   paymentMethod: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   createdAt: any; // Firestore ServerTimestamp, will be resolved to Timestamp
+  cancellationReason?: string; // New field
+  cancelledBy?: 'user' | 'admin'; // New field
   // Potentially other fields like orderNotes, trackingNumber etc.
 }

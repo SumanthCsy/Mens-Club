@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, Info } from 'lucide-react';
 import type { Order, OrderItem, ShippingAddress } from '@/types';
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
-import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal'; // Import the new modal
+import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal';
+import { AdminOrderCancellationModal } from '@/components/admin/AdminOrderCancellationModal'; // New Modal
 
 export default function AdminViewOrderDetailsPage() {
   const params = useParams();
@@ -36,7 +37,10 @@ export default function AdminViewOrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
-  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false); // State for invoice modal
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isAdminCancelModalOpen, setIsAdminCancelModalOpen] = useState(false);
+  const [orderToCancelAdmin, setOrderToCancelAdmin] = useState<Order | null>(null);
+
 
   useEffect(() => {
     if (orderId) {
@@ -74,11 +78,24 @@ export default function AdminViewOrderDetailsPage() {
 
   const handleStatusChange = async (newStatus: Order['status']) => {
     if (!order || !order.id) return;
+
+    if (newStatus === 'Cancelled') {
+      setOrderToCancelAdmin(order);
+      setIsAdminCancelModalOpen(true);
+      return; // Don't proceed with direct status update yet
+    }
+    
     setIsUpdatingStatus(true);
     try {
       const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, { status: newStatus });
-      setOrder(prevOrder => prevOrder ? { ...prevOrder, status: newStatus } : null);
+      const updateData: Partial<Order> = { status: newStatus };
+      // If changing status from 'Cancelled' to something else, clear cancellation details
+      if (order.status === 'Cancelled' && newStatus !== 'Cancelled') {
+        updateData.cancellationReason = null; // Using null to explicitly remove field
+        updateData.cancelledBy = null;
+      }
+      await updateDoc(orderRef, updateData);
+      setOrder(prevOrder => prevOrder ? { ...prevOrder, ...updateData } : null);
       toast({
         title: "Order Status Updated",
         description: `Order ${order.id} status changed to ${newStatus}.`,
@@ -88,6 +105,36 @@ export default function AdminViewOrderDetailsPage() {
       toast({
         title: "Update Failed",
         description: "Could not update order status.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleAdminConfirmCancellation = async (reason: string, remarks?: string) => {
+    if (!orderToCancelAdmin || !orderToCancelAdmin.id) return;
+    setIsUpdatingStatus(true);
+    try {
+      const orderRef = doc(db, "orders", orderToCancelAdmin.id);
+      const cancellationDetails = {
+        status: 'Cancelled' as Order['status'],
+        cancellationReason: remarks || reason,
+        cancelledBy: 'admin' as Order['cancelledBy'],
+      };
+      await updateDoc(orderRef, cancellationDetails);
+      setOrder(prevOrder => prevOrder ? { ...prevOrder, ...cancellationDetails } : null);
+      toast({
+        title: "Order Cancelled by Admin",
+        description: `Order ${orderToCancelAdmin.id} has been cancelled. Reason: ${reason}`,
+      });
+      setIsAdminCancelModalOpen(false);
+      setOrderToCancelAdmin(null);
+    } catch (error) {
+      console.error("Error cancelling order by admin:", error);
+      toast({
+        title: "Cancellation Failed",
+        description: "Could not cancel the order.",
         variant: "destructive",
       });
     } finally {
@@ -183,13 +230,25 @@ export default function AdminViewOrderDetailsPage() {
                         <SelectItem value="Processing">Processing</SelectItem>
                         <SelectItem value="Shipped">Shipped</SelectItem>
                         <SelectItem value="Delivered">Delivered</SelectItem>
-                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        <SelectItem value="Cancelled">Cancel Order</SelectItem>
                     </SelectContent>
                 </Select>
                  {isUpdatingStatus && <Loader2 className="h-5 w-5 animate-spin" />}
             </div>
         </div>
       </div>
+
+    {order.status === 'Cancelled' && order.cancellationReason && (
+        <Card className="mb-6 shadow-md border-destructive/50 bg-destructive/5 text-destructive">
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5"/>Order Cancelled</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p><strong>Reason:</strong> {order.cancellationReason}</p>
+                {order.cancelledBy && <p><strong>Cancelled By:</strong> {order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1)}</p>}
+            </CardContent>
+        </Card>
+    )}
 
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
@@ -306,6 +365,22 @@ export default function AdminViewOrderDetailsPage() {
     </div>
     <OrderTrackingModal isOpen={isTrackingModalOpen} onClose={() => setIsTrackingModalOpen(false)} order={order} />
     <InvoiceViewModal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} order={order} />
+    {orderToCancelAdmin && (
+        <AdminOrderCancellationModal
+            isOpen={isAdminCancelModalOpen}
+            onClose={() => {
+                setIsAdminCancelModalOpen(false);
+                setOrderToCancelAdmin(null);
+                // Reset select to original status if modal closed without confirming cancellation
+                if (order && orderToCancelAdmin && order.id === orderToCancelAdmin.id && order.status !== 'Cancelled') {
+                    // This is tricky as the Select component's value might not easily reset
+                    // Best to re-fetch or ensure local state is accurate if cancellation not completed
+                }
+            }}
+            order={orderToCancelAdmin}
+            onConfirmCancellation={handleAdminConfirmCancellation}
+        />
+    )}
     </div>
   );
 }

@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
@@ -38,7 +38,6 @@ export default function MyOrdersPage() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   
-  // States for cancellation flow
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
   const [isCancelFormOpen, setIsCancelFormOpen] = useState(false);
@@ -52,6 +51,8 @@ export default function MyOrdersPage() {
       } else {
         setCurrentUser(null);
         setIsLoading(false);
+        // Consider redirecting to login if not authenticated
+        // router.push('/login?redirect=/profile/my-orders');
       }
     });
     return () => unsubscribe();
@@ -145,6 +146,7 @@ export default function MyOrdersPage() {
     } else if (order.status === 'Pending' || order.status === 'Processing') {
       setIsConfirmCancelOpen(true);
     }
+    // If order is 'Cancelled', button should be disabled, so this won't be triggered.
   };
 
   const proceedToCancellationForm = () => {
@@ -219,34 +221,47 @@ export default function MyOrdersPage() {
         <div className="space-y-6">
           {orders.map((order) => (
             <Card key={order.id} className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60">
-              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <CardTitle className="text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
-                    {order.id && (
-                      <Button variant="ghost" size="icon" onClick={() => handleCopyOrderId(order.id!)} className="h-7 w-7 text-muted-foreground hover:text-primary">
-                        <ClipboardCopy className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <CardDescription className="text-sm">
-                    Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}
-                  </CardDescription>
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                    <div className="flex items-center gap-1.5">
+                        <CardTitle className="text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
+                        {order.id && (
+                        <Button variant="ghost" size="icon" onClick={() => handleCopyOrderId(order.id!)} className="h-7 w-7 text-muted-foreground hover:text-primary">
+                            <ClipboardCopy className="h-4 w-4" />
+                        </Button>
+                        )}
+                    </div>
+                    <CardDescription className="text-sm">
+                        Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}
+                    </CardDescription>
+                    </div>
+                    <div className="flex flex-col sm:items-end gap-1 sm:gap-0 self-start sm:self-center">
+                    <span 
+                        className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
+                        ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
+                        ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
+                        ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
+                        ${order.status === 'Pending' ? 'bg-orange-100 text-orange-700' : ''}
+                        ${order.status === 'Cancelled' ? 'bg-red-100 text-red-700' : ''}
+                        `}
+                    >
+                        {order.status}
+                    </span>
+                    <p className="text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.grandTotal.toFixed(2)}</p>
+                    </div>
                 </div>
-                <div className="flex flex-col sm:items-end gap-1 sm:gap-0">
-                   <span 
-                    className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
-                      ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
-                      ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
-                      ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
-                      ${order.status === 'Pending' ? 'bg-orange-100 text-orange-700' : ''}
-                      ${order.status === 'Cancelled' ? 'bg-red-100 text-red-700' : ''}
-                    `}
-                  >
-                    {order.status}
-                  </span>
-                  <p className="text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.grandTotal.toFixed(2)}</p>
-                </div>
+                 {order.status === 'Cancelled' && order.cancellationReason && (
+                    <div className="mt-3 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                        <div className="flex items-start gap-2">
+                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                            <p>
+                                <strong>Cancellation Reason:</strong> {order.cancellationReason}
+                                {order.cancelledBy && ` (By ${order.cancelledBy})`}
+                            </p>
+                        </div>
+                    </div>
+                )}
               </CardHeader>
               <Separator />
               <CardContent className="pt-4 pb-2">
@@ -271,7 +286,7 @@ export default function MyOrdersPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleRequestCancellation(order)}
-                    disabled={order.status === 'Cancelled'}
+                    disabled={order.status === 'Cancelled' || order.status === 'Delivered'} // Also disable for delivered for now
                     className={ (order.status === 'Pending' || order.status === 'Processing') ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}
                  >
                    <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
@@ -281,7 +296,7 @@ export default function MyOrdersPage() {
           ))}
         </div>
       )}
-       {orders.length > 5 && (
+       {orders.length > 5 && ( // Simple pagination placeholder
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
@@ -305,7 +320,6 @@ export default function MyOrdersPage() {
         />
       )}
 
-      {/* Confirmation Dialog for Cancellable Orders */}
       {orderToCancel && (orderToCancel.status === 'Pending' || orderToCancel.status === 'Processing') && (
         <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
           <AlertDialogContent>
@@ -325,12 +339,11 @@ export default function MyOrdersPage() {
         </AlertDialog>
       )}
 
-      {/* Dialog for Already Shipped/Delivered Orders */}
       {orderToCancel && (orderToCancel.status === 'Shipped' || orderToCancel.status === 'Delivered') && (
          <AlertDialog open={isShippedCancelInfoOpen} onOpenChange={(open) => { if(!open) setOrderToCancel(null); setIsShippedCancelInfoOpen(open);}}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Order Already Shipped</AlertDialogTitle>
+              <AlertDialogTitle>Order Already {orderToCancel.status}</AlertDialogTitle>
               <AlertDialogDescription>
                 OH Sorry! Your order <span className="font-semibold text-primary">#{orderToCancel.id}</span> is already {orderToCancel.status.toLowerCase()}.
                 Still want to cancel? Please contact us now.
@@ -353,7 +366,6 @@ export default function MyOrdersPage() {
         </AlertDialog>
       )}
       
-      {/* Cancellation Form Modal (Remains the same, shown only if orderToCancel is set and form is triggered) */}
       {orderToCancel && isCancelFormOpen && (
         <OrderCancellationFormModal
           isOpen={isCancelFormOpen}
@@ -367,5 +379,4 @@ export default function MyOrdersPage() {
     </div>
   );
 }
-
 
