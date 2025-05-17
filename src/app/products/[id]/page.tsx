@@ -2,9 +2,9 @@
 // @/app/products/[id]/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Product, Review } from '@/types'; // Added Review type
+import type { Product, Review, UserData } from '@/types'; // Added UserData type
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
 import { SizeSelector } from '@/components/products/size-selector';
@@ -14,15 +14,14 @@ import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Perce
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-// ProductCard import removed as it's not used for related products yet
 import Link from 'next/link';
-import { doc, onSnapshot, Unsubscribe, Timestamp, updateDoc, arrayUnion, getDoc } from "firebase/firestore"; // Added updateDoc, arrayUnion, getDoc
+import { doc, onSnapshot, Unsubscribe, Timestamp, updateDoc, arrayUnion, getDoc } from "firebase/firestore"; 
 import { auth, db } from '@/lib/firebase';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
 import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { v4 as uuidv4 } from 'uuid'; // For generating unique review IDs
+import { v4 as uuidv4 } from 'uuid';
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -67,7 +66,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         setProduct({
             id: docSnap.id,
             ...data,
-            // Ensure reviews is always an array, even if undefined in Firestore
             reviews: Array.isArray(data.reviews) ? data.reviews : [], 
             offerStartDate: data.offerStartDate,
             offerEndDate: data.offerEndDate,
@@ -141,11 +139,36 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         return;
     }
 
+    let authorName = "Anonymous";
+    if (currentUser.displayName) {
+      authorName = currentUser.displayName;
+    } else {
+      try {
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data() as UserData;
+          if (userData.fullName) {
+            authorName = userData.fullName;
+          } else if (currentUser.email) {
+            authorName = currentUser.email;
+          }
+        } else if (currentUser.email) {
+          authorName = currentUser.email;
+        }
+      } catch (fetchError) {
+        console.error("Error fetching user data for review author name:", fetchError);
+        if (currentUser.email) {
+          authorName = currentUser.email;
+        }
+      }
+    }
+
     const newReview: Review = {
-      id: uuidv4(), // Generate a unique ID for the review
+      id: uuidv4(), 
       userId: currentUser.uid,
-      author: currentUser.displayName || currentUser.email || "Anonymous",
-      avatarUrl: currentUser.photoURL || null, // Ensure null instead of undefined
+      author: authorName,
+      avatarUrl: currentUser.photoURL || null,
       rating,
       comment,
       date: new Date().toISOString(),
@@ -153,7 +176,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
     try {
       const productRef = doc(db, "products", prodId);
-      // Fetch the current product to get existing reviews
       const currentProductSnap = await getDoc(productRef);
       if (!currentProductSnap.exists()) {
         throw new Error("Product not found for review submission.");
@@ -161,7 +183,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       const currentProductData = currentProductSnap.data() as Product;
       const existingReviews = currentProductData.reviews || [];
       
-      // Check if user has already reviewed this product
       const userHasReviewed = existingReviews.some(review => review.userId === currentUser.uid);
       if (userHasReviewed) {
         toast({ title: "Already Reviewed", description: "You have already submitted a review for this product.", variant: "default"});
@@ -172,14 +193,13 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         reviews: arrayUnion(newReview)
       });
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
-      // The onSnapshot listener for the product should automatically update the UI with the new review.
     } catch (error: any) { 
-      console.error("Error submitting review to Firestore:", error);
+      console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       console.error("Firebase error code:", error.code);
       console.error("Firebase error message:", error.message);
       toast({ 
         title: "Review Submission Failed", 
-        description: `Could not save your review. Error: ${error.message || 'Please try again.'}`, 
+        description: `Could not save your review. Firebase error message: "${error.message || 'Please try again.'}"`, 
         variant: "destructive",
         duration: 7000,
       });
@@ -223,7 +243,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     );
   }
 
-  // Recalculate averageRating and reviewCount based on the current product.reviews array
   const effectiveReviewCount = product.reviews?.length || 0;
   const effectiveAverageRating = 
     product.reviews && effectiveReviewCount > 0
@@ -315,12 +334,12 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
       <div className="mt-16 md:mt-24">
         <UserReviews 
-          productId={product.id}
+          productId={product.id} // Pass productId here
           reviews={product.reviews} 
           averageRatingProp={effectiveAverageRating}
           reviewCountProp={effectiveReviewCount}
           isAuthenticated={!!currentUser}
-          onReviewSubmit={handleReviewSubmit}
+          onReviewSubmit={handleReviewSubmit} // Pass the handler
         />
       </div>
     </div>
