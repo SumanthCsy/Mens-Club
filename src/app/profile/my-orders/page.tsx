@@ -161,14 +161,14 @@ export default function MyOrdersPage() {
             <Card key={order.id} className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60">
               <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold">Order #{order.id?.substring(0, 8)}...</CardTitle>
+                  <CardTitle className="text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
                   <CardDescription className="text-sm">
                     Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}
                   </CardDescription>
                 </div>
                 <div className="flex flex-col sm:items-end gap-1 sm:gap-0">
                    <span 
-                    className={`px-3 py-1 text-xs font-medium rounded-full
+                    className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
                       ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
                       ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
                       ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
@@ -208,11 +208,12 @@ export default function MyOrdersPage() {
           ))}
         </div>
       )}
-       {orders.length > 5 && (
+       {orders.length > 5 && ( // Only show pagination if there are more than 5 orders
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
             <Button variant="outline">1</Button>
+            {/* Add more page numbers as needed */}
             <Button variant="outline" disabled>Next</Button>
           </div>
         </div>
@@ -227,3 +228,4 @@ export default function MyOrdersPage() {
     </div>
   );
 }
+

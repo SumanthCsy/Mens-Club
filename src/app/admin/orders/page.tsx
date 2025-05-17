@@ -110,7 +110,7 @@ export default function ViewOrdersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Order ID</TableHead>
+                    <TableHead className="min-w-[200px]">Order ID</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Customer Email</TableHead>
                     <TableHead className="text-right">Total (₹)</TableHead>
@@ -122,15 +122,15 @@ export default function ViewOrdersPage() {
                   {orders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/admin/orders/view/${order.id}`} className="hover:underline text-primary">
-                            {order.id?.substring(0, 8) || 'N/A'}...
+                        <Link href={`/admin/orders/view/${order.id}`} className="hover:underline text-primary break-all">
+                            {order.id || 'N/A'}
                         </Link>
                       </TableCell>
                       <TableCell>{order.createdAt ? format(new Date(order.createdAt), 'PPp') : 'N/A'}</TableCell>
                       <TableCell>{order.customerEmail || 'N/A'}</TableCell>
                       <TableCell className="text-right">{order.grandTotal?.toFixed(2) || '0.00'}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap
                           ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
                           ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
                           ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
@@ -163,3 +163,4 @@ export default function ViewOrdersPage() {
     </div>
   );
 }
+

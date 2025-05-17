@@ -113,26 +113,26 @@ export default function CheckoutPage() {
       quantity: item.quantity,
       price: item.price,
       selectedSize: item.selectedSize,
-      selectedColor: item.selectedColor || null, // Convert undefined to null
-      imageUrl: item.imageUrl, // Assuming imageUrl is always present on CartItemData
-      sku: item.sku || null, // Convert undefined to null
+      selectedColor: item.selectedColor || null, // Ensure null if undefined
+      imageUrl: item.imageUrl || 'https://placehold.co/100x133.png', // Fallback if not present
+      sku: item.sku || null, // Ensure null if undefined
     }));
 
     const shippingAddressForDb: ShippingAddressType = {
       fullName: shippingData.fullName,
       addressLine1: shippingData.addressLine1,
-      addressLine2: shippingData.addressLine2 || null, // Convert undefined to null
+      addressLine2: shippingData.addressLine2 || null, // Ensure null if undefined
       city: shippingData.city,
       stateProvince: shippingData.stateProvince,
       postalCode: shippingData.postalCode,
       country: shippingData.country,
-      phoneNumber: shippingData.phoneNumber || null, // Convert undefined to null
-      email: shippingData.email, // This email is from the shipping form
+      phoneNumber: shippingData.phoneNumber || null, // Ensure null if undefined
+      email: shippingData.email,
     };
 
     const orderToSave: Omit<Order, 'id'> = {
       userId: currentUser.uid,
-      customerEmail: shippingData.email, // Email used in shipping form for contact
+      customerEmail: shippingData.email, 
       items: orderItemsForDb,
       subtotal: cartTotal,
       shippingCost: shippingCost,
@@ -141,16 +141,17 @@ export default function CheckoutPage() {
       paymentMethod: selectedPaymentMethod,
       status: 'Pending',
       createdAt: serverTimestamp(),
-      // discount is optional; if not provided, it won't be saved, which is fine.
-      // If you had a discount variable that could be undefined, ensure it's:
-      // ...(currentDiscountValue && { discount: currentDiscountValue })
+      // discount would be handled here if it existed, e.g., discount: order.discount || null
     };
+    
+    console.log("Attempting to save order:", JSON.stringify(orderToSave, null, 2));
+
 
     try {
       const docRef = await addDoc(collection(db, "orders"), orderToSave);
       toast({
         title: "Order Placed Successfully!",
-        description: `Your order #${docRef.id.substring(0,8)} has been placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}.`,
+        description: `Your order #${docRef.id} has been placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}.`,
         duration: 7000,
       });
 
@@ -199,18 +200,13 @@ export default function CheckoutPage() {
       router.push('/'); 
     } catch (error: any) {
       console.error("Data being sent to Firestore:", JSON.stringify(orderToSave, null, 2));
+      // Log the full error object for more details
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
-      let description = "There was an issue placing your order. Please try again.";
-      if (error.code && error.message) { 
-        description = `Error: ${error.message}. Please check console for more details.`;
-      } else if (error.message) {
-        description = error.message;
-      }
-      
+
       toast({
         title: "Order Placement Failed",
-        description: description,
+        description: `Error: ${error.message || 'An unknown error occurred.'}. Please check console for more details.`,
         variant: "destructive",
         duration: 10000, 
       });
@@ -291,3 +287,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+

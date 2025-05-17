@@ -81,7 +81,7 @@ export default function AdminViewOrderDetailsPage() {
       setOrder(prevOrder => prevOrder ? { ...prevOrder, status: newStatus } : null);
       toast({
         title: "Order Status Updated",
-        description: `Order ${order.id.substring(0,8)} status changed to ${newStatus}.`,
+        description: `Order ${order.id} status changed to ${newStatus}.`,
       });
     } catch (error) {
       console.error("Error updating order status:", error);
@@ -149,8 +149,8 @@ export default function AdminViewOrderDetailsPage() {
                 <Package className="h-10 w-10 text-primary" />
                 <div>
                     <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">Order Details</h1>
-                    <p className="mt-1 text-md text-muted-foreground">
-                    Order ID: {order.id?.substring(0, 8)}...
+                    <p className="mt-1 text-md text-muted-foreground break-all">
+                    Order ID: {order.id || 'N/A'}
                     </p>
                 </div>
             </div>
@@ -263,7 +263,7 @@ export default function AdminViewOrderDetailsPage() {
                     <CardTitle className="text-xl flex items-center gap-2">Order Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                    <p><strong>Order ID:</strong> {order.id}</p>
+                    <p className="break-all"><strong>Order ID:</strong> {order.id}</p>
                     <p><strong>Placed On:</strong> {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}</p>
                      <Button variant="outline" className="w-full" onClick={() => setIsTrackingModalOpen(true)}>
                         <TruckIcon className="mr-2 h-4 w-4" /> View Tracking
@@ -282,3 +282,4 @@ export default function AdminViewOrderDetailsPage() {
     </div>
   );
 }
+

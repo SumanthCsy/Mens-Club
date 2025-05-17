@@ -42,8 +42,8 @@ export function OrderTrackingModal({ isOpen, onClose, order }: OrderTrackingModa
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md md:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold">
-            Track Order: #{order.id?.substring(0, 8)}...
+          <DialogTitle className="text-2xl font-semibold break-all">
+            Track Order: #{order.id || 'N/A'}
           </DialogTitle>
           <DialogDescription>
             Current status: <span className={cn(
@@ -112,3 +112,4 @@ export function OrderTrackingModal({ isOpen, onClose, order }: OrderTrackingModa
     </Dialog>
   );
 }
+

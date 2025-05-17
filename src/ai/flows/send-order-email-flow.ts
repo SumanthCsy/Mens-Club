@@ -44,7 +44,7 @@ const sendOrderNotificationEmailFlow = ai.defineFlow(
   async (input) => {
     const { orderId, customerEmail, grandTotal, adminEmail } = input;
 
-    const subject = `New Order Received - Order ID: ${orderId.substring(0,8)}`;
+    const subject = `New Order Received - Order ID: ${orderId}`; // Use full order ID
     const body = `
 Hello Admin,
 
@@ -91,3 +91,4 @@ Thank you.
     }
   }
 );
+
