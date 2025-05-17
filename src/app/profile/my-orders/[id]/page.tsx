@@ -7,9 +7,9 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info } from 'lucide-react';
-import type { Order, OrderItem, ShippingAddress as ShippingAddressType } from '@/types';
-import { doc, getDoc, Timestamp } from "firebase/firestore";
+import { ArrowLeft, Package, MapPin, CreditCard, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info, Trash2 } from 'lucide-react';
+import type { Order } from '@/types';
+import { doc, getDoc, Timestamp, deleteDoc } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -48,26 +48,24 @@ export default function UserViewOrderDetailsPage() {
   const [isCancelFormOpen, setIsCancelFormOpen] = useState(false);
   const [isShippedCancelInfoOpen, setIsShippedCancelInfoOpen] = useState(false);
 
+  const [showDeleteOrderConfirm, setShowDeleteOrderConfirm] = useState(false);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
+
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setCurrentUser(user);
       } else {
         setCurrentUser(null);
-        if (!error && !isLoading) { 
-             setError("Please log in to view order details.");
-             setIsLoading(false); 
-        } else if (!error && isLoading) {
-            // If already loading for other reasons, let it continue,
-            // the main fetch effect will handle user not being present.
-        } else if (!error) {
+        if (!isLoading && !error) {
             setError("Please log in to view order details.");
-             setIsLoading(false); 
+            setIsLoading(false);
         }
       }
     });
     return () => unsubscribe();
-  }, [router, error, isLoading]);
+  }, [isLoading, error]);
 
   useEffect(() => {
     if (!orderId) {
@@ -76,9 +74,7 @@ export default function UserViewOrderDetailsPage() {
         return;
     }
     if (!currentUser) {
-        // If still loading from initial page load, don't set error yet, wait for auth.
-        // If not loading, and no user, then set error.
-        if(!isLoading && !error) { // Only set error if not already loading or erroring
+        if(!isLoading && !error) {
             setError("Please log in to view order details.");
             setIsLoading(false);
         }
@@ -86,7 +82,7 @@ export default function UserViewOrderDetailsPage() {
     }
 
     const fetchOrder = async () => {
-      setIsLoading(true); 
+      setIsLoading(true);
       setError(null);
       try {
         const orderRef = doc(db, "orders", orderId);
@@ -161,6 +157,28 @@ export default function UserViewOrderDetailsPage() {
     return `https://wa.me/919391157177?text=${message}`;
   };
 
+  const handleDeleteOrder = async () => {
+    if (!order || !order.id) return;
+    setIsDeletingOrder(true);
+    try {
+      await deleteDoc(doc(db, "orders", order.id));
+      toast({
+        title: "Order Deleted",
+        description: `Order ${order.id} has been permanently deleted.`,
+      });
+      router.push('/profile/my-orders');
+    } catch (err) {
+      console.error("Error deleting order:", err);
+      toast({
+        title: "Deletion Failed",
+        description: "Could not delete the order. Please try again.",
+        variant: "destructive",
+      });
+      setIsDeletingOrder(false);
+    }
+    // No finally block needed for setIsDeletingOrder(false) here, as router.push navigates away.
+  };
+
 
   if (isLoading) {
     return (
@@ -182,7 +200,7 @@ export default function UserViewOrderDetailsPage() {
       </div>
     );
   }
-  
+
   if (!order) {
      return (
       <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
@@ -196,7 +214,6 @@ export default function UserViewOrderDetailsPage() {
   }
 
   const { shippingAddress, items } = order;
-  const isOrderCancellable = order.status === 'Pending' || order.status === 'Processing' || order.status === 'Shipped';
 
 
   return (
@@ -243,9 +260,9 @@ export default function UserViewOrderDetailsPage() {
                 <CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5"/>Order Cancelled</CardTitle>
             </CardHeader>
             <CardContent>
-                <p>
+                 <p>
                     <strong>Reason:</strong> {order.cancellationReason}
-                    {order.cancelledBy && ` (By ${order.cancelledBy === 'store' ? 'Store' : (order.cancelledBy === 'user' ? 'User' : order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1))})`}
+                    {order.cancelledBy && ` (By ${order.cancelledBy === 'store' ? 'Store' : (order.cancelledBy === 'user' ? 'User' : 'N/A')})`}
                 </p>
             </CardContent>
         </Card>
@@ -261,8 +278,8 @@ export default function UserViewOrderDetailsPage() {
                     {items.map((item, index) => (
                         <div key={item.id + (item.selectedSize || '') + (item.selectedColor || '') + index}>
                             <div className="flex items-start gap-4 py-4">
-                                <Image 
-                                    src={item.imageUrl || 'https://placehold.co/80x100.png'} 
+                                <Image
+                                    src={item.imageUrl || 'https://placehold.co/80x100.png'}
                                     alt={item.name}
                                     width={80}
                                     height={100}
@@ -296,7 +313,7 @@ export default function UserViewOrderDetailsPage() {
                     <Separator className="my-2"/>
                     <div className="flex justify-between font-bold text-lg"><span>Grand Total:</span> <span>₹{order.grandTotal.toFixed(2)}</span></div>
                     <div className="flex justify-between items-center pt-2">
-                        <span className="text-muted-foreground">Method:</span> 
+                        <span className="text-muted-foreground">Method:</span>
                         <span className="font-medium flex items-center gap-1">
                            <CreditCard className="h-4 w-4 text-muted-foreground"/> {order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}
                         </span>
@@ -306,7 +323,7 @@ export default function UserViewOrderDetailsPage() {
 
              <Card className="shadow-lg border-border/60">
                 <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2"><User className="h-6 w-6 text-primary"/>Shipping To</CardTitle>
+                    <CardTitle className="text-xl flex items-center gap-2"><MapPin className="h-6 w-6 text-primary"/>Shipping To</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 text-sm">
                     <p><strong>{shippingAddress.fullName}</strong></p>
@@ -331,10 +348,10 @@ export default function UserViewOrderDetailsPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                     <p><strong>Placed On:</strong> {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}</p>
-                     <Button 
-                        variant="outline" 
-                        className="w-full" 
-                        onClick={() => setIsTrackingModalOpen(true)} 
+                     <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setIsTrackingModalOpen(true)}
                         disabled={order.status === 'Cancelled'}
                      >
                         <TruckIcon className="mr-2 h-4 w-4" /> View Tracking
@@ -350,6 +367,17 @@ export default function UserViewOrderDetailsPage() {
                     >
                         <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
                     </Button>
+                    {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
+                         <Button
+                            variant="destructive"
+                            className="w-full"
+                            onClick={() => setShowDeleteOrderConfirm(true)}
+                            disabled={isDeletingOrder}
+                        >
+                            {isDeletingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                             Delete Order
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -357,7 +385,7 @@ export default function UserViewOrderDetailsPage() {
 
     {order && <OrderTrackingModal isOpen={isTrackingModalOpen} onClose={() => setIsTrackingModalOpen(false)} order={order} />}
     {order && <InvoiceViewModal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} order={order} />}
-    
+
     {orderToCancel && (orderToCancel.status === 'Pending' || orderToCancel.status === 'Processing') && (
         <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
           <AlertDialogContent>
@@ -414,7 +442,29 @@ export default function UserViewOrderDetailsPage() {
           order={orderToCancel}
         />
       )}
+      {showDeleteOrderConfirm && order && (
+        <AlertDialog open={showDeleteOrderConfirm} onOpenChange={setShowDeleteOrderConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete your order #{order.id}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteOrder}
+                disabled={isDeletingOrder}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                {isDeletingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Yes, delete order
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
-    
