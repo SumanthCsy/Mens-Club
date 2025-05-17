@@ -1,4 +1,3 @@
-
 // @/app/admin/coupons/page.tsx
 "use client";
 
@@ -9,16 +8,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, PlusCircle, Ticket, Loader2, AlertTriangle, Edit, Trash2 } from 'lucide-react';
 import type { Coupon } from '@/types';
-import { collection, query, orderBy as firestoreOrderBy, onSnapshot, Unsubscribe, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy as firestoreOrderBy, onSnapshot, Unsubscribe, Timestamp, doc, deleteDoc } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ViewCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -29,12 +41,12 @@ export default function ViewCouponsPage() {
     const q = query(couponsCol, firestoreOrderBy("createdAt", "desc"));
 
     const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const couponList = querySnapshot.docs.map(doc => {
-        const data = doc.data();
+      const couponList = querySnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
         return {
-          id: doc.id,
+          id: docSnapshot.id,
           ...data,
-          expiryDate: data.expiryDate instanceof Timestamp ? data.expiryDate.toDate() : data.expiryDate,
+          expiryDate: data.expiryDate instanceof Timestamp ? data.expiryDate.toDate() : (data.expiryDate ? new Date(data.expiryDate) : null),
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
         } as Coupon;
       });
@@ -55,6 +67,28 @@ export default function ViewCouponsPage() {
       return `${coupon.discountValue}%`;
     }
     return `₹${coupon.discountValue.toFixed(2)}`;
+  };
+
+  const handleDeleteCoupon = async () => {
+    if (!couponToDelete || !couponToDelete.id) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, "coupons", couponToDelete.id));
+      toast({
+        title: "Coupon Deleted!",
+        description: `Coupon ${couponToDelete.code} has been successfully deleted.`,
+      });
+      setCouponToDelete(null); // Close dialog
+    } catch (error) {
+      console.error("Error deleting coupon:", error);
+      toast({
+        title: "Error Deleting Coupon",
+        description: `Could not delete coupon ${couponToDelete.code}. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (isLoading) {
@@ -134,7 +168,7 @@ export default function ViewCouponsPage() {
                         {coupon.expiryDate ? format(new Date(coupon.expiryDate), 'PP') : 'No Expiry'}
                       </TableCell>
                       <TableCell>
-                        {coupon.minPurchaseAmount ? `₹${coupon.minPurchaseAmount.toFixed(2)}` : 'N/A'}
+                        {typeof coupon.minPurchaseAmount === 'number' ? `₹${coupon.minPurchaseAmount.toFixed(2)}` : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <Badge variant={coupon.displayOnSite ? 'default' : 'outline'}>
@@ -148,14 +182,35 @@ export default function ViewCouponsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center gap-2">
-                          <Button variant="outline" size="icon" asChild className="h-8 w-8" disabled>
+                          <Button variant="outline" size="icon" asChild className="h-8 w-8">
                             <Link href={`/admin/coupons/edit/${coupon.id}`}>
                               <Edit className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button variant="destructive" size="icon" className="h-8 w-8" disabled>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                           <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => setCouponToDelete(coupon)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            {couponToDelete && couponToDelete.id === coupon.id && (
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the coupon "{couponToDelete.code}".
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setCouponToDelete(null)}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteCoupon} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting}>
+                                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  Yes, delete coupon
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                            )}
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -166,6 +221,7 @@ export default function ViewCouponsPage() {
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }
