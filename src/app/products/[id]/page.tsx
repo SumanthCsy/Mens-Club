@@ -3,24 +3,25 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation'; // Added useRouter
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
 import { SizeSelector } from '@/components/products/size-selector';
 import { UserReviews } from '@/components/products/user-reviews';
 import { RatingStars } from '@/components/shared/rating-stars';
-import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent } from 'lucide-react';
+import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn } from 'lucide-react'; // Added LogIn
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ProductCard } from '@/components/products/product-card';
 import Link from 'next/link';
 import { doc, onSnapshot, Unsubscribe, Timestamp } from "firebase/firestore";
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase'; // Import auth
 import { useCart } from '@/context/cart-context';
-import { useWishlist } from '@/context/wishlist-context'; // Import useWishlist
+import { useWishlist } from '@/context/wishlist-context';
 import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
+import type { User as FirebaseUser } from 'firebase/auth'; // Added FirebaseUser type
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -29,9 +30,18 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
   const { addToCart } = useCart();
-  const { addToWishlist, removeFromWishlist, isProductInWishlist } = useWishlist(); // Get wishlist methods
+  const { addToWishlist, removeFromWishlist, isProductInWishlist, isLoadingWishlist } = useWishlist();
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null); // Added currentUser state
+  const router = useRouter(); // Added router
 
   const isWishlisted = product ? isProductInWishlist(product.id) : false;
+
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged(user => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   useEffect(() => {
     if (product && product.sizes && product.sizes.length > 0 && !selectedSize) {
@@ -97,16 +107,28 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     addToCart(product, selectedSize || (product.sizes?.[0] || 'N/A'));
   };
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to manage your wishlist.",
+        action: (
+          <Button onClick={() => router.push('/login?redirect=' + encodeURIComponent(window.location.pathname))}>
+            <LogIn className="mr-2 h-4 w-4" /> Login
+          </Button>
+        ),
+      });
+      return;
+    }
     if (!product) return;
     if (isWishlisted) {
-      removeFromWishlist(product.id);
+      await removeFromWishlist(product.id);
     } else {
-      addToWishlist(product.id);
+      await addToWishlist(product.id);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingWishlist) { // Consider isLoadingWishlist too
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -142,7 +164,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     );
   }
 
-  const relatedProducts: Product[] = [];
+  const relatedProducts: Product[] = []; // Placeholder, implement fetching related products if needed
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
