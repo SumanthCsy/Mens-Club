@@ -64,14 +64,14 @@ export function ProductCard({ product }: ProductCardProps) {
             variant="outline"
             className="w-full text-xs py-2 px-3 h-auto group/button sm:h-9 sm:text-sm sm:flex-1 sm:w-auto"
             onClick={(e) => {
-              // Prevent link navigation if button specific action is needed in future
-              // For now, it's part of the larger card link
+              // This button is part of the main card link, so its own click might be redundant
+              // or could be used for other purposes if needed, but default link behavior is fine.
             }}
           >
             {/* Link wrapper removed, button itself will be part of the card link */}
-            <>
+            <span className="inline-flex items-center"> {/* Replaced fragment with span */}
               <Eye className="mr-1.5 h-4 w-4 sm:mr-2 group-hover/button:animate-pulse" /> View
-            </>
+            </span>
           </Button>
           <Button
             className="w-full text-xs py-2 px-3 h-auto group/button sm:h-9 sm:text-sm sm:flex-1 sm:w-auto"
@@ -79,10 +79,8 @@ export function ProductCard({ product }: ProductCardProps) {
             onClick={(e) => {
               e.preventDefault(); // Prevent the Link navigation
               e.stopPropagation(); // Stop event from bubbling to the Link
-              // Add actual "Add to Cart" logic here using context or other state management
+              // TODO: Add actual "Add to Cart" logic here using context or other state management
               console.log("Add to cart clicked for:", product.name);
-              // Example: cart.addItem(product);
-              // For now, it just logs to console to prevent link navigation
             }}
           >
             <ShoppingCart className="mr-1.5 h-4 w-4 sm:mr-2 group-hover/button:animate-bounce" /> Add to Cart
