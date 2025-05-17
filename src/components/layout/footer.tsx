@@ -73,7 +73,9 @@ export function Footer() {
 
         <div className="mt-10 pt-8 border-t border-border text-center text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Mens Club Keshavapatnam. All rights reserved.</p>
-          <p className="mt-1">Designed with <span className="text-red-500">&hearts;</span> by an Expert Designer.</p>
+          <p className="mt-1">
+            Designed with <span className="text-red-500">&hearts;</span> by Sumanth Csy (<a href="https://sumanthcsy.netlify.app" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">sumanthcsy.netlify.app</a>)
+          </p>
         </div>
       </div>
     </footer>
