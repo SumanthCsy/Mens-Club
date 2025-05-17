@@ -1,10 +1,11 @@
 
 export interface Review {
-  id: string;
-  author: string;
+  id: string; // Can be auto-generated or productID + userID + timestamp
+  userId: string;
+  author: string; // User's display name or email
   rating: number; // 1-5
   comment: string;
-  date: string;
+  date: string; // ISO string
   avatarUrl?: string;
 }
 
@@ -20,9 +21,9 @@ export interface Product {
   colors?: string[];
   category?: string;
   brand?: string;
-  averageRating?: number;
-  reviewCount?: number;
-  reviews?: Review[];
+  averageRating?: number; // This will be calculated client-side in UserReviews or by a Function
+  reviewCount?: number;   // This will be calculated client-side in UserReviews or by a Function
+  reviews?: Review[];     // Array of actual review objects
   stock?: number; // Number of items in stock
   tags?: string[];
   sku?: string; // Stock Keeping Unit

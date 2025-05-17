@@ -2,9 +2,9 @@
 // @/app/products/[id]/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation'; // Added useRouter
-import type { Product } from '@/types';
+import { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
+import { useParams, useRouter } from 'next/navigation';
+import type { Product, Review } from '@/types'; // Added Review type
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
 import { SizeSelector } from '@/components/products/size-selector';
@@ -14,14 +14,15 @@ import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Perce
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ProductCard } from '@/components/products/product-card';
+// ProductCard import removed as it's not used for related products yet
 import Link from 'next/link';
-import { doc, onSnapshot, Unsubscribe, Timestamp } from "firebase/firestore";
+import { doc, onSnapshot, Unsubscribe, Timestamp, updateDoc, arrayUnion, getDoc } from "firebase/firestore"; // Added updateDoc, arrayUnion, getDoc
 import { auth, db } from '@/lib/firebase';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
 import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { v4 as uuidv4 } from 'uuid'; // For generating unique review IDs
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -66,6 +67,8 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         setProduct({
             id: docSnap.id,
             ...data,
+            // Ensure reviews is always an array, even if undefined in Firestore
+            reviews: Array.isArray(data.reviews) ? data.reviews : [], 
             offerStartDate: data.offerStartDate,
             offerEndDate: data.offerEndDate,
         } as Product);
@@ -128,6 +131,58 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     }
   };
 
+  const handleReviewSubmit = useCallback(async (prodId: string, rating: number, comment: string) => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "You must be logged in to submit a review.", variant: "destructive" });
+      return;
+    }
+    if (!product) {
+        toast({ title: "Error", description: "Product not found.", variant: "destructive" });
+        return;
+    }
+
+    const newReview: Review = {
+      id: uuidv4(), // Generate a unique ID for the review
+      userId: currentUser.uid,
+      author: currentUser.displayName || currentUser.email || "Anonymous",
+      avatarUrl: currentUser.photoURL || undefined,
+      rating,
+      comment,
+      date: new Date().toISOString(),
+    };
+
+    try {
+      const productRef = doc(db, "products", prodId);
+      // Fetch the current product to get existing reviews
+      const currentProductSnap = await getDoc(productRef);
+      if (!currentProductSnap.exists()) {
+        throw new Error("Product not found for review submission.");
+      }
+      const currentProductData = currentProductSnap.data() as Product;
+      const existingReviews = currentProductData.reviews || [];
+      
+      // Check if user has already reviewed this product
+      const userHasReviewed = existingReviews.some(review => review.userId === currentUser.uid);
+      if (userHasReviewed) {
+        toast({ title: "Already Reviewed", description: "You have already submitted a review for this product.", variant: "default"});
+        return;
+      }
+
+      await updateDoc(productRef, {
+        reviews: arrayUnion(newReview)
+        // Note: averageRating and reviewCount are not updated here.
+        // This is best handled by a Firebase Function for atomicity or calculated on client.
+        // The UserReviews component will recalculate from the updated reviews array on the client.
+      });
+      toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
+      // The onSnapshot listener for the product should automatically update the UI with the new review.
+    } catch (error) {
+      console.error("Error submitting review to Firestore:", error);
+      toast({ title: "Review Submission Failed", description: "Could not save your review. Please try again.", variant: "destructive" });
+    }
+  }, [currentUser, product, toast]);
+
+
   if (isLoading || isLoadingWishlist) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
@@ -164,8 +219,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     );
   }
 
-  const relatedProducts: Product[] = []; // Placeholder, implement fetching related products if needed
-
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
@@ -176,10 +229,10 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
             {product.brand && <p className="text-sm font-medium text-primary tracking-wide uppercase">{product.brand}</p>}
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">{product.name}</h1>
             <div className="flex items-center gap-3 pt-1">
-              {product.averageRating && product.reviewCount && product.reviewCount > 0 ? (
+              {product.reviews && product.reviews.length > 0 ? (
                 <>
-                  <RatingStars rating={product.averageRating} size={20} />
-                  <span className="text-sm text-muted-foreground">({product.reviewCount} reviews)</span>
+                  <RatingStars rating={product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length} size={20} />
+                  <span className="text-sm text-muted-foreground">({product.reviews.length} reviews)</span>
                 </>
               ) : (
                 <span className="text-sm text-muted-foreground">No reviews yet</span>
@@ -251,13 +304,18 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
       <div className="mt-16 md:mt-24">
         <UserReviews 
+          productId={product.id}
           reviews={product.reviews} 
-          averageRating={product.averageRating} 
-          reviewCount={product.reviewCount}
-          isAuthenticated={!!currentUser} // Pass authentication status
+          // Pass calculated average and count based on the current product's reviews array
+          averageRatingProp={product.reviews && product.reviews.length > 0 ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length : 0}
+          reviewCountProp={product.reviews?.length || 0}
+          isAuthenticated={!!currentUser}
+          onReviewSubmit={handleReviewSubmit}
         />
       </div>
 
+      {/* Related products placeholder - implement fetching related products if needed */}
+      {/* 
       {relatedProducts.length > 0 && (
         <div className="mt-16 md:mt-24">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-8 text-center">You Might Also Like</h2>
@@ -268,11 +326,18 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
           </div>
         </div>
       )}
+      */}
     </div>
   );
 }
 
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const productId = params.id;
+  // Ensure productId is a string before passing it down.
+  // This might seem redundant but helps with type safety if params.id could be string[]
+  if (typeof productId !== 'string') {
+    // Handle error or return a not found component
+    return <div className="text-center py-20">Invalid product ID.</div>;
+  }
   return <ProductDetailsClientContent productId={productId} />;
 }
