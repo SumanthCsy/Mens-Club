@@ -2,7 +2,7 @@
 // @/components/layout/footer.tsx
 import Link from 'next/link';
 import Image from 'next/image'; // Import Image component
-import { Facebook, Instagram, Twitter, Phone, MessageSquare } from 'lucide-react'; // Removed Shirt
+import { Facebook, Instagram, Twitter, Phone, MessageSquare } from 'lucide-react';
 
 export function Footer() {
   const whatsappNumber = "919391157177"; // Your WhatsApp number with country code, no '+' or spaces
@@ -14,10 +14,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-8 w-8" />
-              <span className="font-bold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
-                Mens Club
-              </span>
+              <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8" />
             </Link>
             <p className="text-sm text-muted-foreground">
               Keshavapatnam's finest collection for gentlemen.
@@ -81,7 +78,7 @@ export function Footer() {
               href="https://sumanthcsy.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-primary hover:underline" 
+              className="font-medium text-primary hover:underline align-baseline inline-block"
             >
               Sumanth Csy
             </a>

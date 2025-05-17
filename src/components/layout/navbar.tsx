@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image'; // Import Image component
-import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, LogOut, Shield, Loader2, Heart } from 'lucide-react'; // Removed Shirt
+import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, LogOut, Shield, Loader2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { usePathname, useRouter } from 'next/navigation';
@@ -120,10 +120,7 @@ export function Navbar() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
            <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-            <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-6 w-6 sm:h-7 sm:w-7" />
-            <span className="font-bold text-lg xxs:text-xl xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
-              Mens Club
-            </span>
+            <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9" />
           </Link>
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -136,11 +133,8 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-          <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-6 w-6 sm:h-7 sm:w-7" />
-          <span className="font-bold text-lg xxs:text-xl xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
-            Mens Club
-          </span>
+        <Link href="/" className="flex items-center mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
+          <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10" />
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
@@ -218,10 +212,7 @@ export function Navbar() {
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">
-                  <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-7 w-7" />
-                  <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
-                    Mens Club
-                  </span>
+                  <Image src="/mclogo.png" alt="Mens Club Logo" width={32} height={32} className="h-7 w-7" />
                 </Link>
                 <nav className="flex flex-col space-y-1">
                   {navLinks.map((link) => (
