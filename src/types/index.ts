@@ -1,35 +1,35 @@
 
 export interface Review {
-  id: string; 
+  id: string;
   userId: string;
-  author: string; 
-  rating: number; 
+  author: string;
+  rating: number;
   comment: string;
-  date: string; 
-  avatarUrl?: string | null; 
+  date: string;
+  avatarUrl?: string | null;
 }
 
 export interface Product {
   id: string;
   name: string;
   price: number;
-  originalPrice?: number; 
-  imageUrl: string; 
-  images?: string[]; 
+  originalPrice?: number;
+  imageUrl: string;
+  images?: string[];
   description: string;
   sizes: string[];
   colors?: string[];
   category?: string;
   brand?: string;
-  averageRating?: number; 
-  reviewCount?: number;   
-  reviews?: Review[];     
-  stock?: number; 
+  averageRating?: number;
+  reviewCount?: number;
+  reviews?: Review[];
+  stock?: number;
   tags?: string[];
-  sku?: string; 
-  dataAiHint?: string; 
-  offerStartDate?: any; 
-  offerEndDate?: any;   
+  sku?: string;
+  dataAiHint?: string;
+  offerStartDate?: any;
+  offerEndDate?: any;
 }
 
 export interface CartItemData extends Product {
@@ -46,59 +46,59 @@ export interface UserData {
   role: 'user' | 'admin';
   memberSince?: string;
   avatarUrl?: string | null;
-  defaultShippingAddress?: ShippingAddress; 
+  defaultShippingAddress?: ShippingAddress;
 }
 
 export interface OrderItem {
-  id: string; 
+  id: string;
   name: string;
   quantity: number;
-  price: number; 
+  price: number;
   selectedSize: string;
-  selectedColor: string | null; 
+  selectedColor: string | null;
   imageUrl: string;
-  sku: string | null; 
+  sku: string | null;
 }
 
 export interface ShippingAddress {
   fullName: string;
   addressLine1: string;
-  addressLine2: string | null; 
+  addressLine2: string | null;
   city: string;
   stateProvince: string;
   postalCode: string;
   country: string;
-  phoneNumber: string | null; 
-  email: string; 
+  phoneNumber: string | null;
+  email: string;
 }
 
 export interface Order {
-  id?: string; 
-  userId: string; 
-  customerEmail: string; 
+  id?: string;
+  userId: string;
+  customerEmail: string;
   items: OrderItem[];
   subtotal: number;
   shippingCost: number;
-  discount?: number | null; 
+  discount?: number | null;
   grandTotal: number;
   shippingAddress: ShippingAddress;
   paymentMethod: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
-  createdAt: any; 
+  createdAt: any;
   cancellationReason?: string;
   cancelledBy?: 'user' | 'store';
-  appliedCouponCode?: string;
+  appliedCouponCode?: string | null; // Added to store applied coupon
 }
 
 export interface PaymentSettings {
   enableCOD: boolean;
   enableOnlinePayments: boolean;
   upiId?: string;
-  qrCodeUrl?: string; 
+  qrCodeUrl?: string;
 }
 
 export interface ThemeSettings {
-  selectedColor: string; 
+  selectedColor: string;
   displayMode: 'light' | 'dark';
 }
 
@@ -117,8 +117,4 @@ export interface Coupon {
   isActive: boolean; // Admin can toggle this (derived from dates or manual)
   displayOnSite: boolean; // If true, show in user-facing coupon list/popup
   createdAt: any; // Firestore Timestamp
-  // Optional: usageLimit (total times coupon can be used)
-  // Optional: perUserLimit (times a single user can use it)
-  // Optional: usageCount (how many times it has been used)
 }
-

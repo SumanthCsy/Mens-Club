@@ -2,22 +2,22 @@
 // @/app/checkout/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ShippingForm, type ShippingFormValues } from '@/components/checkout/shipping-form';
 import { PaymentMethodSelector } from '@/components/checkout/payment-method-selector';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
-import { Lock, ArrowLeft, ShoppingCart, Loader2, CheckCircle, Edit, Home, PlusCircle } from 'lucide-react';
+import { Lock, ArrowLeft, Loader2, Edit, Home, PlusCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/cart-context';
 import { auth, db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
-import type { Order, OrderItem, ShippingAddress as ShippingAddressType, UserData } from '@/types';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import type { Order, OrderItem, ShippingAddress as ShippingAddressType, UserData, Coupon } from '@/types';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { AvailableCouponsModal } from '@/components/checkout/AvailableCouponsModal'; // New Import
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
@@ -29,15 +29,19 @@ export default function CheckoutPage() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isLoadingInitialAddress, setIsLoadingInitialAddress] = useState(true);
   
-  // Stores the address confirmed for the current order
   const [currentConfirmedShippingAddress, setCurrentConfirmedShippingAddress] = useState<ShippingFormValues | null>(null);
-  // Stores the default address fetched from Firestore (if any)
   const [defaultShippingAddress, setDefaultShippingAddress] = useState<Partial<ShippingFormValues> | null>(null);
   
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [addressFormMode, setAddressFormMode] = useState<'new' | 'edit'>('new'); // 'new' or 'edit'
+  const [addressFormMode, setAddressFormMode] = useState<'new' | 'edit'>('new');
 
-  // Effect for auth state and fetching default address
+  // Coupon State
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [isCouponsModalOpen, setIsCouponsModalOpen] = useState(false);
+
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setIsLoadingInitialAddress(true);
@@ -51,16 +55,14 @@ export default function CheckoutPage() {
             if (userData.defaultShippingAddress) {
               const fetchedDefaultAddress = userData.defaultShippingAddress as ShippingFormValues;
               setDefaultShippingAddress(fetchedDefaultAddress);
-              setCurrentConfirmedShippingAddress(fetchedDefaultAddress); // Use default for current order initially
-              setShowAddressForm(false); // Hide form if default is available
+              setCurrentConfirmedShippingAddress(fetchedDefaultAddress); 
+              setShowAddressForm(false);
             } else {
-              // No default address, show form to add new
               setShowAddressForm(true); 
               setAddressFormMode('new');
-              setCurrentConfirmedShippingAddress(null); // No address confirmed yet
+              setCurrentConfirmedShippingAddress(null);
             }
           } else {
-            // No user document, show form to add new
             setShowAddressForm(true); 
             setAddressFormMode('new');
             setCurrentConfirmedShippingAddress(null);
@@ -68,16 +70,15 @@ export default function CheckoutPage() {
         } catch (error) {
           console.error("Error fetching default shipping address:", error);
           toast({ title: "Error", description: "Could not load saved address.", variant: "destructive"});
-          setShowAddressForm(true); // Fallback to showing form
+          setShowAddressForm(true);
           setAddressFormMode('new');
           setCurrentConfirmedShippingAddress(null);
         }
       } else {
-        // No user logged in
         setCurrentUser(null);
         setDefaultShippingAddress(null);
         setCurrentConfirmedShippingAddress(null);
-        setShowAddressForm(true); // Require address entry for guest or new user
+        setShowAddressForm(true); 
         setAddressFormMode('new');
       }
       setIsLoadingInitialAddress(false);
@@ -98,11 +99,11 @@ export default function CheckoutPage() {
   }, [cartItems, router, toast, isPlacingOrder]);
 
   const shippingCost = cartItems.length > 0 ? 50.00 : 0;
-  const grandTotal = cartTotal + shippingCost;
+  const grandTotal = cartTotal + shippingCost - discountAmount;
 
   const handleShippingFormSubmit = (data: ShippingFormValues) => {
     setCurrentConfirmedShippingAddress(data);
-    setShowAddressForm(false); // Hide form after submission
+    setShowAddressForm(false);
     toast({
       title: "Address Confirmed",
       description: "Your shipping address for this order has been confirmed.",
@@ -111,13 +112,86 @@ export default function CheckoutPage() {
 
   const handleEditAddress = () => {
     setAddressFormMode('edit');
+    // Ensure formInitialData reflects currentConfirmedShippingAddress or defaultShippingAddress
     setShowAddressForm(true);
   };
 
   const handleAddNewAddress = () => {
     setAddressFormMode('new');
+    setCurrentConfirmedShippingAddress(null); // Clear any existing confirmed address for a new one
     setShowAddressForm(true);
   };
+
+  const handleApplyCoupon = useCallback(async (couponCode: string) => {
+    if (!couponCode.trim()) {
+      toast({ title: "Invalid Code", description: "Please enter a coupon code.", variant: "destructive" });
+      return;
+    }
+    setIsApplyingCoupon(true);
+    try {
+      const couponsRef = collection(db, "coupons");
+      const q = query(couponsRef, where("code", "==", couponCode.toUpperCase()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast({ title: "Invalid Coupon", description: "Coupon code not found.", variant: "destructive" });
+        setAppliedCoupon(null);
+        setDiscountAmount(0);
+        setIsApplyingCoupon(false);
+        return;
+      }
+
+      const couponDoc = querySnapshot.docs[0];
+      const couponData = { id: couponDoc.id, ...couponDoc.data() } as Coupon;
+
+      // Validate coupon
+      if (!couponData.isActive) {
+        toast({ title: "Coupon Inactive", description: "This coupon is no longer active.", variant: "destructive" });
+        setIsApplyingCoupon(false); return;
+      }
+      if (couponData.expiryDate) {
+        const expiry = (couponData.expiryDate as Timestamp).toDate();
+        if (new Date() > expiry) {
+          toast({ title: "Coupon Expired", description: "This coupon has expired.", variant: "destructive" });
+          setIsApplyingCoupon(false); return;
+        }
+      }
+      if (couponData.minPurchaseAmount && cartTotal < couponData.minPurchaseAmount) {
+        toast({ title: "Minimum Spend Not Met", description: `This coupon requires a minimum purchase of ₹${couponData.minPurchaseAmount.toFixed(2)}.`, variant: "destructive" });
+        setIsApplyingCoupon(false); return;
+      }
+
+      // Calculate discount
+      let calculatedDiscount = 0;
+      if (couponData.discountType === 'percentage') {
+        calculatedDiscount = (cartTotal * couponData.discountValue) / 100;
+      } else { // fixed
+        calculatedDiscount = couponData.discountValue;
+      }
+      // Ensure discount doesn't exceed cart total
+      calculatedDiscount = Math.min(calculatedDiscount, cartTotal);
+
+
+      setAppliedCoupon(couponData);
+      setDiscountAmount(calculatedDiscount);
+      toast({ title: "Coupon Applied!", description: `${couponData.code} applied successfully.` });
+
+    } catch (error) {
+      console.error("Error applying coupon:", error);
+      toast({ title: "Error", description: "Could not apply coupon.", variant: "destructive" });
+      setAppliedCoupon(null);
+      setDiscountAmount(0);
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  }, [cartTotal, toast]);
+
+  const handleRemoveCoupon = useCallback(() => {
+    setAppliedCoupon(null);
+    setDiscountAmount(0);
+    toast({ title: "Coupon Removed" });
+  }, [toast]);
+
 
   const handlePlaceOrder = async () => {
     if (!currentUser) {
@@ -169,12 +243,13 @@ export default function CheckoutPage() {
       items: orderItemsForDb,
       subtotal: cartTotal,
       shippingCost: shippingCost,
-      grandTotal: grandTotal,
+      discount: discountAmount > 0 ? discountAmount : null,
+      appliedCouponCode: appliedCoupon ? appliedCoupon.code : null,
+      grandTotal: grandTotal, // Already calculated with discount
       shippingAddress: shippingAddressForDb,
       paymentMethod: selectedPaymentMethod,
       status: 'Pending' as Order['status'],
       createdAt: serverTimestamp(),
-      discount: null, 
     };
 
     try {
@@ -185,12 +260,13 @@ export default function CheckoutPage() {
           const userDocRef = doc(db, "users", currentUser.uid);
           await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb }, { merge: true });
         } catch (userUpdateError) {
-          console.error("Error updating user's default shipping address:", userUpdateError);
-          // Don't fail the whole order for this, but log it.
+          console.warn("Error updating user's default shipping address:", userUpdateError);
         }
       }
       
       clearCart();
+      setAppliedCoupon(null); // Clear applied coupon after order
+      setDiscountAmount(0);
       router.push(`/checkout/success/${docRef.id}`); 
       
     } catch (error: any) {
@@ -209,6 +285,16 @@ export default function CheckoutPage() {
       setIsPlacingOrder(false);
     }
   };
+  
+  let formInitialData: Partial<ShippingFormValues> = { country: "India", email: currentUser?.email || "" };
+  if (addressFormMode === 'edit' && currentConfirmedShippingAddress) {
+    formInitialData = { ...currentConfirmedShippingAddress, email: currentConfirmedShippingAddress.email || currentUser?.email || "" };
+  } else if (addressFormMode === 'new') {
+    formInitialData = { country: "India", email: currentUser?.email || "" };
+  } else if (defaultShippingAddress) { // When form is hidden and default address is shown
+    formInitialData = { ...defaultShippingAddress, email: defaultShippingAddress.email || currentUser?.email || ""};
+  }
+
 
   if (isLoadingInitialAddress) {
     return (
@@ -218,16 +304,6 @@ export default function CheckoutPage() {
       </div>
     );
   }
-
-  // Determine what initial data to pass to the form
-  let formInitialData: Partial<ShippingFormValues> = { country: "India", email: currentUser?.email || "" };
-  if (addressFormMode === 'edit' && currentConfirmedShippingAddress) {
-    formInitialData = { ...formInitialData, ...currentConfirmedShippingAddress };
-  } else if (addressFormMode === 'new' && defaultShippingAddress && !currentConfirmedShippingAddress) {
-    // If adding new but a default existed, start with a mostly blank form but keep email/country
-    formInitialData = { country: "India", email: currentUser?.email || "" };
-  }
-
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -287,16 +363,20 @@ export default function CheckoutPage() {
           <CartSummary
             subtotal={cartTotal}
             shippingCost={shippingCost}
+            discountAmount={discountAmount}
             total={grandTotal}
-            showPromoCodeInput={true}
-            showCheckoutButton={false} // Hide CartSummary's own button here
+            showCheckoutButton={false} // Main button is below
+            appliedCouponCode={appliedCoupon?.code}
+            onApplyPromoCode={handleApplyCoupon}
+            onRemoveCoupon={handleRemoveCoupon}
+            onViewCouponsClick={() => setIsCouponsModalOpen(true)}
+            isApplyingCoupon={isApplyingCoupon}
           />
           <Button
             size="lg"
             className="w-full text-base group mt-6"
             onClick={handlePlaceOrder}
             disabled={cartItems.length === 0 || isPlacingOrder || !currentConfirmedShippingAddress}
-            suppressHydrationWarning={true}
           >
             {isPlacingOrder ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -306,12 +386,23 @@ export default function CheckoutPage() {
             Place Order Securely
           </Button>
           {!currentConfirmedShippingAddress && cartItems.length > 0 && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-                Please confirm your shipping details to enable order placement.
-            </p>
+             <div className="mt-2 p-3 bg-yellow-50 border border-yellow-300 rounded-md text-yellow-700 flex items-start text-xs">
+                <AlertTriangle className="h-4 w-4 mr-2 shrink-0 mt-0.5" />
+                <p>Please confirm your shipping details to enable order placement.</p>
+            </div>
           )}
         </div>
       </div>
+      <AvailableCouponsModal
+        isOpen={isCouponsModalOpen}
+        onClose={() => setIsCouponsModalOpen(false)}
+        onApplyCoupon={async (code) => {
+          await handleApplyCoupon(code);
+          // Optionally close modal after apply, or let user close it
+          // setIsCouponsModalOpen(false); 
+        }}
+        currentSubtotal={cartTotal}
+      />
     </div>
   );
 }
