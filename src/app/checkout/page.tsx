@@ -1,4 +1,3 @@
-
 // @/app/checkout/page.tsx
 "use client";
 
@@ -61,7 +60,7 @@ export default function CheckoutPage() {
 
 
   useEffect(() => {
-    if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
+    if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout/success') && !router.asPath.startsWith('/checkout')) {
         toast({
             title: "Your cart is empty",
             description: "Please add items to your cart before proceeding to checkout.",
@@ -137,35 +136,15 @@ export default function CheckoutPage() {
       paymentMethod: selectedPaymentMethod,
       status: 'Pending' as Order['status'],
       createdAt: serverTimestamp(),
-      discount: null, // Explicitly set discount to null if no discount is applied for new orders
+      discount: null, 
     };
-
-
-    console.log("Attempting to save order with payload:", JSON.stringify(newOrderPayload, null, 2));
 
     try {
       const docRef = await addDoc(collection(db, "orders"), newOrderPayload);
       
       // Placeholder for success sound:
-      // const audio = new Audio('/sounds/order-success.mp3'); // Assuming you have an audio file in public/sounds
+      // const audio = new Audio('/sounds/order-success.mp3'); 
       // audio.play();
-      // console.log("Order success sound would play here.");
-
-      toast({
-        title: "Order Placed Successfully!",
-        description: (
-            <div className="flex items-center">
-                <CheckCircle className="h-6 w-6 text-green-500 mr-3 animate-pulse" />
-                <span>Your order #{docRef.id} has been placed.</span>
-            </div>
-        ),
-        action: (
-          <Button variant="outline" size="sm" onClick={() => router.push(`/profile/my-orders/${docRef.id}`)}>
-            View Order
-          </Button>
-        ),
-        duration: 10000,
-      });
 
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
@@ -173,7 +152,7 @@ export default function CheckoutPage() {
       }
       
       clearCart();
-      router.push(`/profile/my-orders/${docRef.id}`); 
+      router.push(`/checkout/success/${docRef.id}`); 
     } catch (error: any) {
       console.error("Data being sent to Firestore for order save:", JSON.stringify(newOrderPayload, null, 2));
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
@@ -191,7 +170,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
+  if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout/success') && !router.asPath.startsWith('/checkout')) {
     return (
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
@@ -263,4 +242,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
