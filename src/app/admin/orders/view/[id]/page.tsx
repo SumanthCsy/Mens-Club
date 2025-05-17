@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon } from 'lucide-react';
 import type { Order, OrderItem, ShippingAddress } from '@/types';
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { generateInvoicePdf } from '@/lib/invoice-generator'; // Import the invoice function
+import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal'; // Import the tracking modal
 
 
 export default function AdminViewOrderDetailsPage() {
@@ -34,6 +36,7 @@ export default function AdminViewOrderDetailsPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -89,6 +92,12 @@ export default function AdminViewOrderDetailsPage() {
       });
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleDownloadInvoice = () => {
+    if (order) {
+      generateInvoicePdf(order);
     }
   };
 
@@ -171,7 +180,7 @@ export default function AdminViewOrderDetailsPage() {
                 </CardHeader>
                 <CardContent>
                     {items.map((item, index) => (
-                        <div key={item.id + (item.selectedSize || '') + index}>
+                        <div key={item.id + (item.selectedSize || '') + (item.selectedColor || '') + index}>
                             <div className="flex items-start gap-4 py-4">
                                 <Image 
                                     src={item.imageUrl || 'https://placehold.co/80x100.png'} 
@@ -204,7 +213,7 @@ export default function AdminViewOrderDetailsPage() {
                 <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between"><span>Subtotal:</span> <span>₹{order.subtotal.toFixed(2)}</span></div>
                     <div className="flex justify-between"><span>Shipping:</span> <span>₹{order.shippingCost.toFixed(2)}</span></div>
-                    {order.discount && <div className="flex justify-between text-green-600"><span>Discount:</span> <span>-₹{order.discount.toFixed(2)}</span></div>}
+                    {order.discount && order.discount > 0 && <div className="flex justify-between text-green-600"><span>Discount:</span> <span>-₹{order.discount.toFixed(2)}</span></div>}
                     <Separator className="my-2"/>
                     <div className="flex justify-between font-bold text-lg"><span>Grand Total:</span> <span>₹{order.grandTotal.toFixed(2)}</span></div>
                     <div className="flex justify-between items-center pt-2">
@@ -251,18 +260,25 @@ export default function AdminViewOrderDetailsPage() {
 
              <Card className="shadow-lg border-border/60">
                 <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2">Order Information</CardTitle>
+                    <CardTitle className="text-xl flex items-center gap-2">Order Actions</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1 text-sm">
+                <CardContent className="space-y-3 text-sm">
                     <p><strong>Order ID:</strong> {order.id}</p>
                     <p><strong>Placed On:</strong> {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}</p>
+                     <Button variant="outline" className="w-full" onClick={() => setIsTrackingModalOpen(true)}>
+                        <TruckIcon className="mr-2 h-4 w-4" /> View Tracking
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={handleDownloadInvoice}>
+                        <FileText className="mr-2 h-4 w-4" /> Download Invoice (Simulated)
+                    </Button>
                 </CardContent>
                  <CardFooter>
-                    <Button variant="outline" disabled><Edit className="mr-2 h-4 w-4"/> Edit Order (Soon)</Button>
+                    <Button variant="outline" disabled className="w-full"><Edit className="mr-2 h-4 w-4"/> Edit Order (Soon)</Button>
                 </CardFooter>
             </Card>
         </div>
     </div>
+    <OrderTrackingModal isOpen={isTrackingModalOpen} onClose={() => setIsTrackingModalOpen(false)} order={order} />
     </div>
   );
 }

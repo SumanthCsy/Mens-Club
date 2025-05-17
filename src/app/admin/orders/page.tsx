@@ -13,6 +13,7 @@ import { collection, getDocs, query, orderBy as firestoreOrderBy, Timestamp } fr
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { generateInvoicePdf } from '@/lib/invoice-generator'; // Import the invoice function
 
 export default function ViewOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -52,6 +53,10 @@ export default function ViewOrdersPage() {
 
     fetchOrders();
   }, [toast]);
+
+  const handleDownloadInvoice = (order: Order) => {
+    generateInvoicePdf(order);
+  };
 
   if (isLoading) {
     return (
@@ -142,8 +147,8 @@ export default function ViewOrdersPage() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                           <Button variant="outline" size="icon" className="h-8 w-8" disabled>
-                              <FileText className="h-4 w-4" /> {/* Placeholder for Invoice */}
+                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleDownloadInvoice(order)} title="Download Invoice (Simulated)">
+                              <FileText className="h-4 w-4" />
                             </Button>
                         </div>
                       </TableCell>

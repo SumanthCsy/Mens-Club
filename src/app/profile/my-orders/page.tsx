@@ -5,21 +5,24 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import type { Order, OrderItem } from '@/types'; // Import Order and OrderItem from global types
+import type { Order, OrderItem } from '@/types'; 
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { generateInvoicePdf } from '@/lib/invoice-generator';
+import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -52,29 +55,50 @@ export default function MyOrdersPage() {
             return {
               id: doc.id,
               ...data,
-              // Ensure createdAt is a Date object for formatting
               createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
             } as Order;
           });
           setOrders(fetchedOrders);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error fetching orders: ", error);
-          toast({
-            title: "Error Fetching Orders",
-            description: "Could not load your orders. Please try again.",
-            variant: "destructive"
-          });
+          let description = "Could not load your orders. Please try again.";
+          if (error.message && error.message.includes("firestore/indexes?create_composite")) {
+            description = "Orders cannot be loaded. A database index is required. Please contact support or check console for a link to create it.";
+             toast({
+              title: "Database Index Required",
+              description: "A required database index is missing. Please check the developer console for a link to create it in Firebase, or contact support.",
+              variant: "destructive",
+              duration: 15000,
+            });
+          } else {
+            toast({
+              title: "Error Fetching Orders",
+              description: description,
+              variant: "destructive"
+            });
+          }
         } finally {
           setIsLoading(false);
         }
       };
       fetchOrders(currentUser.uid);
     } else {
-        // If no current user, set loading to false and orders to empty (or handle redirect)
         setIsLoading(false);
         setOrders([]);
     }
   }, [currentUser, toast]);
+
+  const handleViewInvoice = (order: Order) => {
+    generateInvoicePdf(order);
+  };
+  
+  const openTrackingModal = (order: Order) => {
+    setSelectedOrderForTracking(order);
+  };
+
+  const closeTrackingModal = () => {
+    setSelectedOrderForTracking(null);
+  };
 
 
   if (isLoading) {
@@ -162,7 +186,7 @@ export default function MyOrdersPage() {
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Items ({order.items.length}):</h4>
                 <ul className="space-y-1 text-sm">
                   {order.items.map((item, index) => (
-                    <li key={item.id + (item.selectedSize || '') + index} className="flex justify-between">
+                    <li key={item.id + (item.selectedSize || '') + (item.selectedColor || '') + index} className="flex justify-between">
                       <span>{item.name} (Size: {item.selectedSize || 'N/A'}, Qty: {item.quantity})</span>
                       <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                     </li>
@@ -170,18 +194,21 @@ export default function MyOrdersPage() {
                 </ul>
               </CardContent>
               <CardFooter className="pt-4 flex flex-col sm:flex-row gap-2 justify-end">
-                <Button variant="outline" size="sm" disabled> {/* Disabled until invoice generation exists */}
-                  <FileText className="mr-2 h-4 w-4" /> View Invoice
+                <Button variant="outline" size="sm" onClick={() => handleViewInvoice(order)}>
+                  <FileText className="mr-2 h-4 w-4" /> View Invoice (Simulated)
                 </Button>
-                <Button size="sm" disabled> {/* Disabled until tracking exists */}
-                  <Package className="mr-2 h-4 w-4" /> Track Order
+                <Button size="sm" onClick={() => openTrackingModal(order)} disabled={order.status === 'Cancelled'}>
+                  <TruckIcon className="mr-2 h-4 w-4" /> Track Order
+                </Button>
+                 <Button variant="outline" size="sm" disabled className="border-destructive text-destructive hover:bg-destructive/10">
+                   Request Cancellation (Soon)
                 </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
       )}
-       {orders.length > 5 && ( // Placeholder, actual pagination logic would be needed
+       {orders.length > 5 && (
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
@@ -189,6 +216,13 @@ export default function MyOrdersPage() {
             <Button variant="outline" disabled>Next</Button>
           </div>
         </div>
+      )}
+      {selectedOrderForTracking && (
+        <OrderTrackingModal
+          isOpen={!!selectedOrderForTracking}
+          onClose={closeTrackingModal}
+          order={selectedOrderForTracking}
+        />
       )}
     </div>
   );
