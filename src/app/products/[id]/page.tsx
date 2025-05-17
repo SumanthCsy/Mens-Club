@@ -1,7 +1,8 @@
 // @/app/products/[id]/page.tsx
-"use client";
+// Note: The "use client" directive should be INSIDE ProductDetailsClientContent if that's the client part.
+// The default export, ProductDetailsPage, is a Server Component.
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, use } from 'react'; // Ensure 'use' is imported from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import type { Product, Review, UserData } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { ProductImageGallery } from '@/components/products/product-image-gallery
 import { SizeSelector } from '@/components/products/size-selector';
 import { UserReviews } from '@/components/products/user-reviews';
 import { RatingStars } from '@/components/shared/rating-stars';
-import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn } from 'lucide-react';
+import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn, Edit, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +24,8 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
+  "use client"; // This directive makes THIS component a client component.
+
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +68,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         setProduct({
             id: docSnap.id,
             ...data,
-            reviews: Array.isArray(data.reviews) ? data.reviews : [], 
+            reviews: Array.isArray(data.reviews) ? data.reviews : [],
             offerStartDate: data.offerStartDate,
             offerEndDate: data.offerEndDate,
         } as Product);
@@ -139,29 +142,26 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     }
 
     let authorName = "Anonymous";
-    let fetchedFullName: string | undefined = undefined;
-
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data() as UserData;
         if (userData.fullName) {
-          fetchedFullName = userData.fullName;
+          authorName = userData.fullName;
+        } else if (currentUser.displayName) {
+          authorName = currentUser.displayName;
         }
+      } else if (currentUser.displayName) {
+        authorName = currentUser.displayName;
       }
     } catch (fetchError) {
       console.error("Error fetching user data for review author name:", fetchError);
     }
 
-    if (currentUser.displayName) {
-      authorName = currentUser.displayName;
-    } else if (fetchedFullName) {
-      authorName = fetchedFullName;
-    }
 
     const newReview: Review = {
-      id: uuidv4(), 
+      id: uuidv4(),
       userId: currentUser.uid,
       author: authorName,
       avatarUrl: currentUser.photoURL || null,
@@ -178,7 +178,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       }
       const currentProductData = currentProductSnap.data() as Product;
       const existingReviews = currentProductData.reviews || [];
-      
+
       const userHasReviewed = existingReviews.some(review => review.userId === currentUser.uid);
       if (userHasReviewed) {
         toast({ title: "Already Reviewed", description: "You have already submitted a review for this product.", variant: "default"});
@@ -189,14 +189,14 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         reviews: arrayUnion(newReview)
       });
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
-    } catch (error: any) { 
-      console.error("Error submitting review. Data:", JSON.stringify(newReview, null, 2));
+    } catch (error: any) {
+      console.error("Data being sent to Firestore for review save:", JSON.stringify(newReview, null, 2));
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       console.error("Firebase error code:", error.code);
       console.error("Firebase error message:", error.message);
-      toast({ 
-        title: "Review Submission Failed", 
-        description: `Could not save your review. Firebase error message: "${error.message || 'Please try again.'}"`, 
+      toast({
+        title: "Review Submission Failed",
+        description: `Could not save your review. Firebase error message: "${error.message || 'Please try again.'}"`,
         variant: "destructive",
         duration: 7000,
       });
@@ -211,7 +211,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     try {
       const productRef = doc(db, "products", prodId);
       await updateDoc(productRef, {
-        reviews: arrayRemove(reviewObject) // Use the full review object for arrayRemove
+        reviews: arrayRemove(reviewObject)
       });
       toast({ title: "Review Deleted", description: "Your review has been successfully deleted." });
     } catch (error: any) {
@@ -285,7 +285,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   }
 
   const effectiveReviewCount = product.reviews?.length || 0;
-  const effectiveAverageRating = 
+  const effectiveAverageRating =
     product.reviews && effectiveReviewCount > 0
       ? product.reviews.reduce((acc, review) => acc + review.rating, 0) / effectiveReviewCount
       : 0;
@@ -374,14 +374,14 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       </div>
 
       <div className="mt-16 md:mt-24">
-        <UserReviews 
-          productId={product.id} 
-          reviews={product.reviews} 
+        <UserReviews
+          productId={product.id}
+          reviews={product.reviews}
           averageRatingProp={effectiveAverageRating}
           reviewCountProp={effectiveReviewCount}
           isAuthenticated={!!currentUser}
           currentUser={currentUser}
-          onReviewSubmit={handleReviewSubmit} 
+          onReviewSubmit={handleReviewSubmit}
           onDeleteReview={handleDeleteReview}
           onUpdateReview={handleUpdateReview}
         />
@@ -390,8 +390,13 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   );
 }
 
-export default function ProductDetailsPage({ params }: { params: { id: string } }) {
-  const productId = params.id;
+
+// Server Component wrapper for the page
+// Changed params type to Promise<{ id: string }> and used React.use()
+export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params); // Use React.use() to unwrap the promise
+  const productId = resolvedParams.id;
+
   if (typeof productId !== 'string') {
     return <div className="text-center py-20">Invalid product ID.</div>;
   }
