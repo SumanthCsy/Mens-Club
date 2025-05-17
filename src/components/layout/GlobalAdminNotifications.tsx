@@ -1,7 +1,7 @@
 // @/components/layout/GlobalAdminNotifications.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -24,10 +24,12 @@ export function GlobalAdminNotifications() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
-  const [showModal, setShowModal] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [hasShownModalThisSession, setHasShownModalThisSession] = useState(false);
+  
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationType, setNotificationType] = useState<'initial' | 'newOrder' | null>(null);
+  const [hasShownInitialNotificationThisSession, setHasShownInitialNotificationThisSession] = useState(false);
+  const previousPendingOrdersCountRef = useRef<number | null>(null); // Using ref to avoid re-triggering effect unnecessarily
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
@@ -44,12 +46,13 @@ export function GlobalAdminNotifications() {
             setIsAdmin(false);
           }
         } catch (error) {
-          console.error("Error fetching user role:", error);
+          console.error("Error fetching user role for global notifications:", error);
           setIsAdmin(false);
         }
       } else {
         setIsAdmin(false);
-        setHasShownModalThisSession(false); // Reset modal shown flag on logout
+        setHasShownInitialNotificationThisSession(false); // Reset flag on logout
+        previousPendingOrdersCountRef.current = null; // Reset previous count on logout
       }
       setIsLoadingAuth(false);
     });
@@ -60,26 +63,39 @@ export function GlobalAdminNotifications() {
     let unsubscribeOrders: Unsubscribe | undefined;
 
     if (isAdmin && currentUser && !isLoadingAuth) {
-      setIsLoadingOrders(true);
       const ordersRef = collection(db, "orders");
       const q = query(ordersRef, where("status", "==", "Pending"));
 
       unsubscribeOrders = onSnapshot(q, (querySnapshot) => {
-        const count = querySnapshot.size;
-        setPendingOrdersCount(count);
-        if (count > 0 && !hasShownModalThisSession) {
-          setShowModal(true);
-        } else {
-          setShowModal(false); // Ensure modal closes if count drops to 0 or already shown
+        const currentCount = querySnapshot.size;
+        setPendingOrdersCount(currentCount);
+
+        if (previousPendingOrdersCountRef.current === null) { // First time loading for this session/admin
+          previousPendingOrdersCountRef.current = currentCount;
+          if (currentCount > 0 && !hasShownInitialNotificationThisSession) {
+            setNotificationType('initial');
+            setShowNotificationModal(true);
+          }
+        } else if (currentCount > (previousPendingOrdersCountRef.current ?? 0) ) { // New order(s) arrived
+          setNotificationType('newOrder');
+          setShowNotificationModal(true);
+          const audio = new Audio('/success.mp3');
+          audio.play().catch(error => {
+            console.warn("Audio autoplay prevented for new order notification:", error);
+          });
+        } else if (currentCount === 0) { // No pending orders, ensure modal is closed
+            setShowNotificationModal(false);
         }
-        setIsLoadingOrders(false);
+        // Always update the ref to the latest count for the next comparison
+        previousPendingOrdersCountRef.current = currentCount;
+
       }, (error) => {
         console.error("Error fetching pending orders for global notification:", error);
-        setIsLoadingOrders(false);
       });
     } else {
-      setPendingOrdersCount(0); // Reset count if not admin or not logged in
-      setShowModal(false);
+      setPendingOrdersCount(0);
+      setShowNotificationModal(false);
+      previousPendingOrdersCountRef.current = null; // Ensure reset if not admin
     }
 
     return () => {
@@ -87,40 +103,51 @@ export function GlobalAdminNotifications() {
         unsubscribeOrders();
       }
     };
-  }, [isAdmin, currentUser, isLoadingAuth, hasShownModalThisSession]);
+  }, [isAdmin, currentUser, isLoadingAuth, hasShownInitialNotificationThisSession]);
 
   const handleDismissModal = () => {
-    setShowModal(false);
-    setHasShownModalThisSession(true);
+    if (notificationType === 'initial') {
+      setHasShownInitialNotificationThisSession(true);
+    }
+    setShowNotificationModal(false);
+    setNotificationType(null); // Reset notification type
   };
   
   const handleViewOrders = () => {
-    setShowModal(false);
-    setHasShownModalThisSession(true);
+    if (notificationType === 'initial') {
+      setHasShownInitialNotificationThisSession(true);
+    }
+    setShowNotificationModal(false);
+    setNotificationType(null);
     // Navigation will be handled by the Link component
   };
 
-
-  if (isLoadingAuth || (isAdmin && isLoadingOrders && !hasShownModalThisSession && pendingOrdersCount === 0)) {
-    // Optionally show a very subtle loader or nothing if preferred to avoid layout shift
-    // For now, let's render nothing to avoid interrupting the user if not an admin or no pending orders initially.
+  if (isLoadingAuth || !isAdmin || !showNotificationModal) {
     return null;
   }
 
-  if (!isAdmin || pendingOrdersCount === 0 || !showModal) {
-    return null;
+  let title = "";
+  let description = "";
+
+  if (notificationType === 'initial') {
+    title = "Pending Orders Notification";
+    description = `You have ${pendingOrdersCount} order(s) with "Pending" status that require your attention.`;
+  } else if (notificationType === 'newOrder') {
+    title = "New Order Received!";
+    description = `A new order has been placed. You now have ${pendingOrdersCount} total pending order(s).`;
   }
+
 
   return (
-    <AlertDialog open={showModal} onOpenChange={(open) => {if(!open) handleDismissModal();}}>
+    <AlertDialog open={showNotificationModal} onOpenChange={(open) => {if(!open) handleDismissModal();}}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center">
-            <BellRing className="h-6 w-6 mr-2 text-primary animate-pulse" />
-            Pending Orders Notification
+            <BellRing className={`h-6 w-6 mr-2 text-primary ${notificationType === 'newOrder' ? 'animate-pulse' : ''}`} />
+            {title}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            You have {pendingOrdersCount} order(s) with "Pending" status that require your attention.
+            {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
