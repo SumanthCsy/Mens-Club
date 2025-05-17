@@ -8,12 +8,12 @@ import { db, auth } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, query, where, documentId } from 'firebase/firestore';
 import { ProductCard } from '@/components/products/product-card';
 import { Button } from '@/components/ui/button';
-import { HeartCrack, Loader2, AlertTriangle, ArrowLeft, LogIn } from 'lucide-react';
+import { HeartCrack, Loader2, AlertTriangle, ArrowLeft, LogIn, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 export default function WishlistPage() {
-  const { wishlistItems, removeFromWishlist, isLoadingWishlist: isLoadingWishlistContext, isProductInWishlist } = useWishlist();
+  const { wishlistItems, removeFromWishlist, isLoadingWishlist: isLoadingWishlistContext } = useWishlist();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,20 +47,24 @@ export default function WishlistPage() {
       try {
         const productIdsToFetch = [...wishlistItems];
         const fetchedProducts: Product[] = [];
+        
+        // Firestore 'in' queries are limited to 30 elements per query in newer SDK versions (was 10)
+        // Let's stick to 10 for broader compatibility or adjust if you know your specific limits
+        const batchSize = 10; 
 
-        while (productIdsToFetch.length > 0) {
-          const batch = productIdsToFetch.splice(0, 30);
-          if (batch.length > 0) {
-            const productsRef = collection(db, 'products');
-            const q = query(productsRef, where(documentId(), 'in', batch));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach(docSnap => {
-              fetchedProducts.push({
-                id: docSnap.id,
-                ...docSnap.data(),
-              } as Product);
-            });
-          }
+        for (let i = 0; i < productIdsToFetch.length; i += batchSize) {
+            const batch = productIdsToFetch.slice(i, i + batchSize);
+            if (batch.length > 0) {
+                const productsRef = collection(db, 'products');
+                const q = query(productsRef, where(documentId(), 'in', batch));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach(docSnap => {
+                fetchedProducts.push({
+                    id: docSnap.id,
+                    ...docSnap.data(),
+                } as Product);
+                });
+            }
         }
         setProducts(fetchedProducts);
       } catch (err) {
@@ -152,17 +156,19 @@ export default function WishlistPage() {
         {products.map((product) => (
           <div key={product.id} className="relative group">
             <ProductCard product={product} />
-            {isProductInWishlist(product.id) && (
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 z-10"
-                onClick={() => handleRemoveFromWishlistPage(product.id)}
-                title="Remove from wishlist"
-              >
-                <HeartCrack className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 opacity-90 hover:opacity-100 transition-opacity h-8 w-8 z-10 bg-destructive/80 hover:bg-destructive text-destructive-foreground shadow-md"
+              onClick={(e) => {
+                  e.preventDefault(); // Prevent link navigation if ProductCard is wrapped in Link
+                  e.stopPropagation();
+                  handleRemoveFromWishlistPage(product.id);
+                }}
+              title="Remove from wishlist"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         ))}
       </div>
