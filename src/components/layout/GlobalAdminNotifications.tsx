@@ -37,9 +37,8 @@ export function GlobalAdminNotifications() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Preload audio
     if (typeof window !== 'undefined') {
-      const audio = new Audio('/success.mp3'); // Ensure success.mp3 is in your /public directory
+      const audio = new Audio('/success.mp3');
       audio.load();
       audioRef.current = audio;
       console.log('Audio element initialized for admin notifications:', audioRef.current);
@@ -77,14 +76,14 @@ export function GlobalAdminNotifications() {
   const playSuccessSound = () => {
     console.log('Attempting to play new order sound. audioRef.current:', audioRef.current);
     if (audioRef.current) {
-      audioRef.current.currentTime = 0; // Rewind to start
+      audioRef.current.currentTime = 0;
       audioRef.current.play().then(() => {
         console.log('New order sound played successfully.');
       }).catch(error => {
         console.error("Error playing new order sound:", error, `Error Name: ${error.name}, Error Message: ${error.message}`);
         toast({
           title: "New Order Sound Issue",
-          description: `The new order sound was blocked or failed. Browsers often block audio without direct user interaction. Error: ${error.message}`,
+          description: `The new order sound was blocked or failed. Browsers often block audio without direct user interaction. Error: ${error.message}. Ensure success.mp3 is in /public and is valid.`,
           variant: "default",
           duration: 10000
         });
@@ -113,12 +112,12 @@ export function GlobalAdminNotifications() {
         
         console.log(`[GlobalAdminNotifications] Pending orders snapshot: currentCount=${currentCount}, previousCount=${previousPendingOrdersCountRef.current}, initialNotifShown=${hasShownInitialNotificationThisSession}`);
 
-        if (previousPendingOrdersCountRef.current === null) { // First time loading for this admin session
+        if (previousPendingOrdersCountRef.current === null) {
           if (currentCount > 0 && !hasShownInitialNotificationThisSession) {
             setAlertModalType('initial');
             setShowNotificationModal(true);
           }
-        } else if (currentCount > previousPendingOrdersCountRef.current) { // New order(s) arrived
+        } else if (currentCount > previousPendingOrdersCountRef.current) {
           console.log(`[GlobalAdminNotifications] New order detected.`);
           setAlertModalType('newOrder');
           setShowNotificationModal(true);
@@ -137,7 +136,7 @@ export function GlobalAdminNotifications() {
       setPendingOrdersCount(0);
       setShowNotificationModal(false);
       setAlertModalType(null);
-      if (!isAdmin && !currentUser) { // Reset only if truly logged out or not an admin
+      if (!isAdmin && !currentUser) { 
         previousPendingOrdersCountRef.current = null; 
       }
     }
