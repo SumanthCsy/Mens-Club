@@ -140,29 +140,29 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     }
 
     let authorName = "Anonymous";
-    if (currentUser.displayName) {
-      authorName = currentUser.displayName;
-    } else {
-      try {
-        const userDocRef = doc(db, "users", currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data() as UserData;
-          if (userData.fullName) {
-            authorName = userData.fullName;
-          } else if (currentUser.email) {
-            authorName = currentUser.email;
-          }
-        } else if (currentUser.email) {
-          authorName = currentUser.email;
-        }
-      } catch (fetchError) {
-        console.error("Error fetching user data for review author name:", fetchError);
-        if (currentUser.email) {
-          authorName = currentUser.email;
+    let fetchedFullName: string | undefined = undefined;
+
+    // Attempt to fetch fullName from Firestore user document
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data() as UserData;
+        if (userData.fullName) {
+          fetchedFullName = userData.fullName;
         }
       }
+    } catch (fetchError) {
+      console.error("Error fetching user data for review author name:", fetchError);
     }
+
+    // Determine authorName based on priority: displayName > fetchedFullName > "Anonymous"
+    if (currentUser.displayName) {
+      authorName = currentUser.displayName;
+    } else if (fetchedFullName) {
+      authorName = fetchedFullName;
+    }
+    // Email fallback is removed.
 
     const newReview: Review = {
       id: uuidv4(), 
@@ -194,6 +194,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       });
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
     } catch (error: any) { 
+      console.error("Error submitting review. Data:", JSON.stringify(newReview, null, 2));
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       console.error("Firebase error code:", error.code);
       console.error("Firebase error message:", error.message);
@@ -334,12 +335,12 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
       <div className="mt-16 md:mt-24">
         <UserReviews 
-          productId={product.id} // Pass productId here
+          productId={product.id} 
           reviews={product.reviews} 
           averageRatingProp={effectiveAverageRating}
           reviewCountProp={effectiveReviewCount}
           isAuthenticated={!!currentUser}
-          onReviewSubmit={handleReviewSubmit} // Pass the handler
+          onReviewSubmit={handleReviewSubmit} 
         />
       </div>
     </div>
