@@ -18,6 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger, // Added AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, deleteUser, type User as FirebaseUser } from 'firebase/auth';
@@ -113,31 +114,32 @@ export default function ProfilePage() {
     }
     setIsDeletingAccount(true);
     try {
+      // It's good practice to delete Firestore data before deleting the Auth user,
+      // as Auth user deletion might revoke permissions needed to delete Firestore data.
       const userDocRef = doc(db, "users", currentUser.uid);
       await deleteDoc(userDocRef); 
+      
+      // Now delete the Firebase Auth user
       await deleteUser(currentUser); 
       
       toast({
         title: "Account Deleted",
         description: "Your account has been permanently deleted.",
       });
-      router.push('/signup');
+      router.push('/signup'); // Redirect to signup or home after deletion
     } catch (error: any) {
       console.error("Error deleting account:", error);
+      let description = error.message || "Could not delete your account. Please try again.";
+      if (error.code === 'auth/requires-recent-login') {
+        description = "This operation is sensitive and requires recent authentication. Please log out and log back in to delete your account.";
+        // Optionally, you could try to re-authenticate the user here before retrying.
+      }
       toast({
         title: "Account Deletion Failed",
-        description: error.message || "Could not delete your account. You may need to sign in again for security reasons.",
+        description: description,
         variant: "destructive",
         duration: 7000,
       });
-      if (error.code === 'auth/requires-recent-login') {
-        toast({
-          title: "Re-authentication Required",
-          description: "Please log out and log back in to delete your account.",
-          variant: "default",
-          duration: 7000,
-        });
-      }
     } finally {
       setIsDeletingAccount(false);
     }
