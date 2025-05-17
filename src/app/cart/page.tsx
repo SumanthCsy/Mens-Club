@@ -71,6 +71,7 @@ export default function CartPage() {
               subtotal={cartTotal}
               shippingCost={shippingEstimate}
               total={total}
+              showCheckoutButton={true} // Explicitly show button on cart page
             />
              <Button asChild variant="link" className="mt-6 w-full text-primary">
                <Link href="/products">

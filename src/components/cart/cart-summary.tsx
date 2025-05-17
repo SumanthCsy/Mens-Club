@@ -1,3 +1,4 @@
+
 // @/components/cart/cart-summary.tsx
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,10 @@ interface CartSummaryProps {
   shippingCost?: number; 
   discount?: number;
   total: number;
-  checkoutButtonText?: string;
-  checkoutLink?: string;
+  checkoutButtonText?: string; // Made optional
+  checkoutLink?: string; // Made optional
   showPromoCodeInput?: boolean;
+  showCheckoutButton?: boolean; // New prop to control button visibility
 }
 
 export function CartSummary({
@@ -24,6 +26,7 @@ export function CartSummary({
   checkoutButtonText = "Proceed to Checkout",
   checkoutLink = "/checkout",
   showPromoCodeInput = true,
+  showCheckoutButton = true, // Default to true for cart page, will be false for checkout page
 }: CartSummaryProps) {
   return (
     <Card className="shadow-lg border border-border/60">
@@ -73,13 +76,15 @@ export function CartSummary({
           <span>₹{total.toFixed(2)}</span>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button asChild size="lg" className="w-full text-base group" disabled={total === 0 && subtotal === 0}>
-          <Link href={checkoutLink}>
-            {checkoutButtonText} <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </Button>
-      </CardFooter>
+      {showCheckoutButton && (
+        <CardFooter>
+          <Button asChild size="lg" className="w-full text-base group" disabled={total === 0 && subtotal === 0}>
+            <Link href={checkoutLink}>
+              {checkoutButtonText} <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }

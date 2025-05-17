@@ -6,7 +6,7 @@ export interface Review {
   rating: number; // 1-5
   comment: string;
   date: string; // ISO string
-  avatarUrl?: string;
+  avatarUrl?: string | null; // Allow null for avatarUrl
 }
 
 export interface Product {
@@ -35,7 +35,7 @@ export interface Product {
 export interface CartItemData extends Product {
   quantity: number;
   selectedSize: string;
-  selectedColor?: string;
+  selectedColor?: string | null;
 }
 
 // For user data stored in Firestore
@@ -46,8 +46,8 @@ export interface UserData {
   mobileNumber?: string;
   role: 'user' | 'admin';
   memberSince?: string;
-  avatarUrl?: string;
-  defaultShippingAddress?: ShippingAddress;
+  avatarUrl?: string | null;
+  defaultShippingAddress?: ShippingAddress; // Added for storing default address
 }
 
 // Types for Order and Shipping
@@ -90,3 +90,4 @@ export interface Order {
   cancellationReason?: string;
   cancelledBy?: 'user' | 'store';
 }
+
