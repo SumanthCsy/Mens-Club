@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Order } from "@/types";
 import { generateInvoiceHTML, downloadHtmlInvoice } from '@/lib/invoice-generator';
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, X } from "lucide-react";
 
 interface InvoiceViewModalProps {
@@ -25,10 +24,10 @@ interface InvoiceViewModalProps {
 export function InvoiceViewModal({ isOpen, onClose, order }: InvoiceViewModalProps) {
   if (!order) return null;
 
-  const invoiceHtmlContentForPreview = generateInvoiceHTML(order); // Generates <style> + <div.invoice-content-wrapper>
+  const invoiceHtmlContentForPreview = generateInvoiceHTML(order); 
 
   const handleDownload = () => {
-    downloadHtmlInvoice(order, invoiceHtmlContentForPreview); // Pass the same snippet
+    downloadHtmlInvoice(order, invoiceHtmlContentForPreview); 
   };
 
   return (
@@ -41,14 +40,12 @@ export function InvoiceViewModal({ isOpen, onClose, order }: InvoiceViewModalPro
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-grow min-h-0"> {/* min-h-0 is important for flex children */}
-          <div className="p-6"> {/* Add padding around the content area */}
-            <div 
-              className="bg-white" // Basic wrapper, styling comes from injected HTML
-              dangerouslySetInnerHTML={{ __html: invoiceHtmlContentForPreview }} 
-            />
-          </div>
-        </ScrollArea>
+        {/* Scrollable content area using a standard div with overflow */}
+        <div className="flex-grow min-h-0 overflow-y-auto p-6">
+          <div
+            dangerouslySetInnerHTML={{ __html: invoiceHtmlContentForPreview }}
+          />
+        </div>
         
         <DialogFooter className="p-6 sm:justify-between gap-2 border-t border-border shrink-0">
           <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
