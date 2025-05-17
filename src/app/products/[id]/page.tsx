@@ -1,20 +1,20 @@
 // @/app/products/[id]/page.tsx
-// Note: The "use client" directive should be INSIDE ProductDetailsClientContent if that's the client part.
-// The default export, ProductDetailsPage, is a Server Component.
+"use client"; // Make the entire file a client component module
 
-import { useState, useEffect, useMemo, useCallback, use } from 'react'; // Ensure 'use' is imported from 'react'
-import { useParams, useRouter } from 'next/navigation';
+// All imports are now fine at the top level because the module is client-side.
+import { useState, useEffect, useMemo, useCallback, use } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // useRouter is client-side
 import type { Product, Review, UserData } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
 import { SizeSelector } from '@/components/products/size-selector';
 import { UserReviews } from '@/components/products/user-reviews';
 import { RatingStars } from '@/components/shared/rating-stars';
-import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn, Edit, Trash2 } from 'lucide-react';
+import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 import { doc, onSnapshot, Unsubscribe, Timestamp, updateDoc, arrayUnion, getDoc, arrayRemove } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase';
 import { useCart } from '@/context/cart-context';
@@ -24,7 +24,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
-  "use client"; // This directive makes THIS component a client component.
+  // No "use client" needed here anymore as the whole file is client-side.
 
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,7 +103,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       });
       return;
     }
-    if (typeof product.stock === 'number' && product.stock < 1) {
+     if (typeof product.stock === 'number' && product.stock < 1) {
       toast({ title: "Out of Stock", description: "This item is currently out of stock.", variant: "destructive"});
       return;
     }
@@ -143,17 +143,17 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
     let authorName = "Anonymous";
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data() as UserData;
-        if (userData.fullName) {
-          authorName = userData.fullName;
-        } else if (currentUser.displayName) {
-          authorName = currentUser.displayName;
-        }
-      } else if (currentUser.displayName) {
+      if (currentUser.displayName) {
         authorName = currentUser.displayName;
+      } else {
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data() as UserData;
+          if (userData.fullName) {
+            authorName = userData.fullName;
+          }
+        }
       }
     } catch (fetchError) {
       console.error("Error fetching user data for review author name:", fetchError);
@@ -206,6 +206,10 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const handleDeleteReview = useCallback(async (prodId: string, reviewId: string, reviewObject: Review) => {
     if (!currentUser || !product) {
       toast({ title: "Error", description: "Action not allowed or product not found.", variant: "destructive" });
+      return;
+    }
+    if (reviewObject.userId !== currentUser.uid) {
+      toast({ title: "Unauthorized", description: "You can only delete your own reviews.", variant: "destructive" });
       return;
     }
     try {
@@ -390,11 +394,9 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   );
 }
 
-
-// Server Component wrapper for the page
-// Changed params type to Promise<{ id: string }> and used React.use()
+// This is the default export for the page, now also a client component
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params); // Use React.use() to unwrap the promise
+  const resolvedParams = use(params); // use() is fine in client components
   const productId = resolvedParams.id;
 
   if (typeof productId !== 'string') {
@@ -402,3 +404,5 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
   }
   return <ProductDetailsClientContent productId={productId} />;
 }
+
+    
