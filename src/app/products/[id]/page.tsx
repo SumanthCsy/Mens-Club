@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation'; // useRouter removed as it wasn't used
+import { useParams } from 'next/navigation';
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
@@ -19,9 +19,9 @@ import Link from 'next/link';
 import { doc, onSnapshot, Unsubscribe, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { useCart } from '@/context/cart-context';
-import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer'; // New import
+import { useWishlist } from '@/context/wishlist-context'; // Import useWishlist
+import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 
-// This ClientContent component handles all client-side logic and state for the product page
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +29,9 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isProductInWishlist } = useWishlist(); // Get wishlist methods
+
+  const isWishlisted = product ? isProductInWishlist(product.id) : false;
 
   useEffect(() => {
     if (product && product.sizes && product.sizes.length > 0 && !selectedSize) {
@@ -50,12 +53,11 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     const unsubscribe: Unsubscribe = onSnapshot(productRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Ensure offer dates are correctly handled (they might be Timestamps from Firestore)
-        setProduct({ 
-            id: docSnap.id, 
+        setProduct({
+            id: docSnap.id,
             ...data,
-            offerStartDate: data.offerStartDate, // Keep as is, component will handle
-            offerEndDate: data.offerEndDate,     // Keep as is, component will handle
+            offerStartDate: data.offerStartDate,
+            offerEndDate: data.offerEndDate,
         } as Product);
       } else {
         setError("Product not found.");
@@ -92,8 +94,16 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       toast({ title: "Out of Stock", description: "This item is currently out of stock.", variant: "destructive"});
       return;
     }
-
     addToCart(product, selectedSize || (product.sizes?.[0] || 'N/A'));
+  };
+
+  const handleToggleWishlist = () => {
+    if (!product) return;
+    if (isWishlisted) {
+      removeFromWishlist(product.id);
+    } else {
+      addToWishlist(product.id);
+    }
   };
 
   if (isLoading) {
@@ -132,7 +142,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     );
   }
 
-  // Related products logic would need to be implemented, e.g., fetching based on category
   const relatedProducts: Product[] = [];
 
   return (
@@ -203,8 +212,9 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
             <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={!product || (typeof product.stock === 'number' && product.stock === 0)}>
               <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
             </Button>
-            <Button variant="outline" size="lg" className="flex-1 text-base">
-              <Heart className="mr-2 h-5 w-5" /> Add to Wishlist
+            <Button variant="outline" size="lg" className="flex-1 text-base" onClick={handleToggleWishlist}>
+              <Heart className={`mr-2 h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+              {isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
             </Button>
           </div>
 
@@ -235,9 +245,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   );
 }
 
-// Main page component - remains a server component to get params
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const productId = params.id;
-  // Pass productId to the client component that handles data fetching and state
   return <ProductDetailsClientContent productId={productId} />;
 }

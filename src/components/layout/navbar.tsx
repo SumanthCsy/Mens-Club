@@ -3,7 +3,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, Shirt, LogOut, Shield, Loader2 } from 'lucide-react';
+import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, Shirt, LogOut, Shield, Loader2, Heart } from 'lucide-react'; // Added Heart
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { usePathname, useRouter } from 'next/navigation';
@@ -15,7 +15,8 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { UserData } from '@/types';
-import { useCart } from '@/context/cart-context'; // Import useCart
+import { useCart } from '@/context/cart-context';
+import { useWishlist } from '@/context/wishlist-context'; // Import useWishlist
 
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
@@ -26,7 +27,8 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { cartCount } = useCart(); // Get cartCount from context
+  const { cartCount } = useCart();
+  const { wishlistCount } = useWishlist(); // Get wishlistCount
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [currentUserData, setCurrentUserData] = useState<UserData | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -42,10 +44,10 @@ export function Navbar() {
           setCurrentUserData(userDocSnap.data() as UserData);
         } else {
           if (user.email === 'admin@mensclub') {
-            setCurrentUserData({ 
-              uid: user.uid, 
-              email: user.email, 
-              fullName: 'Admin Mens Club', 
+            setCurrentUserData({
+              uid: user.uid,
+              email: user.email,
+              fullName: 'Admin Mens Club',
               role: 'admin',
               memberSince: user.metadata.creationTime || new Date().toISOString(),
             });
@@ -88,12 +90,21 @@ export function Navbar() {
       });
     }
   };
+
+  const accountLinksLoggedInBase = [
+    {
+      href: '/wishlist', // Add wishlist link
+      label: 'Wishlist',
+      icon: Heart,
+    }
+  ];
   
   const accountLinksLoggedIn = [
-    { 
-      href: currentUserData?.role === 'admin' ? '/admin/dashboard' : '/profile', 
-      label: currentUserData?.role === 'admin' ? 'Admin Dashboard' : 'Profile', 
-      icon: currentUserData?.role === 'admin' ? Shield : User 
+    ...accountLinksLoggedInBase,
+    {
+      href: currentUserData?.role === 'admin' ? '/admin/dashboard' : '/profile',
+      label: currentUserData?.role === 'admin' ? 'Admin Dashboard' : 'Profile',
+      icon: currentUserData?.role === 'admin' ? Shield : User
     },
     { onClick: handleLogout, label: 'Logout', icon: LogOut, isButton: true },
   ];
@@ -109,7 +120,7 @@ export function Navbar() {
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
            <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
             <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-            <span className="font-bold text-md xxs:text-lg xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+            <span className="font-bold text-lg xxs:text-xl xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
               Mens Club
             </span>
           </Link>
@@ -126,7 +137,7 @@ export function Navbar() {
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
           <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-          <span className="font-bold text-md xxs:text-lg xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
+          <span className="font-bold text-lg xxs:text-xl xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
             Mens Club
           </span>
         </Link>
@@ -147,6 +158,16 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
+          <Link href="/wishlist" passHref>
+            <Button variant="ghost" size="icon" aria-label="Wishlist" className="relative h-8 w-8 xxs:h-9 xxs:w-9 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+              <Heart className="h-4 w-4 xxs:h-5 xxs:w-5 xs:h-5 xs:w-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {wishlistCount}
+                </span>
+              )}
+            </Button>
+          </Link>
           <Link href="/cart" passHref>
             <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative h-8 w-8 xxs:h-9 xxs:w-9 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
               <ShoppingCart className="h-4 w-4 xxs:h-5 xxs:w-5 xs:h-5 xs:w-5" />
@@ -192,7 +213,7 @@ export function Navbar() {
                 <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[280px] sm:w-[320px] p-0"> {/* Adjusted width */}
+            <SheetContent side="right" className="w-[280px] sm:w-[320px] p-0">
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">

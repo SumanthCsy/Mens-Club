@@ -6,8 +6,9 @@ import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from '@/lib/utils';
-import { CartProvider } from '@/context/cart-context'; // Import CartProvider
-import { FloatingContactButtons } from '@/components/layout/FloatingContactButtons'; // Import the new component
+import { CartProvider } from '@/context/cart-context';
+import { WishlistProvider } from '@/context/wishlist-context'; // Import WishlistProvider
+import { FloatingContactButtons } from '@/components/layout/FloatingContactButtons';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -37,12 +38,14 @@ export default function RootLayout({
           "min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-foreground flex flex-col"
         )}
       >
-        <CartProvider> {/* Wrap with CartProvider */}
-          <Navbar />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-          <Toaster />
-          <FloatingContactButtons /> {/* Add floating buttons here */}
+        <CartProvider>
+          <WishlistProvider> {/* Wrap with WishlistProvider */}
+            <Navbar />
+            <main className="flex-grow">{children}</main>
+            <Footer />
+            <Toaster />
+            <FloatingContactButtons />
+          </WishlistProvider>
         </CartProvider>
       </body>
     </html>
