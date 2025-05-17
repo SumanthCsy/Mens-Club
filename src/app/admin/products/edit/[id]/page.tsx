@@ -11,20 +11,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, UploadCloud, Loader2, AlertTriangle, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/types';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 
-// Define a type for the form data, similar to AddProductPage but for editing
 type ProductEditFormData = Omit<Product, 'id' | 'sizes' | 'colors' | 'tags' | 'images' | 'averageRating' | 'reviewCount' | 'reviews'> & {
-  sizes: string; // Comma-separated string for form input
-  colors?: string; // Comma-separated string
-  tags?: string; // Comma-separated string
-  additionalImagesString?: string; // Comma-separated string for additional image URLs
+  sizes: string; 
+  colors?: string; 
+  tags?: string; 
+  additionalImagesString?: string; 
 };
 
+const productCategories = [
+  "New Arrivals",
+  "Formals & Casuals",
+  "Trendy",
+  "Jeans",
+  "T-shirts",
+  "Others",
+  "Limited Time Offers"
+];
 
 export default function EditProductPage() {
   const params = useParams();
@@ -52,25 +61,23 @@ export default function EditProductPage() {
             const productData = { id: productSnap.id, ...productSnap.data() } as Product;
             setOriginalProduct(productData);
             
-            // Prepare form data from product data
             setFormData({
               name: productData.name,
               price: productData.price,
               originalPrice: productData.originalPrice,
-              imageUrl: productData.imageUrl, // Keep existing imageUrl for preview
+              imageUrl: productData.imageUrl, 
               description: productData.description,
               sizes: productData.sizes?.join(', ') || '',
               colors: productData.colors?.join(', ') || '',
-              category: productData.category,
+              category: productData.category || '',
               brand: productData.brand,
               stock: productData.stock,
               tags: productData.tags?.join(', ') || '',
               sku: productData.sku,
               dataAiHint: productData.dataAiHint,
-              // Filter out the main imageUrl from the images array for the additionalImagesString
               additionalImagesString: productData.images?.filter(img => img !== productData.imageUrl).join(', ') || '',
             });
-            setImagePreview(productData.imageUrl); // Set initial image preview
+            setImagePreview(productData.imageUrl); 
           } else {
             setError("Product not found.");
             toast({ title: "Error", description: "Product not found.", variant: "destructive" });
@@ -99,18 +106,21 @@ export default function EditProductPage() {
                : value,
     }));
   };
+
+  const handleCategoryChange = (value: string) => {
+    setFormData(prev => ({ ...prev, category: value }));
+  };
   
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
-      setMainImageFile(file); // Store the file object
+      setMainImageFile(file); 
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        setImagePreview(dataUrl); // Update preview
+        setImagePreview(dataUrl); 
         setFormData(prev => ({
           ...prev,
-          // imageUrl will be updated with dataUrl on submit if mainImageFile exists
           dataAiHint: prev?.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product image",
         }));
       };
@@ -125,11 +135,20 @@ export default function EditProductPage() {
       toast({ title: "Error", description: "Original product data not loaded.", variant: "destructive"});
       return;
     }
+    if (!formData.category) {
+      toast({
+        title: "Category Required",
+        description: "Please select a product category.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
     setIsSubmitting(true);
 
-    let finalMainImageUrl = originalProduct.imageUrl; // Default to original image
-    if (mainImageFile && imagePreview) { // If a new file was selected and preview exists
-        finalMainImageUrl = imagePreview; // This is the data URI
+    let finalMainImageUrl = originalProduct.imageUrl; 
+    if (mainImageFile && imagePreview) { 
+        finalMainImageUrl = imagePreview; 
     }
 
     const additionalImageUrls = formData.additionalImagesString?.split(',').map(s => s.trim()).filter(s => s) || [];
@@ -141,7 +160,7 @@ export default function EditProductPage() {
       price: Number(formData.price ?? originalProduct.price),
       originalPrice: formData.originalPrice ? Number(formData.originalPrice) : (originalProduct.originalPrice ?? undefined),
       imageUrl: finalMainImageUrl,
-      images: finalImagesArray.length > 0 ? finalImagesArray : [finalMainImageUrl],
+      images: finalImagesArray.length > 0 ? finalImagesArray : (finalMainImageUrl ? [finalMainImageUrl] : []),
       description: formData.description || originalProduct.description,
       sizes: formData.sizes?.split(',').map(s => s.trim()).filter(s => s) || originalProduct.sizes,
       colors: formData.colors?.split(',').map(s => s.trim()).filter(s => s) || originalProduct.colors || [],
@@ -151,7 +170,6 @@ export default function EditProductPage() {
       tags: formData.tags?.split(',').map(s => s.trim()).filter(s => s) || originalProduct.tags || [],
       sku: formData.sku || originalProduct.sku,
       dataAiHint: formData.dataAiHint || originalProduct.dataAiHint,
-      // Retain existing review data, not editable in this form
       averageRating: originalProduct.averageRating,
       reviewCount: originalProduct.reviewCount,
       reviews: originalProduct.reviews,
@@ -166,8 +184,6 @@ export default function EditProductPage() {
         description: `${productDataToUpdate.name} has been successfully updated.`,
         duration: 7000,
       });
-      // Optionally, refresh originalProduct state or navigate
-      // setOriginalProduct(prev => ({...prev, ...productDataToUpdate} as Product));
       router.push('/admin/products/view'); 
     } catch (error) {
       console.error("Error updating document: ", error);
@@ -276,7 +292,16 @@ export default function EditProductPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Input id="category" name="category" value={formData.category || ''} onChange={handleChange} placeholder="e.g., Shirts, Trousers" className="text-base h-11"/>
+                <Select value={formData.category || ''} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="h-11 text-base">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {productCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sku">SKU</Label>
