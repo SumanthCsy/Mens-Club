@@ -13,19 +13,21 @@ import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, TicketPlus, Save, Loader2, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Coupon } from '@/types';
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 
-type CouponFormData = Omit<Coupon, 'id' | 'createdAt' | 'isActive'> & {
+type CouponFormData = Omit<Coupon, 'id' | 'createdAt' | 'isActive' | 'expiryDate' | 'minPurchaseAmount'> & {
   expiryDateInput?: string; // For datetime-local input
+  minPurchaseAmountInput?: string; // For number input, to handle empty string better
+  discountValueInput: string; // To handle empty string better
 };
 
 const initialFormData: CouponFormData = {
   code: '',
   discountType: 'percentage',
-  discountValue: 0,
+  discountValueInput: '',
   expiryDateInput: '',
-  minPurchaseAmount: undefined,
+  minPurchaseAmountInput: '',
   displayOnSite: false,
 };
 
@@ -38,7 +40,7 @@ export default function AddCouponPage() {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || undefined : value),
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -54,13 +56,21 @@ export default function AddCouponPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const discountValue = parseFloat(formData.discountValueInput);
+    const minPurchaseAmount = formData.minPurchaseAmountInput ? parseFloat(formData.minPurchaseAmountInput) : null;
+
     if (!formData.code.trim()) {
       toast({ title: "Coupon Code Required", description: "Please enter a coupon code.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
-    if (formData.discountValue <= 0) {
-      toast({ title: "Invalid Discount Value", description: "Discount value must be greater than zero.", variant: "destructive" });
+    if (isNaN(discountValue) || discountValue <= 0) {
+      toast({ title: "Invalid Discount Value", description: "Discount value must be a number greater than zero.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+    if (minPurchaseAmount !== null && (isNaN(minPurchaseAmount) || minPurchaseAmount < 0)) {
+      toast({ title: "Invalid Minimum Purchase", description: "Minimum purchase amount must be a non-negative number.", variant: "destructive"});
       setIsSubmitting(false);
       return;
     }
@@ -68,13 +78,27 @@ export default function AddCouponPage() {
     const couponDataToSave: Omit<Coupon, 'id'> = {
       code: formData.code.trim().toUpperCase(),
       discountType: formData.discountType,
-      discountValue: formData.discountValue,
-      expiryDate: formData.expiryDateInput ? new Date(formData.expiryDateInput) : undefined,
-      minPurchaseAmount: formData.minPurchaseAmount,
+      discountValue: discountValue,
+      expiryDate: formData.expiryDateInput ? new Date(formData.expiryDateInput) : null,
+      minPurchaseAmount: minPurchaseAmount === null || isNaN(minPurchaseAmount) ? undefined : minPurchaseAmount, // Store as number or undefined
       displayOnSite: formData.displayOnSite,
-      isActive: true, // New coupons are active by default, can be deactivated later
+      isActive: true, // New coupons are active by default
       createdAt: serverTimestamp(),
     };
+    
+    // Firestore does not support 'undefined' values.
+    // We should remove keys if their value is undefined or ensure they are null.
+    // For minPurchaseAmount, if it's null from parsing, we can omit it or store null.
+    // For simplicity, if type allows optional, omit if null/undefined.
+    // However, since our type `Coupon` has `minPurchaseAmount?: number`, undefined is fine for the type.
+    // But for Firestore:
+    if (couponDataToSave.minPurchaseAmount === undefined) {
+        delete (couponDataToSave as Partial<Coupon>).minPurchaseAmount;
+    }
+    if (couponDataToSave.expiryDate === null) {
+        delete (couponDataToSave as Partial<Coupon>).expiryDate;
+    }
+
 
     try {
       const docRef = await addDoc(collection(db, "coupons"), couponDataToSave);
@@ -84,11 +108,14 @@ export default function AddCouponPage() {
         duration: 7000,
       });
       setFormData(initialFormData); // Reset form
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding coupon: ", error);
+      console.error("Data sent to Firestore: ", JSON.stringify(couponDataToSave));
+      console.error("Firebase error code:", error.code);
+      console.error("Firebase error message:", error.message);
       toast({
         title: "Error Saving Coupon",
-        description: "There was an issue saving the coupon. Check console.",
+        description: `There was an issue saving the coupon. ${error.message || 'Check console for details.'}`,
         variant: "destructive",
         duration: 7000,
       });
@@ -140,15 +167,15 @@ export default function AddCouponPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="discountValue">Discount Value</Label>
-                <Input 
-                  id="discountValue" 
-                  name="discountValue" 
-                  type="number" 
-                  value={formData.discountValue} 
-                  onChange={handleChange} 
-                  placeholder={formData.discountType === 'percentage' ? "e.g., 10 for 10%" : "e.g., 100 for ₹100"} 
-                  required 
+                <Label htmlFor="discountValueInput">Discount Value</Label>
+                <Input
+                  id="discountValueInput"
+                  name="discountValueInput"
+                  type="number"
+                  value={formData.discountValueInput}
+                  onChange={handleChange}
+                  placeholder={formData.discountType === 'percentage' ? "e.g., 10 for 10%" : "e.g., 100 for ₹100"}
+                  required
                   step="0.01"
                   min="0.01"
                   className="text-base h-11"
@@ -162,16 +189,16 @@ export default function AddCouponPage() {
                 <Input id="expiryDateInput" name="expiryDateInput" type="datetime-local" value={formData.expiryDateInput || ''} onChange={handleChange} className="text-base h-11"/>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="minPurchaseAmount">Min. Purchase Amount (₹, Optional)</Label>
-                <Input id="minPurchaseAmount" name="minPurchaseAmount" type="number" value={formData.minPurchaseAmount || ''} onChange={handleChange} placeholder="e.g., 500" step="0.01" min="0" className="text-base h-11"/>
+                <Label htmlFor="minPurchaseAmountInput">Min. Purchase Amount (₹, Optional)</Label>
+                <Input id="minPurchaseAmountInput" name="minPurchaseAmountInput" type="number" value={formData.minPurchaseAmountInput || ''} onChange={handleChange} placeholder="e.g., 500" step="0.01" min="0" className="text-base h-11"/>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <Switch id="displayOnSite" checked={formData.displayOnSite} onCheckedChange={handleSwitchChange} />
               <Label htmlFor="displayOnSite" className="text-base">Display this coupon on the site (e.g., in a popup or list)</Label>
             </div>
-            
+
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg" className="text-base" disabled={isSubmitting}>
                 {isSubmitting ? (
