@@ -145,7 +145,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       id: uuidv4(), // Generate a unique ID for the review
       userId: currentUser.uid,
       author: currentUser.displayName || currentUser.email || "Anonymous",
-      avatarUrl: currentUser.photoURL || undefined,
+      avatarUrl: currentUser.photoURL || null, // Ensure null instead of undefined
       rating,
       comment,
       date: new Date().toISOString(),
@@ -173,7 +173,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       });
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
       // The onSnapshot listener for the product should automatically update the UI with the new review.
-    } catch (error: any) { // Catch error as 'any' to access specific properties like 'code' or 'message'
+    } catch (error: any) { 
       console.error("Error submitting review to Firestore:", error);
       console.error("Firebase error code:", error.code);
       console.error("Firebase error message:", error.message);
@@ -317,7 +317,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         <UserReviews 
           productId={product.id}
           reviews={product.reviews} 
-          // Pass calculated average and count based on the current product's reviews array
           averageRatingProp={effectiveAverageRating}
           reviewCountProp={effectiveReviewCount}
           isAuthenticated={!!currentUser}
@@ -335,3 +334,5 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
   }
   return <ProductDetailsClientContent productId={productId} />;
 }
+
+    
