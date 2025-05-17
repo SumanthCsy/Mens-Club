@@ -27,6 +27,8 @@ export interface Product {
   tags?: string[];
   sku?: string; // Stock Keeping Unit
   dataAiHint?: string; // For placeholder image search keywords
+  offerStartDate?: any; // Firestore ServerTimestamp or string for input
+  offerEndDate?: any;   // Firestore ServerTimestamp or string for input
 }
 
 export interface CartItemData extends Product {
@@ -42,8 +44,8 @@ export interface UserData {
   fullName?: string;
   mobileNumber?: string;
   role: 'user' | 'admin';
-  memberSince?: string; 
-  avatarUrl?: string; 
+  memberSince?: string;
+  avatarUrl?: string;
   defaultShippingAddress?: ShippingAddress;
 }
 
@@ -84,8 +86,6 @@ export interface Order {
   paymentMethod: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   createdAt: any; // Firestore ServerTimestamp, will be resolved to Timestamp
-  cancellationReason?: string; 
-  cancelledBy?: 'user' | 'store'; // Changed from 'admin' to 'store'
-  // Potentially other fields like orderNotes, trackingNumber etc.
+  cancellationReason?: string;
+  cancelledBy?: 'user' | 'store';
 }
-

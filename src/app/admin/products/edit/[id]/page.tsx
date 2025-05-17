@@ -12,17 +12,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, UploadCloud, Loader2, AlertTriangle, Edit } from 'lucide-react';
+import { ArrowLeft, Save, UploadCloud, Loader2, AlertTriangle, Edit, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/types';
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
+import { format } from 'date-fns'; // For date formatting
 
-type ProductEditFormData = Omit<Product, 'id' | 'sizes' | 'colors' | 'tags' | 'images' | 'averageRating' | 'reviewCount' | 'reviews'> & {
-  sizes: string; 
-  colors?: string; 
-  tags?: string; 
-  additionalImagesString?: string; 
+type ProductEditFormData = Omit<Product, 'id' | 'sizes' | 'colors' | 'tags' | 'images' | 'averageRating' | 'reviewCount' | 'reviews' | 'offerStartDate' | 'offerEndDate'> & {
+  sizes: string;
+  colors?: string;
+  tags?: string;
+  additionalImagesString?: string;
+  offerStartDateInput?: string;
+  offerEndDateInput?: string;
 };
 
 const productCategories = [
@@ -35,11 +38,25 @@ const productCategories = [
   "Limited Time Offers"
 ];
 
+const formatDateForInput = (date: any): string => {
+    if (!date) return '';
+    try {
+        const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+        if (isNaN(d.getTime())) return '';
+        // Format to "yyyy-MM-ddTHH:mm" which is required by datetime-local
+        return format(d, "yyyy-MM-dd'T'HH:mm");
+    } catch (error) {
+        console.warn("Error formatting date for input:", date, error);
+        return '';
+    }
+};
+
+
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
-  
+
   const [formData, setFormData] = useState<Partial<ProductEditFormData>>({});
   const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -60,12 +77,12 @@ export default function EditProductPage() {
           if (productSnap.exists()) {
             const productData = { id: productSnap.id, ...productSnap.data() } as Product;
             setOriginalProduct(productData);
-            
+
             setFormData({
               name: productData.name,
               price: productData.price,
               originalPrice: productData.originalPrice,
-              imageUrl: productData.imageUrl, 
+              imageUrl: productData.imageUrl,
               description: productData.description,
               sizes: productData.sizes?.join(', ') || '',
               colors: productData.colors?.join(', ') || '',
@@ -76,8 +93,10 @@ export default function EditProductPage() {
               sku: productData.sku,
               dataAiHint: productData.dataAiHint,
               additionalImagesString: productData.images?.filter(img => img !== productData.imageUrl).join(', ') || '',
+              offerStartDateInput: formatDateForInput(productData.offerStartDate),
+              offerEndDateInput: formatDateForInput(productData.offerEndDate),
             });
-            setImagePreview(productData.imageUrl); 
+            setImagePreview(productData.imageUrl);
           } else {
             setError("Product not found.");
             toast({ title: "Error", description: "Product not found.", variant: "destructive" });
@@ -97,12 +116,22 @@ export default function EditProductPage() {
     }
   }, [productId, toast]);
 
+  const handleRemoveMainImage = () => {
+    setImagePreview(null);
+    setMainImageFile(null);
+    setFormData(prev => ({ ...prev, imageUrl: '', dataAiHint: '' }));
+    const imageInput = document.getElementById('mainImageFile') as HTMLInputElement;
+    if (imageInput) {
+        imageInput.value = '';
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: (name === 'price' || name === 'originalPrice' || name === 'stock') 
-               ? parseFloat(value) || (name === 'originalPrice' ? undefined : 0) 
+      [name]: (name === 'price' || name === 'originalPrice' || name === 'stock')
+               ? parseFloat(value) || (name === 'originalPrice' ? undefined : 0)
                : value,
     }));
   };
@@ -110,17 +139,18 @@ export default function EditProductPage() {
   const handleCategoryChange = (value: string) => {
     setFormData(prev => ({ ...prev, category: value }));
   };
-  
+
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
-      setMainImageFile(file); 
+      setMainImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        setImagePreview(dataUrl); 
+        setImagePreview(dataUrl);
         setFormData(prev => ({
           ...prev,
+          imageUrl: dataUrl, // Important: update formData.imageUrl for saving
           dataAiHint: prev?.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product image",
         }));
       };
@@ -131,8 +161,8 @@ export default function EditProductPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!originalProduct) {
-      toast({ title: "Error", description: "Original product data not loaded.", variant: "destructive"});
+    if (!originalProduct || !formData) {
+      toast({ title: "Error", description: "Product data not fully loaded.", variant: "destructive"});
       return;
     }
     if (!formData.category) {
@@ -146,10 +176,10 @@ export default function EditProductPage() {
     }
     setIsSubmitting(true);
 
-    let finalMainImageUrl = originalProduct.imageUrl; 
-    if (mainImageFile && imagePreview) { 
-        finalMainImageUrl = imagePreview; 
-    }
+    let finalMainImageUrl = formData.imageUrl || originalProduct.imageUrl;
+    // If mainImageFile exists, it means a new image was selected,
+    // and imagePreview (which becomes formData.imageUrl) holds its data URL.
+    // So, finalMainImageUrl is already correctly set from formData.imageUrl.
 
     const additionalImageUrls = formData.additionalImagesString?.split(',').map(s => s.trim()).filter(s => s) || [];
     const finalImagesArray = [finalMainImageUrl, ...additionalImageUrls].filter(Boolean) as string[];
@@ -170,11 +200,14 @@ export default function EditProductPage() {
       tags: formData.tags?.split(',').map(s => s.trim()).filter(s => s) || originalProduct.tags || [],
       sku: formData.sku || originalProduct.sku,
       dataAiHint: formData.dataAiHint || originalProduct.dataAiHint,
+      // Keep existing review data
       averageRating: originalProduct.averageRating,
       reviewCount: originalProduct.reviewCount,
       reviews: originalProduct.reviews,
+      offerStartDate: formData.offerStartDateInput ? new Date(formData.offerStartDateInput) : originalProduct.offerStartDate,
+      offerEndDate: formData.offerEndDateInput ? new Date(formData.offerEndDateInput) : originalProduct.offerEndDate,
     };
-    
+
 
     try {
       const productRef = doc(db, "products", productId);
@@ -184,7 +217,7 @@ export default function EditProductPage() {
         description: `${productDataToUpdate.name} has been successfully updated.`,
         duration: 7000,
       });
-      router.push('/admin/products/view'); 
+      router.push('/admin/products/view');
     } catch (error) {
       console.error("Error updating document: ", error);
       toast({
@@ -218,7 +251,7 @@ export default function EditProductPage() {
       </div>
     );
   }
-  
+
   if (!originalProduct) {
      return (
       <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
@@ -268,7 +301,7 @@ export default function EditProductPage() {
                 <Input id="brand" name="brand" value={formData.brand || ''} onChange={handleChange} placeholder="e.g., Club Essentials" className="text-base h-11"/>
               </div>
             </div>
-            
+
             <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" name="description" value={formData.description || ''} onChange={handleChange} placeholder="Detailed product description..." required rows={5} className="text-base"/>
@@ -308,47 +341,56 @@ export default function EditProductPage() {
                 <Input id="sku" name="sku" value={formData.sku || ''} onChange={handleChange} placeholder="e.g., MENS-OXF-001" className="text-base h-11"/>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="mainImageFile">Change Main Product Image (Optional)</Label>
               <div className="flex items-center gap-4">
-                <Input 
-                  id="mainImageFile" 
-                  name="mainImageFile" 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageFileChange} 
+                <Input
+                  id="mainImageFile"
+                  name="mainImageFile"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
                   className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 />
                 <UploadCloud className="h-6 w-6 text-muted-foreground"/>
               </div>
               {imagePreview && (
-                <div className="mt-4 p-2 border border-dashed border-border rounded-md inline-block">
+                <div className="mt-4 p-2 border border-dashed border-border rounded-md inline-block relative">
                   <p className="text-xs text-muted-foreground mb-1">{mainImageFile ? "New Image Preview:" : "Current Main Image:"}</p>
                   <Image
                     src={imagePreview}
                     alt="Product Preview"
                     width={200}
-                    height={266} 
+                    height={266}
                     className="object-contain rounded-md"
                   />
+                   <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 bg-red-500/70 text-white hover:bg-red-600"
+                    onClick={handleRemoveMainImage}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="additionalImagesString">Additional Image URLs (comma-separated, optional)</Label>
-              <Input 
-                id="additionalImagesString" 
-                name="additionalImagesString" 
+              <Input
+                id="additionalImagesString"
+                name="additionalImagesString"
                 value={formData.additionalImagesString || ''}
                 onChange={handleChange}
-                placeholder="url1.png, url2.png, ..." 
+                placeholder="url1.png, url2.png, ..."
                 className="text-base h-11"
               />
               <p className="text-xs text-muted-foreground">Externally hosted image URLs. Main image can be changed above.</p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <Label htmlFor="sizes">Sizes (comma-separated)</Label>
@@ -370,6 +412,17 @@ export default function EditProductPage() {
                     <Input id="dataAiHint" name="dataAiHint" value={formData.dataAiHint || ''} onChange={handleChange} placeholder="e.g., men shirt" className="text-base h-11"/>
                      <p className="text-xs text-muted-foreground">Used for image search if placeholders are needed. Max 2 words.</p>
                 </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="offerStartDateInput">Offer Start Date (Optional)</Label>
+                <Input id="offerStartDateInput" name="offerStartDateInput" type="datetime-local" value={formData.offerStartDateInput || ''} onChange={handleChange} className="text-base h-11"/>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="offerEndDateInput">Offer End Date (Optional)</Label>
+                <Input id="offerEndDateInput" name="offerEndDateInput" type="datetime-local" value={formData.offerEndDateInput || ''} onChange={handleChange} className="text-base h-11"/>
+              </div>
             </div>
 
             <div className="flex justify-end pt-4">
