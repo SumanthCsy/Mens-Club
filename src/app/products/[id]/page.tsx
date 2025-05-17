@@ -170,15 +170,19 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
       await updateDoc(productRef, {
         reviews: arrayUnion(newReview)
-        // Note: averageRating and reviewCount are not updated here.
-        // This is best handled by a Firebase Function for atomicity or calculated on client.
-        // The UserReviews component will recalculate from the updated reviews array on the client.
       });
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
       // The onSnapshot listener for the product should automatically update the UI with the new review.
-    } catch (error) {
+    } catch (error: any) { // Catch error as 'any' to access specific properties like 'code' or 'message'
       console.error("Error submitting review to Firestore:", error);
-      toast({ title: "Review Submission Failed", description: "Could not save your review. Please try again.", variant: "destructive" });
+      console.error("Firebase error code:", error.code);
+      console.error("Firebase error message:", error.message);
+      toast({ 
+        title: "Review Submission Failed", 
+        description: `Could not save your review. Error: ${error.message || 'Please try again.'}`, 
+        variant: "destructive",
+        duration: 7000,
+      });
     }
   }, [currentUser, product, toast]);
 
@@ -219,6 +223,13 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     );
   }
 
+  // Recalculate averageRating and reviewCount based on the current product.reviews array
+  const effectiveReviewCount = product.reviews?.length || 0;
+  const effectiveAverageRating = 
+    product.reviews && effectiveReviewCount > 0
+      ? product.reviews.reduce((acc, review) => acc + review.rating, 0) / effectiveReviewCount
+      : 0;
+
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
@@ -229,10 +240,10 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
             {product.brand && <p className="text-sm font-medium text-primary tracking-wide uppercase">{product.brand}</p>}
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">{product.name}</h1>
             <div className="flex items-center gap-3 pt-1">
-              {product.reviews && product.reviews.length > 0 ? (
+              {effectiveReviewCount > 0 ? (
                 <>
-                  <RatingStars rating={product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length} size={20} />
-                  <span className="text-sm text-muted-foreground">({product.reviews.length} reviews)</span>
+                  <RatingStars rating={effectiveAverageRating} size={20} />
+                  <span className="text-sm text-muted-foreground">({effectiveReviewCount} reviews)</span>
                 </>
               ) : (
                 <span className="text-sm text-muted-foreground">No reviews yet</span>
@@ -307,36 +318,19 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
           productId={product.id}
           reviews={product.reviews} 
           // Pass calculated average and count based on the current product's reviews array
-          averageRatingProp={product.reviews && product.reviews.length > 0 ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length : 0}
-          reviewCountProp={product.reviews?.length || 0}
+          averageRatingProp={effectiveAverageRating}
+          reviewCountProp={effectiveReviewCount}
           isAuthenticated={!!currentUser}
           onReviewSubmit={handleReviewSubmit}
         />
       </div>
-
-      {/* Related products placeholder - implement fetching related products if needed */}
-      {/* 
-      {relatedProducts.length > 0 && (
-        <div className="mt-16 md:mt-24">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-8 text-center">You Might Also Like</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-            {relatedProducts.map((relatedProduct) => (
-              <ProductCard key={relatedProduct.id} product={relatedProduct} />
-            ))}
-          </div>
-        </div>
-      )}
-      */}
     </div>
   );
 }
 
 export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const productId = params.id;
-  // Ensure productId is a string before passing it down.
-  // This might seem redundant but helps with type safety if params.id could be string[]
   if (typeof productId !== 'string') {
-    // Handle error or return a not found component
     return <div className="text-center py-20">Invalid product ID.</div>;
   }
   return <ProductDetailsClientContent productId={productId} />;
