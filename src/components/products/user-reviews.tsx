@@ -1,17 +1,29 @@
-
 // @/components/products/user-reviews.tsx
-"use client"; // Added "use client" as it uses useState and interacts with modals
+"use client";
 
-import type { Review } from '@/types';
+import type { Review, UserData } from '@/types'; // UserData might not be directly needed, but currentUser is
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RatingStars } from '@/components/shared/rating-stars';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { MessageSquarePlus, LogIn } from 'lucide-react';
+import { MessageSquarePlus, LogIn, Edit, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { AddReviewModal } from './AddReviewModal';
+import { EditReviewModal } from './EditReviewModal'; // New Import
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type { User as FirebaseUser } from 'firebase/auth';
 
 interface UserReviewsProps {
   productId: string;
@@ -19,7 +31,10 @@ interface UserReviewsProps {
   averageRatingProp?: number;
   reviewCountProp?: number;
   isAuthenticated: boolean;
+  currentUser: FirebaseUser | null; // Added currentUser prop
   onReviewSubmit: (productId: string, rating: number, comment: string) => Promise<void>;
+  onDeleteReview: (productId: string, reviewId: string, reviewObject: Review) => Promise<void>; // Modified to pass full review object
+  onUpdateReview: (productId: string, reviewId: string, newRating: number, newComment: string) => Promise<void>;
 }
 
 export function UserReviews({
@@ -28,9 +43,18 @@ export function UserReviews({
   averageRatingProp,
   reviewCountProp,
   isAuthenticated,
-  onReviewSubmit
+  currentUser,
+  onReviewSubmit,
+  onDeleteReview,
+  onUpdateReview,
 }: UserReviewsProps) {
   const [isAddReviewModalOpen, setIsAddReviewModalOpen] = useState(false);
+  const [isEditReviewModalOpen, setIsEditReviewModalOpen] = useState(false);
+  const [reviewToEdit, setReviewToEdit] = useState<Review | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<Review | null>(null);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
+  const { toast } = useToast();
+
   const hasReviews = reviews && reviews.length > 0;
 
   const effectiveReviewCount = reviewCountProp !== undefined ? reviewCountProp : (reviews?.length || 0);
@@ -40,6 +64,29 @@ export function UserReviews({
       : (hasReviews && reviews && effectiveReviewCount > 0
           ? reviews.reduce((acc, review) => acc + review.rating, 0) / effectiveReviewCount
           : 0);
+
+  const handleEditClick = (review: Review) => {
+    setReviewToEdit(review);
+    setIsEditReviewModalOpen(true);
+  };
+
+  const handleDeleteClick = (review: Review) => {
+    setReviewToDelete(review);
+  };
+
+  const confirmDeleteReview = async () => {
+    if (!reviewToDelete || !reviewToDelete.id) return;
+    setIsDeletingReview(true);
+    try {
+      await onDeleteReview(productId, reviewToDelete.id, reviewToDelete); // Pass full review object
+      // Toast handled by parent
+      setReviewToDelete(null);
+    } catch (error) {
+      toast({ title: "Error", description: "Could not delete review.", variant: "destructive" });
+    } finally {
+      setIsDeletingReview(false);
+    }
+  };
 
   return (
     <>
@@ -67,7 +114,7 @@ export function UserReviews({
             ) : (
               <div className="text-right">
                 <Button variant="outline" asChild>
-                  <Link href="/login">
+                  <Link href="/login?redirect=/products/${productId}">
                     <LogIn className="mr-2 h-4 w-4" />
                     Login to Write Review
                   </Link>
@@ -80,10 +127,10 @@ export function UserReviews({
           {hasReviews && reviews ? (
             <div className="space-y-6">
               {reviews.map((review, index) => (
-                <div key={review.id || `review-${index}`}> {/* Added fallback key */}
+                <div key={review.id || `review-${index}`}>
                   <div className="flex items-start space-x-4">
                     <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={review.avatarUrl || undefined} alt={review.author} data-ai-hint="person avatar"/> {/* Ensure src is undefined if null for AvatarImage */}
+                      <AvatarImage src={review.avatarUrl || undefined} alt={review.author} data-ai-hint="person avatar"/>
                       <AvatarFallback>{review.author?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -95,18 +142,28 @@ export function UserReviews({
                       </div>
                       <RatingStars rating={review.rating} size={14} className="my-1" />
                       <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line">{review.comment}</p>
+                       {isAuthenticated && currentUser && review.userId === currentUser.uid && (
+                        <div className="mt-2 flex gap-2">
+                          <Button variant="outline" size="sm" className="h-7 px-2 py-1 text-xs" onClick={() => handleEditClick(review)}>
+                            <Edit className="mr-1 h-3 w-3" /> Edit
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 py-1 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDeleteClick(review)}>
+                            <Trash2 className="mr-1 h-3 w-3" /> Delete
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {index < reviews.length - 1 && <Separator className="my-6" />}
                 </div>
               ))}
-              {/* Removed "Show all reviews (Soon)" button for simplicity now */}
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-8">No reviews yet for this product. Be the first to write one!</p>
           )}
         </CardContent>
       </Card>
+
       {productId && (
         <AddReviewModal
           productId={productId}
@@ -114,6 +171,39 @@ export function UserReviews({
           onClose={() => setIsAddReviewModalOpen(false)}
           onReviewSubmit={onReviewSubmit}
         />
+      )}
+
+      {reviewToEdit && productId && (
+        <EditReviewModal
+          productId={productId}
+          reviewToEdit={reviewToEdit}
+          isOpen={isEditReviewModalOpen}
+          onClose={() => {
+            setIsEditReviewModalOpen(false);
+            setReviewToEdit(null);
+          }}
+          onReviewUpdate={onUpdateReview}
+        />
+      )}
+      
+      {reviewToDelete && (
+        <AlertDialog open={!!reviewToDelete} onOpenChange={(open) => !open && setReviewToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete your review.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setReviewToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteReview} className="bg-destructive hover:bg-destructive/90" disabled={isDeletingReview}>
+                {isDeletingReview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </>
   );

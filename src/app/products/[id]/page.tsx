@@ -1,10 +1,9 @@
-
 // @/app/products/[id]/page.tsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Product, Review, UserData } from '@/types'; // Added UserData type
+import type { Product, Review, UserData } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
 import { SizeSelector } from '@/components/products/size-selector';
@@ -15,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { doc, onSnapshot, Unsubscribe, Timestamp, updateDoc, arrayUnion, getDoc } from "firebase/firestore"; 
+import { doc, onSnapshot, Unsubscribe, Timestamp, updateDoc, arrayUnion, getDoc, arrayRemove } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
@@ -142,7 +141,6 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     let authorName = "Anonymous";
     let fetchedFullName: string | undefined = undefined;
 
-    // Attempt to fetch fullName from Firestore user document
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       const userDocSnap = await getDoc(userDocRef);
@@ -156,13 +154,11 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       console.error("Error fetching user data for review author name:", fetchError);
     }
 
-    // Determine authorName based on priority: displayName > fetchedFullName > "Anonymous"
     if (currentUser.displayName) {
       authorName = currentUser.displayName;
     } else if (fetchedFullName) {
       authorName = fetchedFullName;
     }
-    // Email fallback is removed.
 
     const newReview: Review = {
       id: uuidv4(), 
@@ -204,6 +200,50 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         variant: "destructive",
         duration: 7000,
       });
+    }
+  }, [currentUser, product, toast]);
+
+  const handleDeleteReview = useCallback(async (prodId: string, reviewId: string, reviewObject: Review) => {
+    if (!currentUser || !product) {
+      toast({ title: "Error", description: "Action not allowed or product not found.", variant: "destructive" });
+      return;
+    }
+    try {
+      const productRef = doc(db, "products", prodId);
+      await updateDoc(productRef, {
+        reviews: arrayRemove(reviewObject) // Use the full review object for arrayRemove
+      });
+      toast({ title: "Review Deleted", description: "Your review has been successfully deleted." });
+    } catch (error: any) {
+      console.error("Error deleting review:", error);
+      toast({ title: "Deletion Failed", description: `Could not delete review: ${error.message}`, variant: "destructive" });
+    }
+  }, [currentUser, product, toast]);
+
+  const handleUpdateReview = useCallback(async (prodId: string, reviewId: string, newRating: number, newComment: string) => {
+    if (!currentUser || !product) {
+      toast({ title: "Error", description: "Action not allowed or product not found.", variant: "destructive" });
+      return;
+    }
+    try {
+      const productRef = doc(db, "products", prodId);
+      const productSnap = await getDoc(productRef);
+      if (!productSnap.exists()) {
+        throw new Error("Product not found for review update.");
+      }
+      const productData = productSnap.data() as Product;
+      const reviews = productData.reviews || [];
+      const updatedReviews = reviews.map(review => {
+        if (review.id === reviewId && review.userId === currentUser.uid) {
+          return { ...review, rating: newRating, comment: newComment, date: new Date().toISOString() };
+        }
+        return review;
+      });
+      await updateDoc(productRef, { reviews: updatedReviews });
+      toast({ title: "Review Updated", description: "Your review has been successfully updated." });
+    } catch (error: any) {
+      console.error("Error updating review:", error);
+      toast({ title: "Update Failed", description: `Could not update review: ${error.message}`, variant: "destructive" });
     }
   }, [currentUser, product, toast]);
 
@@ -340,7 +380,10 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
           averageRatingProp={effectiveAverageRating}
           reviewCountProp={effectiveReviewCount}
           isAuthenticated={!!currentUser}
+          currentUser={currentUser}
           onReviewSubmit={handleReviewSubmit} 
+          onDeleteReview={handleDeleteReview}
+          onUpdateReview={handleUpdateReview}
         />
       </div>
     </div>
@@ -354,5 +397,3 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
   }
   return <ProductDetailsClientContent productId={productId} />;
 }
-
-    
