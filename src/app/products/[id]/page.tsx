@@ -1,17 +1,16 @@
 // @/app/products/[id]/page.tsx
 "use client"; // Make the entire file a client component module
 
-// All imports are now fine at the top level because the module is client-side.
 import { useState, useEffect, useMemo, useCallback, use } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // useRouter is client-side
+import { useRouter } from 'next/navigation';
 import type { Product, Review, UserData } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
 import { SizeSelector } from '@/components/products/size-selector';
 import { UserReviews } from '@/components/products/user-reviews';
 import { RatingStars } from '@/components/shared/rating-stars';
-import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn } from 'lucide-react';
+import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn, Copy, MessageSquare } from 'lucide-react'; // Added Copy, MessageSquare
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -22,10 +21,13 @@ import { useWishlist } from '@/context/wishlist-context';
 import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"; // Added Popover components
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
-  // No "use client" needed here anymore as the whole file is client-side.
-
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +160,9 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     } catch (fetchError) {
       console.error("Error fetching user data for review author name:", fetchError);
     }
+    if (authorName === (currentUser.email || "")) { // Fallback if name is email
+        authorName = "Anonymous";
+    }
 
 
     const newReview: Review = {
@@ -250,6 +255,24 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       toast({ title: "Update Failed", description: `Could not update review: ${error.message}`, variant: "destructive" });
     }
   }, [currentUser, product, toast]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => {
+        toast({ title: "Link Copied!", description: "Product link copied to clipboard." });
+      })
+      .catch(err => {
+        console.error("Failed to copy link: ", err);
+        toast({ title: "Copy Failed", description: "Could not copy link to clipboard.", variant: "destructive" });
+      });
+  };
+
+  const handleShareOnWhatsApp = () => {
+    if (!product) return;
+    const message = `Check out this product: ${product.name} - ${window.location.href}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
 
   if (isLoading || isLoadingWishlist) {
@@ -369,9 +392,31 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
           </div>
 
           <div className="flex items-center justify-start gap-3 pt-4">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-              <Share2 className="mr-2 h-4 w-4" /> Share
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+                  <Share2 className="mr-2 h-4 w-4" /> Share
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2 space-y-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={handleCopyLink}
+                >
+                  <Copy className="mr-2 h-4 w-4" /> Copy Link
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={handleShareOnWhatsApp}
+                >
+                  <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+                </Button>
+              </PopoverContent>
+            </Popover>
             {product.sku && <Badge variant="secondary">SKU: {product.sku}</Badge>}
           </div>
         </div>
@@ -404,5 +449,3 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
   }
   return <ProductDetailsClientContent productId={productId} />;
 }
-
-    
