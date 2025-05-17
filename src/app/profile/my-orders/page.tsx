@@ -113,7 +113,7 @@ export default function MyOrdersListPage() {
     );
   }
 
-  if (!currentUser && !isLoading) { // Adjusted to check isLoading too
+  if (!currentUser && !isLoading) { 
      return (
       <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
         <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
@@ -161,7 +161,7 @@ export default function MyOrdersListPage() {
                 <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
                     <div className="flex items-center gap-1.5">
-                      <CardTitle className="text-base sm:text-lg font-semibold break-all leading-tight">
+                      <CardTitle className="text-sm sm:text-base font-semibold break-all leading-tight">
                         Order ID: {order.id || 'N/A'}
                       </CardTitle>
                       {order.id && (
@@ -178,22 +178,26 @@ export default function MyOrdersListPage() {
                 
                 {order.items && order.items.length > 0 && (
                     <CardContent className="px-4 sm:px-5 py-3 border-t border-b border-border/40">
-                        <div className="flex items-center space-x-2 overflow-x-auto pb-1">
-                            {order.items.slice(0, 4).map((item, index) => ( // Show up to 4 item images
-                                <div key={item.id + index} className="shrink-0">
+                        <div className="flex flex-wrap gap-x-4 gap-y-3">
+                            {order.items.slice(0, 2).map((item, index) => (
+                                <div key={item.id + index} className="flex items-start gap-2 min-w-[150px] max-w-[200px]">
                                     <Image
-                                    src={item.imageUrl || 'https://placehold.co/60x80.png'}
+                                    src={item.imageUrl || 'https://placehold.co/40x53.png'}
                                     alt={item.name}
-                                    width={48} // Slightly smaller images
-                                    height={64}
+                                    width={40} 
+                                    height={53} 
                                     className="rounded-md object-cover aspect-[3/4] border border-border/30"
                                     data-ai-hint={item.sku || "clothing item"}
                                     />
+                                    <div className="text-xs">
+                                        <p className="font-medium text-foreground line-clamp-2 leading-tight">{item.name}</p>
+                                        <p className="text-muted-foreground">Size: {item.selectedSize}</p>
+                                    </div>
                                 </div>
                             ))}
-                            {order.items.length > 4 && (
-                                <div className="pl-1 text-xs text-muted-foreground self-end shrink-0">
-                                    + {order.items.length - 4} more
+                            {order.items.length > 2 && (
+                                <div className="flex items-center justify-center text-xs text-muted-foreground self-center pl-2">
+                                    + {order.items.length - 2} more item(s)
                                 </div>
                             )}
                         </div>
@@ -238,3 +242,5 @@ export default function MyOrdersListPage() {
     </div>
   );
 }
+
+    
