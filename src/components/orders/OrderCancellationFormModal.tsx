@@ -64,7 +64,7 @@ export function OrderCancellationFormModal({ isOpen, onClose, order }: OrderCanc
     setIsSubmitting(true);
 
     const whatsappNumber = "919391157177"; // Admin's WhatsApp number
-    let message = `Order Cancellation Request for Order ID: ${order.id}\n\n`;
+    let message = `Order Cancellation Request for Order ID: ${order.id || 'N/A'}\n\n`; // Ensure order.id is included
     message += `Reason: ${selectedReason}\n`;
     if (selectedReason === "Others" && remarks.trim()) {
       message += `Remarks: ${remarks.trim()}\n`;
@@ -93,7 +93,7 @@ export function OrderCancellationFormModal({ isOpen, onClose, order }: OrderCanc
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Request Order Cancellation</DialogTitle>
           <DialogDescription>
-            Order ID: <span className="font-medium text-primary">{order.id}</span>. 
+            Order ID: <span className="font-medium text-primary">{order.id || 'N/A'}</span>. 
             Please select a reason for cancellation.
           </DialogDescription>
         </DialogHeader>
