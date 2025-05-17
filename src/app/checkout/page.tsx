@@ -1,4 +1,3 @@
-
 // @/app/checkout/page.tsx
 "use client";
 
@@ -7,7 +6,7 @@ import { ShippingForm, type ShippingFormValues } from '@/components/checkout/shi
 import { PaymentMethodSelector } from '@/components/checkout/payment-method-selector';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
-import { Lock, ArrowLeft, Loader2, Edit, Home, PlusCircle, AlertTriangle } from 'lucide-react';
+import { Lock, ArrowLeft, Loader2, Edit, Home, PlusCircle, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -17,7 +16,7 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc, query, whe
 import type { Order, OrderItem, ShippingAddress as ShippingAddressType, UserData, Coupon } from '@/types';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { AvailableCouponsModal } from '@/components/checkout/AvailableCouponsModal'; // New Import
+import { AvailableCouponsModal } from '@/components/checkout/AvailableCouponsModal';
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
@@ -112,13 +111,12 @@ export default function CheckoutPage() {
 
   const handleEditAddress = () => {
     setAddressFormMode('edit');
-    // Ensure formInitialData reflects currentConfirmedShippingAddress or defaultShippingAddress
     setShowAddressForm(true);
   };
 
   const handleAddNewAddress = () => {
     setAddressFormMode('new');
-    setCurrentConfirmedShippingAddress(null); // Clear any existing confirmed address for a new one
+    setCurrentConfirmedShippingAddress(null); 
     setShowAddressForm(true);
   };
 
@@ -128,12 +126,14 @@ export default function CheckoutPage() {
       return;
     }
     setIsApplyingCoupon(true);
+    console.log(`[handleApplyCoupon] Attempting to apply coupon: ${couponCode.toUpperCase()}`);
     try {
       const couponsRef = collection(db, "coupons");
       const q = query(couponsRef, where("code", "==", couponCode.toUpperCase()));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
+        console.log(`[handleApplyCoupon] Coupon ${couponCode.toUpperCase()} not found.`);
         toast({ title: "Invalid Coupon", description: "Coupon code not found.", variant: "destructive" });
         setAppliedCoupon(null);
         setDiscountAmount(0);
@@ -143,42 +143,48 @@ export default function CheckoutPage() {
 
       const couponDoc = querySnapshot.docs[0];
       const couponData = { id: couponDoc.id, ...couponDoc.data() } as Coupon;
+      console.log("[handleApplyCoupon] Coupon data from Firestore:", couponData);
 
-      // Validate coupon
       if (!couponData.isActive) {
+        console.log(`[handleApplyCoupon] Coupon ${couponData.code} is not active.`);
         toast({ title: "Coupon Inactive", description: "This coupon is no longer active.", variant: "destructive" });
         setIsApplyingCoupon(false); return;
       }
+
+      const now = new Date();
       if (couponData.expiryDate) {
         const expiry = (couponData.expiryDate as Timestamp).toDate();
-        if (new Date() > expiry) {
+        console.log(`[handleApplyCoupon] Coupon ${couponData.code} expiry: ${expiry}, Current date: ${now}`);
+        if (now > expiry) {
+          console.log(`[handleApplyCoupon] Coupon ${couponData.code} has expired.`);
           toast({ title: "Coupon Expired", description: "This coupon has expired.", variant: "destructive" });
           setIsApplyingCoupon(false); return;
         }
       }
+
       if (couponData.minPurchaseAmount && cartTotal < couponData.minPurchaseAmount) {
+        console.log(`[handleApplyCoupon] Coupon ${couponData.code} min purchase not met. Cart total: ${cartTotal}, Min purchase: ${couponData.minPurchaseAmount}`);
         toast({ title: "Minimum Spend Not Met", description: `This coupon requires a minimum purchase of ₹${couponData.minPurchaseAmount.toFixed(2)}.`, variant: "destructive" });
         setIsApplyingCoupon(false); return;
       }
 
-      // Calculate discount
       let calculatedDiscount = 0;
       if (couponData.discountType === 'percentage') {
         calculatedDiscount = (cartTotal * couponData.discountValue) / 100;
-      } else { // fixed
+      } else { 
         calculatedDiscount = couponData.discountValue;
       }
-      // Ensure discount doesn't exceed cart total
       calculatedDiscount = Math.min(calculatedDiscount, cartTotal);
-
+      console.log(`[handleApplyCoupon] Coupon ${couponData.code} applied. Discount calculated: ${calculatedDiscount}`);
 
       setAppliedCoupon(couponData);
       setDiscountAmount(calculatedDiscount);
       toast({ title: "Coupon Applied!", description: `${couponData.code} applied successfully.` });
+      setIsCouponsModalOpen(false); // Close modal on successful apply
 
-    } catch (error) {
-      console.error("Error applying coupon:", error);
-      toast({ title: "Error", description: "Could not apply coupon.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("[handleApplyCoupon] Error applying coupon:", error);
+      toast({ title: "Error Applying Coupon", description: error.message || "Could not apply coupon.", variant: "destructive" });
       setAppliedCoupon(null);
       setDiscountAmount(0);
     } finally {
@@ -245,7 +251,7 @@ export default function CheckoutPage() {
       shippingCost: shippingCost,
       discount: discountAmount > 0 ? discountAmount : null,
       appliedCouponCode: appliedCoupon ? appliedCoupon.code : null,
-      grandTotal: grandTotal, // Already calculated with discount
+      grandTotal: grandTotal,
       shippingAddress: shippingAddressForDb,
       paymentMethod: selectedPaymentMethod,
       status: 'Pending' as Order['status'],
@@ -255,17 +261,17 @@ export default function CheckoutPage() {
     try {
       const docRef = await addDoc(collection(db, "orders"), newOrderPayload);
       
-      if (currentUser) {
+      if (currentUser && currentConfirmedShippingAddress) {
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
-          await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb }, { merge: true });
+          await updateDoc(userDocRef, { defaultShippingAddress: currentConfirmedShippingAddress }, { merge: true });
         } catch (userUpdateError) {
           console.warn("Error updating user's default shipping address:", userUpdateError);
         }
       }
       
       clearCart();
-      setAppliedCoupon(null); // Clear applied coupon after order
+      setAppliedCoupon(null);
       setDiscountAmount(0);
       router.push(`/checkout/success/${docRef.id}`); 
       
@@ -291,7 +297,7 @@ export default function CheckoutPage() {
     formInitialData = { ...currentConfirmedShippingAddress, email: currentConfirmedShippingAddress.email || currentUser?.email || "" };
   } else if (addressFormMode === 'new') {
     formInitialData = { country: "India", email: currentUser?.email || "" };
-  } else if (defaultShippingAddress) { // When form is hidden and default address is shown
+  } else if (defaultShippingAddress) { 
     formInitialData = { ...defaultShippingAddress, email: defaultShippingAddress.email || currentUser?.email || ""};
   }
 
@@ -365,7 +371,7 @@ export default function CheckoutPage() {
             shippingCost={shippingCost}
             discountAmount={discountAmount}
             total={grandTotal}
-            showCheckoutButton={false} // Main button is below
+            showCheckoutButton={false}
             appliedCouponCode={appliedCoupon?.code}
             onApplyPromoCode={handleApplyCoupon}
             onRemoveCoupon={handleRemoveCoupon}
@@ -398,8 +404,6 @@ export default function CheckoutPage() {
         onClose={() => setIsCouponsModalOpen(false)}
         onApplyCoupon={async (code) => {
           await handleApplyCoupon(code);
-          // Optionally close modal after apply, or let user close it
-          // setIsCouponsModalOpen(false); 
         }}
         currentSubtotal={cartTotal}
       />

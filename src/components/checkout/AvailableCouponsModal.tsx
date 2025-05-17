@@ -1,4 +1,3 @@
-
 // @/components/checkout/AvailableCouponsModal.tsx
 "use client";
 
@@ -24,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 interface AvailableCouponsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApplyCoupon: (couponCode: string) => Promise<void>; // Function to call when user clicks "Apply"
+  onApplyCoupon: (couponCode: string) => Promise<void>;
   currentSubtotal: number;
 }
 
@@ -39,6 +38,7 @@ export function AvailableCouponsModal({ isOpen, onClose, onApplyCoupon, currentS
       const fetchCoupons = async () => {
         setIsLoading(true);
         setError(null);
+        console.log("[AvailableCouponsModal] Fetching coupons...");
         try {
           const now = new Date();
           const couponsRef = collection(db, "coupons");
@@ -46,23 +46,32 @@ export function AvailableCouponsModal({ isOpen, onClose, onApplyCoupon, currentS
             couponsRef,
             where("isActive", "==", true),
             where("displayOnSite", "==", true)
-            // Expiry check needs to be handled client-side if expiryDate can be null
-            // or if we want to compare with current server time (complex with client-side query).
-            // For now, we fetch and then filter.
           );
           const querySnapshot = await getDocs(q);
-          const fetchedCoupons: Coupon[] = [];
+          const fetchedCouponsRaw: Coupon[] = [];
           querySnapshot.forEach((doc) => {
-            const data = doc.data() as Omit<Coupon, 'id'>;
-            const expiryDate = data.expiryDate ? (data.expiryDate as Timestamp).toDate() : null;
-            if (!expiryDate || expiryDate > now) { // Only include non-expired or no-expiry coupons
-              fetchedCoupons.push({ id: doc.id, ...data, expiryDate });
+            fetchedCouponsRaw.push({ id: doc.id, ...doc.data() } as Coupon);
+          });
+
+          console.log("[AvailableCouponsModal] Raw coupons fetched from Firestore:", fetchedCouponsRaw);
+
+          const validCoupons: Coupon[] = [];
+          fetchedCouponsRaw.forEach((coupon) => {
+            const expiryDate = coupon.expiryDate ? (coupon.expiryDate as Timestamp).toDate() : null;
+            console.log(`[AvailableCouponsModal] Coupon: ${coupon.code}, ExpiryDate from Firestore:`, coupon.expiryDate, "Converted JS Date:", expiryDate, "Current Date:", now);
+            if (!expiryDate || expiryDate > now) {
+              validCoupons.push({ ...coupon, expiryDate });
+            } else {
+              console.log(`[AvailableCouponsModal] Coupon ${coupon.code} is expired.`);
             }
           });
-          setCoupons(fetchedCoupons);
-        } catch (err) {
-          console.error("Error fetching available coupons:", err);
-          setError("Could not load available coupons. Please try again.");
+          
+          console.log("[AvailableCouponsModal] Filtered valid (non-expired, active, displayOnSite) coupons:", validCoupons);
+          setCoupons(validCoupons);
+
+        } catch (err: any) {
+          console.error("[AvailableCouponsModal] Error fetching available coupons:", err);
+          setError(`Could not load available coupons. Error: ${err.message || 'Unknown error'}`);
         } finally {
           setIsLoading(false);
         }
@@ -73,7 +82,7 @@ export function AvailableCouponsModal({ isOpen, onClose, onApplyCoupon, currentS
 
   const handleApply = async (couponCode: string) => {
     await onApplyCoupon(couponCode);
-    onClose(); // Close modal after attempting to apply
+    // onClose(); // Consider if modal should always close or only on successful apply from parent
   };
 
   const handleCopyCode = (code: string) => {
@@ -143,7 +152,7 @@ export function AvailableCouponsModal({ isOpen, onClose, onApplyCoupon, currentS
                     )}
                     {coupon.expiryDate && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Expires: {format(new Date(coupon.expiryDate), 'dd MMM, yyyy')}
+                        Expires: {format(new Date(coupon.expiryDate), 'dd MMM, yyyy HH:mm')}
                       </p>
                     )}
                   </div>
@@ -163,7 +172,7 @@ export function AvailableCouponsModal({ isOpen, onClose, onApplyCoupon, currentS
 
         <DialogFooter className="mt-auto pt-4 border-t">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" onClick={onClose}>
               <X className="mr-2 h-4 w-4" /> Close
             </Button>
           </DialogClose>

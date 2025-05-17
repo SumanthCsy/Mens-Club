@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { CartProvider } from '@/context/cart-context';
 import { WishlistProvider } from '@/context/wishlist-context';
 import { FloatingContactButtons } from '@/components/layout/FloatingContactButtons';
-import { GlobalAdminNotifications } from '@/components/layout/GlobalAdminNotifications'; // Import new component
+import { GlobalAdminNotifications } from '@/components/layout/GlobalAdminNotifications';
+import { SiteCouponPopup } from '@/components/layout/SiteCouponPopup'; // New Import
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -46,7 +47,8 @@ export default function RootLayout({
             <Footer />
             <Toaster />
             <FloatingContactButtons />
-            <GlobalAdminNotifications /> {/* Add global notifications here */}
+            <GlobalAdminNotifications />
+            <SiteCouponPopup /> {/* Add SiteCouponPopup here */}
           </WishlistProvider>
         </CartProvider>
       </body>
