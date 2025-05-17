@@ -17,9 +17,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, BellRing, Loader2 } from 'lucide-react';
-import { collection, query, where, getDocs, onSnapshot, Unsubscribe } from "firebase/firestore";
+import { collection, query, where, onSnapshot, Unsubscribe } from "firebase/firestore";
 import { db } from '@/lib/firebase';
-import type { Order } from '@/types';
+// Order type is not directly used here for count, but good for context if we were fetching full orders
+// import type { Order } from '@/types'; 
 
 export default function AdminDashboardPage() {
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
@@ -34,12 +35,13 @@ export default function AdminDashboardPage() {
       const count = querySnapshot.size;
       setPendingOrdersCount(count);
       if (count > 0) {
-        setShowPendingOrdersModal(true);
+        setShowPendingOrdersModal(true); // Trigger modal if pending orders exist
       }
       setIsLoadingPendingOrders(false);
     }, (error) => {
       console.error("Error fetching pending orders:", error);
       setIsLoadingPendingOrders(false);
+      // Optionally, show a toast or an error message on the dashboard itself
     });
 
     return () => unsubscribe(); // Cleanup listener on component unmount
@@ -59,7 +61,7 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">Admin Dashboard</h1>
             <p className="mt-3 text-lg text-muted-foreground">
-              Manage your store's products, orders, users, and overall settings.
+              Oversee and manage all aspects of your Mens Club Keshavapatnam store.
             </p>
           </div>
         </div>
@@ -105,6 +107,9 @@ export default function AdminDashboardPage() {
                     {pendingOrdersCount}
                   </span>
                 )}
+                 {isLoadingPendingOrders && ( // Small loader for the badge itself
+                    <Loader2 className="absolute -top-1 -right-1 h-4 w-4 text-primary animate-spin" />
+                 )}
               </div>
             </div>
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
@@ -217,12 +222,13 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
+      {/* Modal for Pending Orders Notification */}
       {showPendingOrdersModal && pendingOrdersCount > 0 && !isLoadingPendingOrders && (
         <AlertDialog open={showPendingOrdersModal} onOpenChange={setShowPendingOrdersModal}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center">
-                <BellRing className="h-6 w-6 mr-2 text-primary animate-pulse" />
+                <BellRing className="h-6 w-6 mr-2 text-primary animate-pulse" /> 
                 Pending Orders Notification
               </AlertDialogTitle>
               <AlertDialogDescription>
@@ -238,6 +244,8 @@ export default function AdminDashboardPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Full-screen loader for initial pending orders count fetch */}
        {isLoadingPendingOrders && (
          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
             <Loader2 className="h-10 w-10 text-white animate-spin" />
