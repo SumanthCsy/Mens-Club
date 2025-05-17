@@ -8,10 +8,11 @@ import { format } from 'date-fns';
 
 /**
  * Simulates invoice generation and triggers a download of a file with a .pdf extension,
- * containing a plain text representation of the invoice.
+ * containing a PLAIN TEXT representation of the invoice.
  *
  * IMPORTANT: The content of this file is plain text, not a true binary PDF.
- * PDF viewers will likely not open it correctly or may display it as corrupted.
+ * PDF viewers will likely NOT open it correctly or may display it as corrupted.
+ * This is because PDF files have a specific internal structure that plain text does not.
  *
  * @param order The order object for which to simulate invoice generation.
  */
@@ -96,7 +97,8 @@ Terms & Conditions (Example):
 
 ==================================================
 This is a simulated invoice generated on ${invoiceDateTime}.
-The content of this file is PLAIN TEXT.
+The content of this file is PLAIN TEXT, but named with a .pdf extension.
+It will likely not open correctly in standard PDF viewers.
 `;
 
   // Create a Blob with the text content, set MIME type to application/pdf
@@ -114,8 +116,8 @@ The content of this file is PLAIN TEXT.
   URL.revokeObjectURL(link.href); // Clean up the object URL
 
   toast({
-    title: 'Simulated Invoice Downloaded as PDF',
-    description: `A file named invoice-${order.id}-simulated.pdf (containing plain text) has been downloaded. It may not open correctly in PDF viewers. True PDF generation is a future feature.`,
+    title: 'Simulated Invoice Downloaded as "PDF"',
+    description: `A file named invoice-${order.id}-simulated.pdf has been downloaded. Its content is plain text and may not open correctly in PDF viewers. True PDF generation is a future feature.`,
     duration: 12000, // Longer duration for this important note
   });
 
@@ -124,4 +126,3 @@ The content of this file is PLAIN TEXT.
   console.log("Content:\n", invoiceContent.trim());
   console.log("INFO: This is a simulation. The downloaded .pdf file contains plain text. To implement actual PDF generation, use a library like jsPDF.");
 }
-
