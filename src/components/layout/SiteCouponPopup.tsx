@@ -10,7 +10,7 @@ import { Tag, Copy, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-const SESSION_STORAGE_KEY = 'siteCouponDismissed';
+const SESSION_STORAGE_KEY = 'siteCouponDismissed_v2'; // Changed key to ensure fresh state for testing
 
 export function SiteCouponPopup() {
   const [coupon, setCoupon] = useState<Coupon | null>(null);
@@ -21,46 +21,64 @@ export function SiteCouponPopup() {
   useEffect(() => {
     const fetchCoupon = async () => {
       setIsLoading(true);
+      console.log("[SiteCouponPopup] Initializing. Checking session storage...");
       try {
         const dismissedInSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
-        if (dismissedInSession) {
+        if (dismissedInSession === 'true') {
+          console.log("[SiteCouponPopup] Popup was dismissed in this session. Not showing.");
           setIsLoading(false);
+          setIsVisible(false);
           return;
         }
 
         const now = new Date();
         const couponsRef = collection(db, "coupons");
-        // Fetch a few potential candidates
         const q = query(
           couponsRef,
           where("isActive", "==", true),
           where("displayOnSite", "==", true),
-          orderBy("createdAt", "desc"), // Example: get the newest one
-          limit(5) // Fetch a few to pick from client-side if complex expiry logic needed
+          orderBy("createdAt", "desc"),
+          limit(5) // Fetch a few candidates
         );
 
+        console.log("[SiteCouponPopup] Fetching coupons from Firestore...");
         const querySnapshot = await getDocs(q);
         let foundCoupon: Coupon | null = null;
 
-        for (const doc of querySnapshot.docs) {
-          const data = doc.data() as Omit<Coupon, 'id'>;
-          const expiryDate = data.expiryDate ? (data.expiryDate as Timestamp).toDate() : null;
+        const rawCoupons = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Coupon));
+        console.log("[SiteCouponPopup] Raw coupons fetched:", rawCoupons);
+
+        for (const docData of rawCoupons) {
+          const expiryDate = docData.expiryDate ? (docData.expiryDate as Timestamp).toDate() : null;
           
+          // Log details for each potential coupon
+          console.log(`[SiteCouponPopup] Checking coupon: ${docData.code}, Active: ${docData.isActive}, Display: ${docData.displayOnSite}, Expiry: ${expiryDate}`);
+
           if (!expiryDate || expiryDate > now) {
-            foundCoupon = { id: doc.id, ...data, expiryDate };
-            break; // Found a suitable coupon
+            foundCoupon = { ...docData, expiryDate }; // Ensure expiryDate is a JS Date object
+            console.log(`[SiteCouponPopup] Suitable coupon found: ${foundCoupon.code}`);
+            break; 
+          } else {
+            console.log(`[SiteCouponPopup] Coupon ${docData.code} is expired.`);
           }
         }
         
         if (foundCoupon) {
+          console.log("[SiteCouponPopup] Setting coupon to display:", foundCoupon);
           setCoupon(foundCoupon);
           setIsVisible(true);
+        } else {
+          console.log("[SiteCouponPopup] No suitable, non-expired, displayable coupon found.");
+          setCoupon(null);
+          setIsVisible(false);
         }
       } catch (error) {
-        console.error("Error fetching site coupon:", error);
-        // Don't show error to user, just don't display popup
+        console.error("[SiteCouponPopup] Error fetching site coupon:", error);
+        setCoupon(null);
+        setIsVisible(false);
       } finally {
         setIsLoading(false);
+        console.log("[SiteCouponPopup] Fetch attempt finished.");
       }
     };
 
@@ -68,6 +86,7 @@ export function SiteCouponPopup() {
   }, []);
 
   const handleDismiss = () => {
+    console.log("[SiteCouponPopup] Dismiss button clicked. Hiding and setting session storage.");
     setIsVisible(false);
     sessionStorage.setItem(SESSION_STORAGE_KEY, 'true');
   };
@@ -79,16 +98,30 @@ export function SiteCouponPopup() {
           toast({ title: "Copied!", description: `Coupon code ${coupon.code} copied to clipboard.` });
         })
         .catch(err => {
-          console.error("Failed to copy coupon code:", err);
+          console.error("[SiteCouponPopup] Failed to copy coupon code:", err);
           toast({ title: "Copy Failed", description: "Could not copy code.", variant: "destructive" });
         });
     }
   };
 
-  if (isLoading || !isVisible || !coupon) {
-    return null; // Don't render anything if loading, not visible, or no coupon
+  useEffect(() => {
+    // Log visibility changes
+    console.log(`[SiteCouponPopup] Visibility state: ${isVisible}, Coupon state:`, coupon, `Loading state: ${isLoading}`);
+  }, [isVisible, coupon, isLoading]);
+
+
+  if (isLoading) {
+     // Optional: return a loader or null if you don't want any visual while loading
+    console.log("[SiteCouponPopup] Render: Loading state active.");
+    return null;
   }
 
+  if (!isVisible || !coupon) {
+    console.log("[SiteCouponPopup] Render: Not visible or no coupon. Rendering null.");
+    return null;
+  }
+  
+  console.log("[SiteCouponPopup] Render: Popup is visible with coupon:", coupon);
   return (
     <div
       className={cn(
