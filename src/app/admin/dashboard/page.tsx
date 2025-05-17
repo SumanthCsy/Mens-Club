@@ -1,17 +1,13 @@
-
 // @/app/admin/dashboard/page.tsx
-"use client"; // Keep as client component if it needs any client-side interactions or hooks
+"use client"; 
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck } from 'lucide-react';
-// Removed AlertDialog related imports as global notification handles it now
-// Removed Firebase imports for pending orders as global notification handles it now
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, ServerCrash } from 'lucide-react';
+
 
 export default function AdminDashboardPage() {
-  // Pending orders count and modal logic is now handled by GlobalAdminNotifications
-
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="mb-10">
@@ -53,7 +49,7 @@ export default function AdminDashboardPage() {
                 </Link>
              </Button>
              <Button asChild variant="outline" className="w-full">
-                <Link href="/admin/products/view"> {/* General edit link might go to view page first */}
+                <Link href="/admin/products/view"> 
                     Edit Products
                 </Link>
              </Button>
@@ -64,7 +60,6 @@ export default function AdminDashboardPage() {
           <CardHeader>
              <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-semibold">Order Management</CardTitle>
-              {/* Badge for pending orders count removed as global notification handles alert */}
               <ListOrdered className="h-8 w-8 text-primary"/>
             </div>
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
@@ -175,9 +170,25 @@ export default function AdminDashboardPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-200 border-destructive/50 bg-destructive/5">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-semibold text-destructive">Store Maintenance</CardTitle>
+              <ServerCrash className="h-8 w-8 text-destructive" />
+            </div>
+            <CardDescription className="text-destructive/90">Perform critical store maintenance tasks. Use with caution.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+             <Button asChild variant="destructive" className="w-full">
+                <Link href="/admin/settings/reset-store">
+                     Reset Store Data
+                </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
       </div>
-      {/* Pending Orders Modal removed as it's handled globally */}
-      {/* Full-screen loader for initial pending orders count fetch removed */}
     </div>
   );
 }
