@@ -1,4 +1,3 @@
-
 // @/components/layout/footer.tsx
 import Link from 'next/link';
 import { Facebook, Instagram, Twitter, Shirt, Phone, MessageSquare } from 'lucide-react'; // Added Phone and MessageSquare (for WhatsApp)
@@ -75,7 +74,25 @@ export function Footer() {
         <div className="mt-10 pt-8 border-t border-border text-center text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Mens Club Keshavapatnam. All rights reserved.</p>
           <p className="mt-1">
-            Designed with <span className="text-red-500">&hearts;</span> by <a href="https://sumanthcsy.netlify.app" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Sumanth Csy</a>
+            Designed with <span className="text-red-500">&hearts;</span> by{' '}
+            <a
+              href="https://sumanthcsy.netlify.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="
+                relative overflow-hidden
+                text-primary hover:underline
+                inline-block
+                before:absolute before:inset-0
+                before:-translate-x-full
+                before:animate-shimmer
+                before:bg-gradient-to-r
+                before:from-transparent before:via-white/60 dark:before:via-white/20 before:to-transparent
+                focus:outline-none focus:ring-1 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-background rounded-sm
+              "
+            >
+              Sumanth Csy
+            </a>
           </p>
         </div>
       </div>
