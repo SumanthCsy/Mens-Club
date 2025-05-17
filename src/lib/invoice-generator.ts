@@ -6,61 +6,78 @@ import type { Order } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 /**
- * Placeholder function for simulating invoice generation.
- * In a real application, this function would use a library like jsPDF
- * and jsPDF-AutoTable to create and offer a PDF document for download.
- * 
- * To implement actual PDF generation:
- * 1. Install the libraries: `npm install jspdf jspdf-autotable`
- * 2. Import them: `import jsPDF from 'jspdf';` and `import 'jspdf-autotable';` (or its specific type if using ES6 modules with types)
- * 3. Construct the PDF document using jsPDF methods.
- * 
+ * Simulates invoice generation and triggers a download of a plain text file
+ * representing the invoice. In a real application, this would use a library
+ * like jsPDF to create and offer a PDF document.
+ *
  * @param order The order object for which to simulate invoice generation.
  */
 export function generateInvoicePdf(order: Order | null) {
   if (!order || !order.id) {
     toast({
-      title: 'Error Generating Invoice',
+      title: 'Error Simulating Invoice',
       description: 'Order data or Order ID is not available.',
       variant: 'destructive',
     });
     return;
   }
 
-  console.log(`--- Simulated Invoice Generation for Order: ${order.id} ---`);
-  console.log("Order Details:", JSON.stringify(order, null, 2));
-  console.log("Customer:", order.shippingAddress.fullName);
-  console.log("Items:", order.items.map(item => `${item.name} (Qty: ${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}`).join('\n'));
-  console.log("Grand Total: ₹", order.grandTotal.toFixed(2));
-  console.log("--- End of Simulated Invoice Data ---");
-  console.log("INFO: This is a simulation. To implement actual PDF generation, use a library like jsPDF.");
+  // 1. Construct simple text-based invoice content
+  let invoiceContent = `Invoice for Order: ${order.id}\n`;
+  invoiceContent += `Date: ${new Date(order.createdAt).toLocaleDateString()} ${new Date(order.createdAt).toLocaleTimeString()}\n\n`;
+  invoiceContent += `Customer: ${order.shippingAddress.fullName}\n`;
+  invoiceContent += `Email: ${order.customerEmail}\n`;
+  if (order.shippingAddress.phoneNumber) {
+    invoiceContent += `Phone: ${order.shippingAddress.phoneNumber}\n`;
+  }
+  invoiceContent += `\nShipping Address:\n`;
+  invoiceContent += `${order.shippingAddress.addressLine1}\n`;
+  if (order.shippingAddress.addressLine2) {
+    invoiceContent += `${order.shippingAddress.addressLine2}\n`;
+  }
+  invoiceContent += `${order.shippingAddress.city}, ${order.shippingAddress.stateProvince} ${order.shippingAddress.postalCode}\n`;
+  invoiceContent += `${order.shippingAddress.country}\n\n`;
+
+  invoiceContent += "Items:\n";
+  invoiceContent += "--------------------------------------------------\n";
+  order.items.forEach(item => {
+    invoiceContent += `${item.name} (Size: ${item.selectedSize || 'N/A'}, Qty: ${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}\n`;
+  });
+  invoiceContent += "--------------------------------------------------\n\n";
+
+  invoiceContent += `Subtotal: ₹${order.subtotal.toFixed(2)}\n`;
+  invoiceContent += `Shipping: ₹${order.shippingCost.toFixed(2)}\n`;
+  if (order.discount && order.discount > 0) {
+    invoiceContent += `Discount: -₹${order.discount.toFixed(2)}\n`;
+  }
+  invoiceContent += `Grand Total: ₹${order.grandTotal.toFixed(2)}\n\n`;
+  invoiceContent += `Payment Method: ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}\n`;
+  invoiceContent += `Status: ${order.status}\n\n`;
+  invoiceContent += "Thank you for your order!\n";
+  invoiceContent += "Mens Club Keshavapatnam\n";
+
+  // 2. Create a Blob with the text content
+  const blob = new Blob([invoiceContent], { type: 'text/plain;charset=utf-8' });
+
+  // 3. Create a temporary link element to trigger the download
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `invoice-${order.id}-simulated.txt`; // Filename for the download
+
+  // 4. Append to body, click, and remove
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href); // Clean up the object URL
 
   toast({
-    title: 'Invoice Generation (Simulated)',
-    description: `Invoice for order ${order.id} would be generated here. Details logged to console. Actual PDF download is a future feature.`,
+    title: 'Simulated Invoice Downloaded',
+    description: `A text file (invoice-${order.id}-simulated.txt) with order details has been downloaded. Actual PDF generation is a future feature.`,
     duration: 9000,
   });
 
-  // Example of how you might start with jsPDF (after installation and import):
-  // try {
-  //   const jsPDF = (await import('jspdf')).default; // Dynamic import for client-side only
-  //   await import('jspdf-autotable'); // Side effect import for autoTable plugin
-  //
-  //   const doc = new jsPDF();
-  //   doc.setFontSize(18);
-  //   doc.text('Invoice', 14, 22);
-  //   doc.setFontSize(11);
-  //   doc.text(`Order ID: ${order.id}`, 14, 30);
-  //   // ... add more details and item table using doc.text and (doc as any).autoTable ...
-  //   // (doc as any).autoTable({ startY: 40, head: [['Item', 'Qty', 'Price']], body: order.items.map(i => [i.name, i.quantity, i.price]) });
-  //   doc.save(`invoice-${order.id}.pdf`);
-  // } catch (e) {
-  //   console.error("Error during PDF generation attempt:", e);
-  //   toast({
-  //     title: 'PDF Generation Error',
-  //     description: 'Could not load PDF generation library. Ensure it is installed.',
-  //     variant: 'destructive'
-  //   });
-  // }
+  // Log to console as well, for developer reference
+  console.log(`--- Simulated Invoice Generation & Download for Order: ${order.id} ---`);
+  console.log("Content:\n", invoiceContent);
+  console.log("INFO: This is a simulation. To implement actual PDF generation, use a library like jsPDF.");
 }
-
