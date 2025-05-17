@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 
 /**
  * Simulates invoice generation and triggers a download of a plain text file
- * representing the invoice, with a format inspired by common invoice layouts.
+ * (masquerading as a PDF) representing the invoice, with a format inspired by common invoice layouts.
  *
  * @param order The order object for which to simulate invoice generation.
  */
@@ -95,13 +95,13 @@ Terms & Conditions (Example):
 This is a simulated invoice generated on ${invoiceDateTime}.
 `;
 
-  // Create a Blob with the text content
-  const blob = new Blob([invoiceContent.trim()], { type: 'text/plain;charset=utf-8' });
+  // Create a Blob with the text content, but set MIME type to application/pdf
+  const blob = new Blob([invoiceContent.trim()], { type: 'application/pdf' });
 
   // Create a temporary link element to trigger the download
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `invoice-${order.id}-simulated.txt`; // Filename for the download
+  link.download = `invoice-${order.id}-simulated.pdf`; // Filename for the download with .pdf extension
 
   // Append to body, click, and remove
   document.body.appendChild(link);
@@ -110,13 +110,13 @@ This is a simulated invoice generated on ${invoiceDateTime}.
   URL.revokeObjectURL(link.href); // Clean up the object URL
 
   toast({
-    title: 'Simulated Invoice Downloaded',
-    description: `A text file (invoice-${order.id}-simulated.txt) with order details has been downloaded. Actual PDF generation is a future feature.`,
+    title: 'Simulated PDF Invoice Downloaded',
+    description: `A file (invoice-${order.id}-simulated.pdf) with order details has been downloaded. Actual styled PDF generation would require a dedicated library.`,
     duration: 9000,
   });
 
   // Log to console as well, for developer reference
-  console.log(`--- Simulated Invoice Generation & Download for Order: ${order.id} ---`);
+  console.log(`--- Simulated PDF Invoice Generation & Download for Order: ${order.id} ---`);
   console.log("Content:\n", invoiceContent.trim());
   console.log("INFO: This is a simulation. To implement actual PDF generation, use a library like jsPDF.");
 }
