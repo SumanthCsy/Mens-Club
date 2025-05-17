@@ -5,17 +5,46 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, ShoppingBag, ArrowRight } from 'lucide-react';
+import { CheckCircle, ShoppingBag } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export default function OrderSuccessPage() {
   const params = useParams();
   const orderId = params.orderId as string;
+  const [isIconAnimated, setIsIconAnimated] = useState(false);
+
+  useEffect(() => {
+    // Play sound effect
+    // Ensure success.mp3 is in your /public directory
+    const audio = new Audio('/success.mp3');
+    audio.play().catch(error => {
+      // Autoplay can be blocked by the browser, handle gracefully
+      console.warn("Audio autoplay prevented for /success.mp3:", error);
+    });
+
+    // Trigger icon animation
+    const timer = setTimeout(() => {
+      setIsIconAnimated(true);
+    }, 100); // Small delay to allow initial render
+
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array ensures this runs once on mount
 
   return (
     <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-16 md:py-24 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
-      <Card className="w-full max-w-lg shadow-xl border border-green-500/30 bg-green-50/30">
-        <CardHeader className="pb-4">
-          <CheckCircle className="mx-auto h-20 w-20 text-green-500 animate-pulse mb-4" />
+      <Card className="w-full max-w-lg shadow-xl border border-green-500/30 bg-green-50/30 overflow-hidden">
+        <CardHeader className="pb-4 pt-8">
+          <div className="relative w-24 h-24 mx-auto mb-6">
+            <CheckCircle
+              className={cn(
+                "mx-auto h-full w-full text-green-500 transition-all duration-700 ease-out",
+                isIconAnimated 
+                  ? "scale-100 opacity-100 animate-pulse" 
+                  : "scale-50 opacity-0" // Initial state for pop-in animation
+              )}
+            />
+          </div>
           <CardTitle className="text-3xl md:text-4xl font-extrabold text-green-600">
             Order Successful!
           </CardTitle>
