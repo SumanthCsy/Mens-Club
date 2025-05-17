@@ -4,45 +4,23 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info } from 'lucide-react';
+import { Card, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Package, ArrowLeft, ShoppingBag, Loader2, AlertTriangle, Eye } from 'lucide-react';
 import Link from 'next/link';
-import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import type { Order, OrderItem } from '@/types';
+import type { Order } from '@/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
-import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { OrderCancellationFormModal } from '@/components/orders/OrderCancellationFormModal';
+import { cn } from '@/lib/utils';
 
-export default function MyOrdersPage() {
+
+export default function MyOrdersListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
-  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
-  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
-  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
-
-  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
-  const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
-  const [isCancelFormOpen, setIsCancelFormOpen] = useState(false);
-  const [isShippedCancelInfoOpen, setIsShippedCancelInfoOpen] = useState(false);
-
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -108,60 +86,6 @@ export default function MyOrdersPage() {
     }
   }, [currentUser, toast]);
 
-  const openTrackingModal = (order: Order) => {
-    setSelectedOrderForTracking(order);
-  };
-
-  const closeTrackingModal = () => {
-    setSelectedOrderForTracking(null);
-  };
-
-  const handleViewInvoice = (order: Order) => {
-    setSelectedOrderForInvoice(order);
-    setIsInvoiceModalOpen(true);
-  };
-
-  const handleCopyOrderId = async (orderId: string) => {
-    if (!orderId) return;
-    try {
-      await navigator.clipboard.writeText(orderId);
-      toast({
-        title: "Order ID Copied!",
-        description: `${orderId} copied to clipboard.`,
-      });
-    } catch (err) {
-      console.error("Failed to copy order ID: ", err);
-      toast({
-        title: "Copy Failed",
-        description: "Could not copy Order ID to clipboard.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRequestCancellation = (order: Order) => {
-    setOrderToCancel(order);
-    if (order.status === 'Shipped' || order.status === 'Delivered') {
-      setIsShippedCancelInfoOpen(true);
-    } else if (order.status === 'Pending' || order.status === 'Processing') {
-      setIsConfirmCancelOpen(true);
-    }
-    // If order is 'Cancelled', button should be disabled, so this won't be triggered.
-  };
-
-  const proceedToCancellationForm = () => {
-    setIsConfirmCancelOpen(false);
-    if (orderToCancel) {
-      setIsCancelFormOpen(true);
-    }
-  };
-
-  const getWhatsAppCancellationLink = (orderId: string | undefined) => {
-    if (!orderId) return "#";
-    const message = encodeURIComponent(`I want to cancel my order ${orderId}`);
-    return `https://wa.me/919391157177?text=${message}`;
-  };
-
 
   if (isLoading) {
     return (
@@ -194,7 +118,7 @@ export default function MyOrdersPage() {
         </Button>
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">My Orders</h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Track your past and current orders.
+          Review your order history.
         </p>
       </div>
 
@@ -204,12 +128,7 @@ export default function MyOrdersPage() {
             <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
             <CardTitle className="text-2xl font-semibold">No Orders Yet</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-6">
-              You haven't placed any orders with us. Start shopping to see your orders here!
-            </p>
-          </CardContent>
-          <CardFooter className="justify-center">
+          <CardFooter className="justify-center pt-6">
             <Button asChild size="lg">
               <Link href="/products">
                 <ArrowLeft className="mr-2 h-5 w-5" /> Continue Shopping
@@ -220,84 +139,43 @@ export default function MyOrdersPage() {
       ) : (
         <div className="space-y-6">
           {orders.map((order) => (
-            <Card key={order.id} className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <div>
-                    <div className="flex items-center gap-1.5">
-                        <CardTitle className="text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
-                        {order.id && (
-                        <Button variant="ghost" size="icon" onClick={() => handleCopyOrderId(order.id!)} className="h-7 w-7 text-muted-foreground hover:text-primary">
-                            <ClipboardCopy className="h-4 w-4" />
-                        </Button>
-                        )}
-                    </div>
-                    <CardDescription className="text-sm">
-                        Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}
-                    </CardDescription>
-                    </div>
-                    <div className="flex flex-col sm:items-end gap-1 sm:gap-0 self-start sm:self-center">
-                    <span
-                        className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
-                        ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
-                        ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
-                        ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
-                        ${order.status === 'Pending' ? 'bg-orange-100 text-orange-700' : ''}
-                        ${order.status === 'Cancelled' ? 'bg-red-100 text-red-700' : ''}
-                        `}
-                    >
-                        {order.status}
-                    </span>
-                    <p className="text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.grandTotal.toFixed(2)}</p>
-                    </div>
-                </div>
-                 {order.status === 'Cancelled' && order.cancellationReason && (
-                    <div className="mt-3 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
-                        <div className="flex items-start gap-2">
-                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                            <p>
-                                <strong>Cancellation Reason:</strong> {order.cancellationReason}
-                                {order.cancelledBy === 'store' && ` (By Store)`}
-                                {order.cancelledBy === 'user' && ` (By User)`}
-                            </p>
-                        </div>
-                    </div>
-                )}
-              </CardHeader>
-              <Separator />
-              <CardContent className="pt-4 pb-2">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Items ({order.items.length}):</h4>
-                <ul className="space-y-1 text-sm">
-                  {order.items.map((item, index) => (
-                    <li key={item.id + (item.selectedSize || '') + (item.selectedColor || '') + index} className="flex justify-between">
-                      <span>{item.name} (Size: {item.selectedSize || 'N/A'}, Qty: {item.quantity})</span>
-                      <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter className="pt-4 flex flex-wrap gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => handleViewInvoice(order)}>
-                  <Eye className="mr-2 h-4 w-4" /> View Invoice
-                </Button>
-                <Button size="sm" onClick={() => openTrackingModal(order)} disabled={order.status === 'Cancelled'}>
-                  <TruckIcon className="mr-2 h-4 w-4" /> Track Order
-                </Button>
-                 <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRequestCancellation(order)}
-                    disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
-                    className={ (order.status === 'Pending' || order.status === 'Processing') ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}
-                 >
-                   <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
-                </Button>
-              </CardFooter>
-            </Card>
+            <Link key={order.id} href={`/profile/my-orders/${order.id}`} className="block">
+              <Card className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60 hover:border-primary/50 cursor-pointer">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div>
+                        <CardTitle className="text-lg sm:text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
+                        <CardDescription className="text-sm mt-0.5">
+                            Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP') : 'N/A'}
+                        </CardDescription>
+                      </div>
+                      <div className="flex flex-col sm:items-end gap-1 sm:gap-0 self-start sm:self-center">
+                        <span
+                            className={cn(`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
+                            ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
+                            ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
+                            ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
+                            ${order.status === 'Pending' ? 'bg-orange-100 text-orange-700' : ''}
+                            ${order.status === 'Cancelled' ? 'bg-red-100 text-red-700' : ''}
+                            `)}
+                        >
+                            {order.status}
+                        </span>
+                        <p className="text-base sm:text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.grandTotal.toFixed(2)}</p>
+                      </div>
+                  </div>
+                </CardHeader>
+                <CardFooter className="pt-2 pb-4 flex justify-end">
+                    <Button variant="outline" size="sm" className="text-xs">
+                        <Eye className="mr-1.5 h-4 w-4" /> View Details
+                    </Button>
+                </CardFooter>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
-       {orders.length > 5 && ( // Simple pagination placeholder
+       {orders.length > 5 && ( 
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
@@ -305,77 +183,6 @@ export default function MyOrdersPage() {
             <Button variant="outline" disabled>Next</Button>
           </div>
         </div>
-      )}
-      {selectedOrderForTracking && (
-        <OrderTrackingModal
-          isOpen={!!selectedOrderForTracking}
-          onClose={closeTrackingModal}
-          order={selectedOrderForTracking}
-        />
-      )}
-      {selectedOrderForInvoice && (
-        <InvoiceViewModal
-            isOpen={isInvoiceModalOpen}
-            onClose={() => { setIsInvoiceModalOpen(false); setSelectedOrderForInvoice(null); }}
-            order={selectedOrderForInvoice}
-        />
-      )}
-
-      {orderToCancel && (orderToCancel.status === 'Pending' || orderToCancel.status === 'Processing') && (
-        <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Order Cancellation Request</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to request cancellation for Order #{orderToCancel.id}?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setOrderToCancel(null)}>Back</AlertDialogCancel>
-              <AlertDialogAction onClick={proceedToCancellationForm} className="bg-destructive hover:bg-destructive/90">
-                Continue
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {orderToCancel && (orderToCancel.status === 'Shipped' || orderToCancel.status === 'Delivered') && (
-         <AlertDialog open={isShippedCancelInfoOpen} onOpenChange={(open) => { if(!open) setOrderToCancel(null); setIsShippedCancelInfoOpen(open);}}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Order Already {orderToCancel.status}</AlertDialogTitle>
-              <AlertDialogDescription>
-                OH Sorry! Your order <span className="font-semibold text-primary">#{orderToCancel.id}</span> is already {orderToCancel.status.toLowerCase()}.
-                Still want to cancel? Please contact us now.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4">
-               <Button asChild variant="outline" className="w-full sm:w-auto">
-                <a href={`tel:+919391157177`}>
-                  <Phone className="mr-2 h-4 w-4" /> Call Us
-                </a>
-              </Button>
-              <Button asChild className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white">
-                <a href={getWhatsAppCancellationLink(orderToCancel.id)} target="_blank" rel="noopener noreferrer">
-                  <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp Us
-                </a>
-              </Button>
-              <AlertDialogCancel onClick={() => setOrderToCancel(null)} className="w-full sm:w-auto mt-2 sm:mt-0">Close</AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {orderToCancel && isCancelFormOpen && (
-        <OrderCancellationFormModal
-          isOpen={isCancelFormOpen}
-          onClose={() => {
-            setIsCancelFormOpen(false);
-            setOrderToCancel(null);
-          }}
-          order={orderToCancel}
-        />
       )}
     </div>
   );
