@@ -91,3 +91,21 @@ export interface Order {
   cancelledBy?: 'user' | 'store';
 }
 
+export interface PaymentSettings {
+  enableCOD: boolean;
+  enableOnlinePayments: boolean;
+  upiId?: string;
+  qrCodeUrl?: string; // Placeholder for QR code image URL
+}
+
+export interface ThemeSettings {
+  selectedColor: string; // e.g., 'default', 'yellow', 'blue'
+  displayMode: 'light' | 'dark';
+}
+
+// Combined store settings
+export interface StoreSettings {
+  paymentConfig?: PaymentSettings;
+  themeConfig?: ThemeSettings;
+  // Add other global settings here if needed
+}
