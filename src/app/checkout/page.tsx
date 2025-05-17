@@ -7,7 +7,7 @@ import { ShippingForm, type ShippingFormValues } from '@/components/checkout/shi
 import { PaymentMethodSelector } from '@/components/checkout/payment-method-selector';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
-import { Lock, ArrowLeft, ShoppingCart, Loader2, CheckCircle } from 'lucide-react';
+import { Lock, ArrowLeft, ShoppingCart, Loader2, CheckCircle, Edit, Home, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,63 +16,72 @@ import { auth, db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
 import type { Order, OrderItem, ShippingAddress as ShippingAddressType, UserData } from '@/types';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cod');
-  const [shippingData, setShippingData] = useState<ShippingFormValues | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [initialShippingData, setInitialShippingData] = useState<Partial<ShippingFormValues>>({});
-  const [isLoadingShippingData, setIsLoadingShippingData] = useState(true);
+  const [isLoadingInitialAddress, setIsLoadingInitialAddress] = useState(true);
+  
+  // Stores the address confirmed for the current order
+  const [currentConfirmedShippingAddress, setCurrentConfirmedShippingAddress] = useState<ShippingFormValues | null>(null);
+  // Stores the default address fetched from Firestore (if any)
+  const [defaultShippingAddress, setDefaultShippingAddress] = useState<Partial<ShippingFormValues> | null>(null);
+  
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressFormMode, setAddressFormMode] = useState<'new' | 'edit'>('new');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setIsLoadingInitialAddress(true);
       if (user) {
         setCurrentUser(user);
-        // Fetch user's default shipping address
         try {
           const userDocRef = doc(db, "users", user.uid);
           const userDocSnap = await getDoc(userDocRef);
-          let prefillData: Partial<ShippingFormValues> = { email: user.email || '' };
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data() as UserData;
             if (userData.defaultShippingAddress) {
-              prefillData = {
-                ...prefillData,
-                fullName: userData.defaultShippingAddress.fullName || '',
-                addressLine1: userData.defaultShippingAddress.addressLine1 || '',
-                addressLine2: userData.defaultShippingAddress.addressLine2 || '',
-                city: userData.defaultShippingAddress.city || '',
-                stateProvince: userData.defaultShippingAddress.stateProvince || '',
-                postalCode: userData.defaultShippingAddress.postalCode || '',
-                country: userData.defaultShippingAddress.country || 'India',
-                phoneNumber: userData.defaultShippingAddress.phoneNumber || '',
-                email: userData.defaultShippingAddress.email || user.email || '', // Prioritize shipping email
-              };
+              const fetchedDefaultAddress = userData.defaultShippingAddress as ShippingFormValues;
+              setDefaultShippingAddress(fetchedDefaultAddress);
+              setCurrentConfirmedShippingAddress(fetchedDefaultAddress); // Use default for current order initially
+              setShowAddressForm(false); // Hide form if default is available
+            } else {
+              setShowAddressForm(true); // No default, show form to add new
+              setAddressFormMode('new');
+              setCurrentConfirmedShippingAddress(null); // No address confirmed yet
             }
+          } else {
+            setShowAddressForm(true); // No user doc, show form to add new
+            setAddressFormMode('new');
+            setCurrentConfirmedShippingAddress(null);
           }
-          setInitialShippingData(prefillData);
         } catch (error) {
           console.error("Error fetching default shipping address:", error);
           toast({ title: "Error", description: "Could not load saved address.", variant: "destructive"});
-        } finally {
-          setIsLoadingShippingData(false);
+          setShowAddressForm(true); // Fallback to showing form
+          setAddressFormMode('new');
+          setCurrentConfirmedShippingAddress(null);
         }
       } else {
         setCurrentUser(null);
-        setInitialShippingData({ email: '' }); // Clear prefill data if logged out
-        setIsLoadingShippingData(false);
+        setShowAddressForm(true); // User logged out, require address entry
+        setAddressFormMode('new');
+        setCurrentConfirmedShippingAddress(null);
       }
+      setIsLoadingInitialAddress(false);
     });
     return () => unsubscribe();
   }, [toast]);
 
 
   useEffect(() => {
-    // Redirect if cart is empty, but not if already on success page or if order is being placed
     if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout/success') && !router.asPath.startsWith('/checkout')) {
         toast({
             title: "Your cart is empty",
@@ -86,12 +95,23 @@ export default function CheckoutPage() {
   const shippingCost = cartItems.length > 0 ? 50.00 : 0;
   const grandTotal = cartTotal + shippingCost;
 
-  const handleShippingSubmit = (data: ShippingFormValues) => {
-    setShippingData(data);
+  const handleShippingFormSubmit = (data: ShippingFormValues) => {
+    setCurrentConfirmedShippingAddress(data);
+    setShowAddressForm(false); // Hide form after submission
     toast({
-      title: "Shipping Details Saved",
-      description: "Your shipping address has been confirmed.",
+      title: "Address Confirmed",
+      description: "Your shipping address for this order has been confirmed.",
     });
+  };
+
+  const handleEditAddress = () => {
+    setAddressFormMode('edit');
+    setShowAddressForm(true);
+  };
+
+  const handleAddNewAddress = () => {
+    setAddressFormMode('new');
+    setShowAddressForm(true);
   };
 
   const handlePlaceOrder = async () => {
@@ -104,8 +124,8 @@ export default function CheckoutPage() {
       toast({ title: "Cannot Place Order", description: "Your cart is empty.", variant: "destructive" });
       return;
     }
-    if (!shippingData) {
-      toast({ title: "Shipping Details Required", description: "Please submit your shipping details first.", variant: "destructive" });
+    if (!currentConfirmedShippingAddress) {
+      toast({ title: "Shipping Address Required", description: "Please confirm your shipping address first.", variant: "destructive" });
       return;
     }
     if (!selectedPaymentMethod) {
@@ -127,20 +147,20 @@ export default function CheckoutPage() {
     }));
 
     const shippingAddressForDb: ShippingAddressType = {
-      fullName: shippingData.fullName,
-      addressLine1: shippingData.addressLine1,
-      addressLine2: shippingData.addressLine2 || null,
-      city: shippingData.city,
-      stateProvince: shippingData.stateProvince,
-      postalCode: shippingData.postalCode,
-      country: shippingData.country,
-      phoneNumber: shippingData.phoneNumber || null,
-      email: shippingData.email,
+      fullName: currentConfirmedShippingAddress.fullName,
+      addressLine1: currentConfirmedShippingAddress.addressLine1,
+      addressLine2: currentConfirmedShippingAddress.addressLine2 || null,
+      city: currentConfirmedShippingAddress.city,
+      stateProvince: currentConfirmedShippingAddress.stateProvince,
+      postalCode: currentConfirmedShippingAddress.postalCode,
+      country: currentConfirmedShippingAddress.country,
+      phoneNumber: currentConfirmedShippingAddress.phoneNumber || null,
+      email: currentConfirmedShippingAddress.email,
     };
     
     const newOrderPayload: Omit<Order, 'id' | 'cancellationReason' | 'cancelledBy'> = {
       userId: currentUser.uid,
-      customerEmail: shippingData.email, // Use email from shipping form
+      customerEmail: currentConfirmedShippingAddress.email, 
       items: orderItemsForDb,
       subtotal: cartTotal,
       shippingCost: shippingCost,
@@ -149,20 +169,18 @@ export default function CheckoutPage() {
       paymentMethod: selectedPaymentMethod,
       status: 'Pending' as Order['status'],
       createdAt: serverTimestamp(),
-      discount: null, // Explicitly null if no discount logic implemented
+      discount: null, 
     };
 
     try {
       const docRef = await addDoc(collection(db, "orders"), newOrderPayload);
       
-      // Save shipping address as default for the user
       if (currentUser) {
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
           await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb }, { merge: true });
         } catch (userUpdateError) {
           console.error("Error updating user's default shipping address:", userUpdateError);
-          // Non-critical, so don't block order success, but log it.
         }
       }
       
@@ -186,21 +204,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout/success') && router.asPath && !router.asPath.startsWith('/checkout')) {
-    // This check might become redundant due to the useEffect redirect
-    return (
-        <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
-            <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
-            <h1 className="text-2xl font-semibold">Your cart is empty.</h1>
-            <p className="text-muted-foreground mt-2 mb-6">Redirecting you to continue shopping...</p>
-            <Button asChild>
-                <Link href="/products">Shop Now</Link>
-            </Button>
-        </div>
-    );
-  }
-
-  if (isLoadingShippingData) {
+  if (isLoadingInitialAddress) {
     return (
       <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
         <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin mb-4" />
@@ -208,6 +212,15 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  // Determine what initial data to pass to the form
+  let formInitialData: Partial<ShippingFormValues> = { country: "India", email: currentUser?.email || "" };
+  if (addressFormMode === 'edit' && currentConfirmedShippingAddress) {
+    formInitialData = { ...formInitialData, ...currentConfirmedShippingAddress };
+  } else if (addressFormMode === 'new') {
+    // Keep defaults, email might be pre-filled
+  }
+
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -225,10 +238,38 @@ export default function CheckoutPage() {
 
       <div className="grid lg:grid-cols-3 gap-8 md:gap-12 items-start">
         <div className="lg:col-span-2 space-y-8">
-          <ShippingForm
-            onSubmit={handleShippingSubmit}
-            initialData={initialShippingData} // Pass initialData here
-          />
+          {!showAddressForm && currentConfirmedShippingAddress ? (
+            <Card className="shadow-lg border border-border/60">
+              <CardHeader>
+                <CardTitle className="text-2xl font-semibold flex items-center justify-between">
+                  Shipping To
+                  <Button variant="outline" size="sm" onClick={handleEditAddress}>
+                    <Edit className="mr-2 h-4 w-4" /> Edit Address
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-base">
+                <p><strong>{currentConfirmedShippingAddress.fullName}</strong></p>
+                <p>{currentConfirmedShippingAddress.addressLine1}</p>
+                {currentConfirmedShippingAddress.addressLine2 && <p>{currentConfirmedShippingAddress.addressLine2}</p>}
+                <p>{currentConfirmedShippingAddress.city}, {currentConfirmedShippingAddress.stateProvince} {currentConfirmedShippingAddress.postalCode}</p>
+                <p>{currentConfirmedShippingAddress.country}</p>
+                {currentConfirmedShippingAddress.phoneNumber && <p>Phone: {currentConfirmedShippingAddress.phoneNumber}</p>}
+                <p>Email: {currentConfirmedShippingAddress.email}</p>
+              </CardContent>
+              <CardFooter>
+                <Button variant="link" onClick={handleAddNewAddress} className="text-primary pl-0">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Use a Different Address
+                </Button>
+              </CardFooter>
+            </Card>
+          ) : (
+            <ShippingForm
+              onSubmit={handleShippingFormSubmit}
+              initialData={formInitialData}
+            />
+          )}
+
           <PaymentMethodSelector
             selectedMethod={selectedPaymentMethod}
             onMethodChange={setSelectedPaymentMethod}
@@ -241,14 +282,13 @@ export default function CheckoutPage() {
             shippingCost={shippingCost}
             total={grandTotal}
             showPromoCodeInput={true}
-            // Removed checkoutButtonText and checkoutLink to hide the button in CartSummary
-            // The main "Place Order Securely" button below will be used.
+            showCheckoutButton={false} // Hide CartSummary's own button here
           />
           <Button
             size="lg"
             className="w-full text-base group mt-6"
             onClick={handlePlaceOrder}
-            disabled={cartItems.length === 0 || isPlacingOrder || !shippingData}
+            disabled={cartItems.length === 0 || isPlacingOrder || !currentConfirmedShippingAddress}
             suppressHydrationWarning={true}
           >
             {isPlacingOrder ? (
@@ -258,9 +298,9 @@ export default function CheckoutPage() {
             )}
             Place Order Securely
           </Button>
-          {!shippingData && cartItems.length > 0 && (
+          {!currentConfirmedShippingAddress && cartItems.length > 0 && (
             <p className="text-xs text-muted-foreground text-center mt-2">
-                Please save your shipping details to enable order placement.
+                Please confirm your shipping details to enable order placement.
             </p>
           )}
         </div>
@@ -268,3 +308,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    

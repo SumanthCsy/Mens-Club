@@ -2,16 +2,16 @@
 // @/components/checkout/shipping-form.tsx
 "use client";
 
+import { useEffect } from 'react'; // Import useEffect
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// Label is not directly used from here if using FormLabel
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '../ui/separator';
-import type { ShippingAddress } from '@/types'; // Import ShippingAddress type
 
 const shippingFormSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -29,30 +29,45 @@ export type ShippingFormValues = z.infer<typeof shippingFormSchema>;
 
 interface ShippingFormProps {
   onSubmit: (data: ShippingFormValues) => void;
-  initialData?: Partial<ShippingFormValues>; // Optional initial data
+  initialData?: Partial<ShippingFormValues>;
 }
 
-export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
+export function ShippingForm({ onSubmit, initialData = {} }: ShippingFormProps) { // Default initialData to {}
   const form = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingFormSchema),
-    defaultValues: {
-      email: "",
-      fullName: "",
-      addressLine1: "",
-      addressLine2: "", // Explicit default for optional field
-      city: "",
-      stateProvince: "",
-      postalCode: "",
-      country: "India",  // Keep existing default
-      phoneNumber: "",  // Explicit default for optional field
-      ...initialData,   // Spread initialData last to allow overrides
+    defaultValues: { // Set clear defaults for all fields
+      email: initialData.email || "",
+      fullName: initialData.fullName || "",
+      addressLine1: initialData.addressLine1 || "",
+      addressLine2: initialData.addressLine2 || "",
+      city: initialData.city || "",
+      stateProvince: initialData.stateProvince || "",
+      postalCode: initialData.postalCode || "",
+      country: initialData.country || "India",
+      phoneNumber: initialData.phoneNumber || "",
     },
   });
+
+  // Effect to reset form when initialData changes
+  useEffect(() => {
+    form.reset({
+      email: initialData.email || "",
+      fullName: initialData.fullName || "",
+      addressLine1: initialData.addressLine1 || "",
+      addressLine2: initialData.addressLine2 || "",
+      city: initialData.city || "",
+      stateProvince: initialData.stateProvince || "",
+      postalCode: initialData.postalCode || "",
+      country: initialData.country || "India",
+      phoneNumber: initialData.phoneNumber || "",
+    });
+  }, [initialData, form]);
 
   return (
     <Card className="shadow-lg border border-border/60">
       <CardHeader>
         <CardTitle className="text-2xl font-semibold">Shipping Address</CardTitle>
+        <CardDescription>Please enter your shipping details.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -62,7 +77,7 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email Address for Shipping Updates</FormLabel>
+                  <FormLabel>Email Address</FormLabel>
                   <FormControl>
                     <Input placeholder="you@example.com" {...field} className="h-11 text-base" suppressHydrationWarning={true} />
                   </FormControl>
@@ -179,9 +194,8 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
               )}
             />
             <Separator className="my-8" />
-             {/* Submit button moved to parent CheckoutPage, but form needs its own submit handler */}
              <Button type="submit" size="lg" className="w-full">
-              Save Shipping Details
+              Save & Use This Address
             </Button>
           </form>
         </Form>
@@ -189,3 +203,5 @@ export function ShippingForm({ onSubmit, initialData }: ShippingFormProps) {
     </Card>
   );
 }
+
+    
