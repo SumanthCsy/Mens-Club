@@ -111,12 +111,11 @@ export function GlobalAdminNotifications() {
       audioRef.current.currentTime = 0; // Rewind to start
       audioRef.current.play().catch(error => {
         console.warn("Audio autoplay prevented for new order notification:", error);
-        // Fallback or UI indication that sound couldn't play can be added here if needed
         toast({
-          title: "Audio Alert Blocked",
-          description: "New order sound was blocked by the browser. Please interact with the page first.",
+          title: "Audio Alert Blocked by Browser",
+          description: "The new order sound was blocked. Browsers often require interaction (like a click) before allowing sound. This is normal.",
           variant: "default",
-          duration: 5000
+          duration: 8000
         })
       });
     } else {
@@ -192,23 +191,21 @@ export function GlobalAdminNotifications() {
             setShowNotificationModal(true);
           }
         } else if (currentCount > previousPendingOrdersCountRef.current) { // New order(s) arrived
-          setAlertModalType('newOrder'); // This will show the in-app modal
+          setAlertModalType('newOrder'); 
           setShowNotificationModal(true);
           playSuccessSound();
           
           if (notificationPermission === 'granted' && isPushSupported) {
-            // This is for browser tab notifications (not background push, that's handled by SW)
             const message = newOrderMessages[lastNotificationMessageIndex];
             new Notification(message, { icon: '/mclogo.png', body: 'A new order requires your attention.' });
             setLastNotificationMessageIndex((prevIndex) => (prevIndex + 1) % newOrderMessages.length);
           } else if (notificationPermission === 'default' && isPushSupported) {
-             // If in-app modal for new order is too much, this toast is an alternative
-            // toast({
-            //     title: "New Order Received!",
-            //     description: "Enable browser/push notifications for instant alerts.",
-            //     action: <Button onClick={subscribeUserToPush} size="sm">Enable Notifications</Button>,
-            //     duration: 10000
-            // });
+             toast({
+                title: "New Order Arrived!",
+                description: "Enable browser notifications for instant alerts even when this tab isn't active.",
+                action: <Button onClick={subscribeUserToPush} size="sm">Enable Notifications</Button>,
+                duration: 10000
+            });
           }
            console.log("New order arrived. Browser notifications permission:", notificationPermission, "Push supported:", isPushSupported);
         }
@@ -225,7 +222,7 @@ export function GlobalAdminNotifications() {
       setPendingOrdersCount(0);
       setShowNotificationModal(false);
       setAlertModalType(null);
-      previousPendingOrdersCountRef.current = null; // Reset when admin logs out or is not admin
+      previousPendingOrdersCountRef.current = null; 
     }
 
     return () => {
@@ -278,7 +275,7 @@ export function GlobalAdminNotifications() {
     setAlertModalType(null);
   };
 
-  if (isLoadingAuth) return null; // Don't render anything until auth state is known
+  if (isLoadingAuth) return null; 
 
   return (
     <>
@@ -310,3 +307,4 @@ export function GlobalAdminNotifications() {
     </>
   );
 }
+
