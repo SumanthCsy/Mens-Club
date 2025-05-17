@@ -4,9 +4,10 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Package, ArrowLeft, ShoppingBag, Loader2, AlertTriangle, Eye } from 'lucide-react';
+import { Card, CardDescription, CardHeader, CardTitle, CardFooter, CardContent } from '@/components/ui/card';
+import { ArrowLeft, ShoppingBag, Loader2, AlertTriangle, Eye, ClipboardCopy, PackageSearch } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
@@ -14,7 +15,6 @@ import type { Order } from '@/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
 
 export default function MyOrdersListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -29,8 +29,6 @@ export default function MyOrdersListPage() {
       } else {
         setCurrentUser(null);
         setIsLoading(false);
-        // Consider redirecting to login if not authenticated
-        // router.push('/login?redirect=/profile/my-orders');
       }
     });
     return () => unsubscribe();
@@ -86,6 +84,25 @@ export default function MyOrdersListPage() {
     }
   }, [currentUser, toast]);
 
+  const handleCopyOrderId = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation(); // Prevent card click when copying
+    e.preventDefault();
+    if (!orderId) return;
+    try {
+      await navigator.clipboard.writeText(orderId);
+      toast({
+        title: "Order ID Copied!",
+        description: `${orderId} copied to clipboard.`,
+      });
+    } catch (err) {
+      console.error("Failed to copy order ID: ", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy Order ID to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -96,7 +113,7 @@ export default function MyOrdersListPage() {
     );
   }
 
-  if (!currentUser) {
+  if (!currentUser && !isLoading) { // Adjusted to check isLoading too
      return (
       <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
         <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
@@ -118,14 +135,14 @@ export default function MyOrdersListPage() {
         </Button>
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">My Orders</h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Review your order history.
+          Review your order history. Click on an order to see full details.
         </p>
       </div>
 
       {orders.length === 0 ? (
         <Card className="text-center py-16 shadow-md border border-border/60">
           <CardHeader>
-            <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+            <PackageSearch className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
             <CardTitle className="text-2xl font-semibold">No Orders Yet</CardTitle>
           </CardHeader>
           <CardFooter className="justify-center pt-6">
@@ -139,19 +156,54 @@ export default function MyOrdersListPage() {
       ) : (
         <div className="space-y-6">
           {orders.map((order) => (
-            <Link key={order.id} href={`/profile/my-orders/${order.id}`} className="block">
-              <Card className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60 hover:border-primary/50 cursor-pointer">
-                <CardHeader className="pb-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                      <div>
-                        <CardTitle className="text-lg sm:text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
-                        <CardDescription className="text-sm mt-0.5">
-                            Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP') : 'N/A'}
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-col sm:items-end gap-1 sm:gap-0 self-start sm:self-center">
-                        <span
-                            className={cn(`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
+            <Link key={order.id} href={`/profile/my-orders/${order.id}`} className="block group" passHref>
+              <Card className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60 hover:border-primary/50 cursor-pointer overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <CardTitle className="text-base sm:text-lg font-semibold break-all leading-tight">
+                        Order ID: {order.id || 'N/A'}
+                      </CardTitle>
+                      {order.id && (
+                          <Button variant="ghost" size="icon" onClick={(e) => handleCopyOrderId(e, order.id!)} className="h-6 w-6 text-muted-foreground hover:text-primary">
+                            <ClipboardCopy className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                    </div>
+                    <CardDescription className="text-xs sm:text-sm text-muted-foreground self-start sm:self-center pt-0.5 sm:pt-0">
+                        Placed: {order.createdAt ? format(new Date(order.createdAt), 'dd MMM, yyyy') : 'N/A'}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                
+                {order.items && order.items.length > 0 && (
+                    <CardContent className="px-4 sm:px-5 py-3 border-t border-b border-border/40">
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-1">
+                            {order.items.slice(0, 4).map((item, index) => ( // Show up to 4 item images
+                                <div key={item.id + index} className="shrink-0">
+                                    <Image
+                                    src={item.imageUrl || 'https://placehold.co/60x80.png'}
+                                    alt={item.name}
+                                    width={48} // Slightly smaller images
+                                    height={64}
+                                    className="rounded-md object-cover aspect-[3/4] border border-border/30"
+                                    data-ai-hint={item.sku || "clothing item"}
+                                    />
+                                </div>
+                            ))}
+                            {order.items.length > 4 && (
+                                <div className="pl-1 text-xs text-muted-foreground self-end shrink-0">
+                                    + {order.items.length - 4} more
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                )}
+
+                <CardFooter className="pt-3 pb-4 px-4 sm:px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex flex-col items-start">
+                         <span
+                            className={cn(`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap
                             ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
                             ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
                             ${order.status === 'Processing' ? 'bg-yellow-100 text-yellow-700' : ''}
@@ -161,13 +213,12 @@ export default function MyOrdersListPage() {
                         >
                             {order.status}
                         </span>
-                        <p className="text-base sm:text-lg font-bold text-primary mt-1 sm:mt-0">₹{order.grandTotal.toFixed(2)}</p>
-                      </div>
-                  </div>
-                </CardHeader>
-                <CardFooter className="pt-2 pb-4 flex justify-end">
-                    <Button variant="outline" size="sm" className="text-xs">
-                        <Eye className="mr-1.5 h-4 w-4" /> View Details
+                         <p className="text-sm text-muted-foreground mt-1.5">
+                            Total: <span className="font-semibold text-foreground">₹{order.grandTotal.toFixed(2)}</span>
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto text-sm group-hover:bg-primary/5 group-hover:border-primary/70">
+                        <Eye className="mr-1.5 h-4 w-4" /> View Order
                     </Button>
                 </CardFooter>
               </Card>
