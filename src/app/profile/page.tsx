@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, ShoppingCart, Package, LogOut, Edit3, Trash2, Loader2, Settings, ArrowLeft, MapPin } from 'lucide-react'; // Added MapPin
+import { ShoppingCart, Package, LogOut, Edit3, Trash2, Loader2, Settings, ArrowLeft, MapPin, KeyRound } from 'lucide-react'; // Added KeyRound
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Added AlertDialogTrigger
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, deleteUser, type User as FirebaseUser } from 'firebase/auth';
@@ -36,7 +36,7 @@ export default function ProfilePage() {
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setIsLoading(true); // Set loading true at the start of auth check
+      setIsLoading(true); 
       if (user) {
         setCurrentUser(user);
         const userDocRef = doc(db, "users", user.uid);
@@ -46,14 +46,11 @@ export default function ProfilePage() {
             const fetchedUserData = userDocSnap.data() as UserData;
             if (fetchedUserData.role === 'admin') {
               router.replace('/admin/dashboard'); 
-              // No need to setIsLoading(false) here as redirect will unmount
               return; 
             } else {
               setUserData({ uid: user.uid, ...fetchedUserData });
             }
           } else {
-             // Fallback for users who authenticated but have no Firestore doc
-             // This scenario should ideally be handled during signup more robustly
             setUserData({
               uid: user.uid,
               email: user.email || "N/A",
@@ -62,13 +59,10 @@ export default function ProfilePage() {
               memberSince: user.metadata.creationTime || new Date().toISOString(),
             });
             console.warn("User document not found in Firestore for UID:", user.uid);
-            // Optionally toast if critical profile data is missing
-            // toast({ title: "Profile Incomplete", description: "Some profile details may be missing.", variant: "default" });
           }
         } catch (error) {
           console.error("Error fetching user data for profile:", error);
           toast({ title: "Profile Load Error", description: "Could not load your profile details.", variant: "destructive" });
-          // Fallback if Firestore fetch fails
           setUserData({
             uid: user.uid,
             email: user.email || "N/A",
@@ -79,7 +73,6 @@ export default function ProfilePage() {
         }
       } else {
         router.replace('/login?redirect=/profile');
-        // No need to setIsLoading(false) here as redirect will unmount
         return;
       }
       setIsLoading(false);
@@ -114,25 +107,21 @@ export default function ProfilePage() {
     }
     setIsDeletingAccount(true);
     try {
-      // It's good practice to delete Firestore data before deleting the Auth user,
-      // as Auth user deletion might revoke permissions needed to delete Firestore data.
       const userDocRef = doc(db, "users", currentUser.uid);
       await deleteDoc(userDocRef); 
       
-      // Now delete the Firebase Auth user
       await deleteUser(currentUser); 
       
       toast({
         title: "Account Deleted",
         description: "Your account has been permanently deleted.",
       });
-      router.push('/signup'); // Redirect to signup or home after deletion
+      router.push('/signup'); 
     } catch (error: any) {
       console.error("Error deleting account:", error);
       let description = error.message || "Could not delete your account. Please try again.";
       if (error.code === 'auth/requires-recent-login') {
         description = "This operation is sensitive and requires recent authentication. Please log out and log back in to delete your account.";
-        // Optionally, you could try to re-authenticate the user here before retrying.
       }
       toast({
         title: "Account Deletion Failed",
@@ -145,7 +134,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (isLoading || !userData) { // Added !userData check to ensure userData is loaded before rendering
+  if (isLoading || !userData) { 
     return (
       <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -154,7 +143,6 @@ export default function ProfilePage() {
     );
   }
   
-  // This check should ideally be handled by the redirect in useEffect, but as a fallback:
   if (userData.role === 'admin') {
     return (
         <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
@@ -201,7 +189,7 @@ export default function ProfilePage() {
               </Link>
             </Button>
             <Button variant="outline" asChild className="justify-start text-base py-6 h-auto">
-              <Link href="/checkout"> {/* Link "Manage Address" to checkout */}
+              <Link href="/checkout"> 
                 <MapPin className="mr-3 h-5 w-5" /> Manage Address
               </Link>
             </Button>
@@ -210,9 +198,9 @@ export default function ProfilePage() {
                 <ShoppingCart className="mr-3 h-5 w-5" /> My Cart
               </Link>
             </Button>
-             <Button variant="outline" asChild className="justify-start text-base py-6 h-auto" disabled>
-              <Link href="#"> 
-                <Settings className="mr-3 h-5 w-5" /> Account Settings (Soon)
+            <Button variant="outline" asChild className="justify-start text-base py-6 h-auto">
+              <Link href="/profile/change-password"> 
+                <KeyRound className="mr-3 h-5 w-5" /> Change Password
               </Link>
             </Button>
           </div>
