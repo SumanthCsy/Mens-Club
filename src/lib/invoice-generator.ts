@@ -7,9 +7,9 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 /**
- * Generates an HTML string representation of the invoice.
+ * Generates an HTML string representation of the invoice content for modal preview.
  * @param order The order object.
- * @returns An HTML string.
+ * @returns An HTML string snippet (styles + content div).
  */
 export function generateInvoiceHTML(order: Order): string {
   const storeName = "Mens Club Keshavapatnam";
@@ -23,8 +23,8 @@ export function generateInvoiceHTML(order: Order): string {
   order.items.forEach((item, index) => {
     itemsHTML += `
       <tr>
-        <td style="border: 1px solid #ddd; padding: 8px; text-align:left;">${index + 1}</td>
-        <td style="border: 1px solid #ddd; padding: 8px; text-align:left;">
+        <td style="border: 1px solid #ddd; padding: 8px;">${index + 1}</td>
+        <td style="border: 1px solid #ddd; padding: 8px;">
           ${item.name}<br>
           <small>Size: ${item.selectedSize || 'N/A'}${item.selectedColor ? `, Color: ${item.selectedColor}` : ''}</small><br>
           <small>SKU: ${item.sku || 'N/A'}</small>
@@ -36,27 +36,26 @@ export function generateInvoiceHTML(order: Order): string {
     `;
   });
 
-  // Note: The outer <html> and <body> tags are removed here as this HTML
-  // will be injected into a div within the modal. The styles are kept for now.
-  const htmlContent = `
+  // HTML snippet for injection into the modal
+  const htmlSnippet = `
       <style>
-        .invoice-container-modal { font-family: 'Arial', sans-serif; color: #333; padding:10px; } /* Adjusted padding */
-        .invoice-container-modal .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .invoice-container-modal .header h1 { margin: 0; color: #333; font-size: 22px; } /* Adjusted font size */
-        .invoice-container-modal .store-details p { margin: 2px 0; font-size: 11px; } /* Adjusted font size */
-        .invoice-container-modal .invoice-details-table, .invoice-container-modal .customer-details-table { margin-bottom: 15px; font-size: 13px; width: 100%; } /* Adjusted font size */
-        .invoice-container-modal .invoice-details-table td, .invoice-container-modal .customer-details-table td { padding: 4px; text-align: left; }
-        .invoice-container-modal .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; } /* Adjusted font size */
-        .invoice-container-modal .items-table th { background-color: #f0f0f0; border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .invoice-container-modal .items-table td { border: 1px solid #ddd; padding: 6px; } /* Adjusted padding */
-        .invoice-container-modal .totals { float: right; width: 45%; margin-top: 15px; font-size: 13px; } /* Adjusted font size */
-        .invoice-container-modal .totals table { width: 100%; }
-        .invoice-container-modal .totals td { padding: 4px; } /* Adjusted padding */
-        .invoice-container-modal .totals .grand-total { font-weight: bold; font-size: 15px; } /* Adjusted font size */
-        .invoice-container-modal .footer { text-align: center; margin-top: 25px; padding-top: 8px; border-top: 1px solid #eee; font-size: 11px; color: #777; } /* Adjusted font size */
-        .invoice-container-modal .clearfix::after { content: ""; clear: both; display: table; }
+        .invoice-content-wrapper { font-family: 'Arial', sans-serif; color: #333; padding: 20px; background-color: #fff; /* Ensure it has a background for standalone viewing */ }
+        .invoice-content-wrapper .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .invoice-content-wrapper .header h1 { margin: 0; color: #333; font-size: 22px; }
+        .invoice-content-wrapper .store-details p { margin: 2px 0; font-size: 11px; }
+        .invoice-content-wrapper .invoice-details-table, .invoice-content-wrapper .customer-details-table { margin-bottom: 15px; font-size: 13px; width: 100%; }
+        .invoice-content-wrapper .invoice-details-table td, .invoice-content-wrapper .customer-details-table td { padding: 4px; text-align: left; }
+        .invoice-content-wrapper .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
+        .invoice-content-wrapper .items-table th { background-color: #f0f0f0; border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .invoice-content-wrapper .items-table td { border: 1px solid #ddd; padding: 6px; }
+        .invoice-content-wrapper .totals { float: right; width: 45%; margin-top: 15px; font-size: 13px; }
+        .invoice-content-wrapper .totals table { width: 100%; }
+        .invoice-content-wrapper .totals td { padding: 4px; }
+        .invoice-content-wrapper .totals .grand-total { font-weight: bold; font-size: 15px; }
+        .invoice-content-wrapper .footer { text-align: center; margin-top: 25px; padding-top: 8px; border-top: 1px solid #eee; font-size: 11px; color: #777; }
+        .invoice-content-wrapper .clearfix::after { content: ""; clear: both; display: table; }
       </style>
-      <div class="invoice-container-modal" id="invoiceToPrint-${order.id}">
+      <div class="invoice-content-wrapper" id="invoiceToPrint-${order.id}">
         <div class="header">
           <h1>${storeName}</h1>
           <div class="store-details">
@@ -133,15 +132,15 @@ export function generateInvoiceHTML(order: Order): string {
         </div>
       </div>
   `;
-  return htmlContent.trim();
+  return htmlSnippet.trim();
 }
 
 /**
- * Triggers the download of the provided HTML content as an .html file.
+ * Triggers the download of the provided HTML snippet as a complete .html file.
  * @param order The order object (used for filename).
- * @param htmlContent The HTML string to download.
+ * @param invoiceHtmlSnippet The HTML snippet (styles + content div) generated by generateInvoiceHTML.
  */
-export function downloadHtmlInvoice(order: Order, htmlContent: string) {
+export function downloadHtmlInvoice(order: Order, invoiceHtmlSnippet: string) {
   if (!order || !order.id) {
     toast({
       title: 'Error Downloading Invoice',
@@ -151,7 +150,23 @@ export function downloadHtmlInvoice(order: Order, htmlContent: string) {
     return;
   }
 
-  const blob = new Blob([`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Invoice ${order.id}</title></head><body>${htmlContent}</body></html>`], { type: 'text/html' });
+  // Wrap the snippet in a full HTML document structure for standalone download
+  const fullHtmlDocument = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Invoice #${order.id}</title>
+      ${/* Extract style from snippet or redefine here if necessary. For simplicity, assuming styles are self-contained in snippet. */''}
+    </head>
+    <body>
+      ${invoiceHtmlSnippet}
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob([fullHtmlDocument], { type: 'text/html' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `invoice-${order.id}.html`; 
@@ -162,11 +177,10 @@ export function downloadHtmlInvoice(order: Order, htmlContent: string) {
 
   toast({
     title: 'Invoice HTML Downloaded',
-    description: `An HTML file (invoice-${order.id}.html) has been downloaded. You can open this in a browser to view the invoice.`,
+    description: `An HTML file (invoice-${order.id}.html) has been downloaded. You can open this in a browser to view the invoice. For true PDF generation, further steps are needed.`,
     duration: 8000,
   });
 }
 
-// The old generateInvoicePdf function can be removed or kept for reference.
-// For this change, we are focusing on generating HTML for viewing and downloading.
-// True PDF generation remains a future enhancement.
+// The old generateInvoicePdf function is effectively replaced by the modal view and downloadHtmlInvoice.
+// True PDF generation remains a future enhancement using libraries like jsPDF.
