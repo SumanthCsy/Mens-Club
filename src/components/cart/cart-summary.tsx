@@ -1,10 +1,9 @@
-
 // @/components/cart/cart-summary.tsx
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { ArrowRight, Ticket } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Input } from '../ui/input';
 
 interface CartSummaryProps {
@@ -12,10 +11,10 @@ interface CartSummaryProps {
   shippingCost?: number; 
   discount?: number;
   total: number;
-  checkoutButtonText?: string; // Made optional
-  checkoutLink?: string; // Made optional
+  checkoutButtonText?: string;
+  checkoutLink?: string;
   showPromoCodeInput?: boolean;
-  showCheckoutButton?: boolean; // New prop to control button visibility
+  showCheckoutButton?: boolean;
 }
 
 export function CartSummary({
@@ -26,8 +25,18 @@ export function CartSummary({
   checkoutButtonText = "Proceed to Checkout",
   checkoutLink = "/checkout",
   showPromoCodeInput = true,
-  showCheckoutButton = true, // Default to true for cart page, will be false for checkout page
+  showCheckoutButton = true,
 }: CartSummaryProps) {
+  // For debugging: log the props received by CartSummary
+  if (typeof window !== 'undefined') { // Ensure console.log only runs on client
+    console.log('CartSummary props:', { subtotal, shippingCost, discount, total });
+  }
+
+  const displaySubtotal = typeof subtotal === 'number' ? subtotal.toFixed(2) : '0.00';
+  const displayShippingCost = typeof shippingCost === 'number' ? shippingCost.toFixed(2) : '0.00';
+  const displayDiscount = typeof discount === 'number' && discount > 0 ? discount.toFixed(2) : null;
+  const displayTotal = typeof total === 'number' ? total.toFixed(2) : '0.00';
+
   return (
     <Card className="shadow-lg border border-border/60">
       <CardHeader>
@@ -36,24 +45,25 @@ export function CartSummary({
       <CardContent className="space-y-4">
         <div className="flex justify-between text-sm text-foreground">
           <span>Subtotal</span>
-          <span>₹{subtotal.toFixed(2)}</span>
+          <span>₹{displaySubtotal}</span>
         </div>
-        {shippingCost !== undefined && (
+
+        {shippingCost !== undefined ? (
           <div className="flex justify-between text-sm text-foreground">
             <span>Shipping</span>
-            <span>₹{shippingCost.toFixed(2)}</span>
+            <span>₹{displayShippingCost}</span>
           </div>
-        )}
-        {shippingCost === undefined && (
+        ) : (
            <div className="flex justify-between text-sm text-muted-foreground">
             <span>Shipping</span>
             <span>Calculated at next step</span>
           </div>
         )}
-        {discount !== undefined && discount > 0 && (
+
+        {displayDiscount && (
           <div className="flex justify-between text-sm text-green-600">
             <span>Discount</span>
-            <span>-₹{discount.toFixed(2)}</span>
+            <span>-₹{displayDiscount}</span>
           </div>
         )}
         
@@ -73,7 +83,7 @@ export function CartSummary({
         <Separator />
         <div className="flex justify-between text-xl font-bold text-foreground">
           <span>Total</span>
-          <span>₹{total.toFixed(2)}</span>
+          <span>₹{displayTotal}</span>
         </div>
       </CardContent>
       {showCheckoutButton && (
