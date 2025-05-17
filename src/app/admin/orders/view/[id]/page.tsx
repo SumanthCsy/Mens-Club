@@ -91,8 +91,8 @@ export default function AdminViewOrderDetailsPage() {
       const updateData: Partial<Order> = { status: newStatus };
       // If changing status from 'Cancelled' to something else, clear cancellation details
       if (order.status === 'Cancelled' && newStatus !== 'Cancelled') {
-        updateData.cancellationReason = null; // Using null to explicitly remove field
-        updateData.cancelledBy = null;
+        updateData.cancellationReason = undefined; // Using undefined to explicitly remove field with Firestore
+        updateData.cancelledBy = undefined;
       }
       await updateDoc(orderRef, updateData);
       setOrder(prevOrder => prevOrder ? { ...prevOrder, ...updateData } : null);
@@ -117,10 +117,10 @@ export default function AdminViewOrderDetailsPage() {
     setIsUpdatingStatus(true);
     try {
       const orderRef = doc(db, "orders", orderToCancelAdmin.id);
-      const cancellationDetails: Partial<Order> = { // Ensure type safety
+      const cancellationDetails: Partial<Order> = { 
         status: 'Cancelled' as Order['status'],
         cancellationReason: remarks || reason,
-        cancelledBy: 'store' as Order['cancelledBy'], // Changed 'admin' to 'store'
+        cancelledBy: 'store', // Correctly set to 'store'
       };
       await updateDoc(orderRef, cancellationDetails);
       setOrder(prevOrder => prevOrder ? { ...prevOrder, ...cancellationDetails } : null);
