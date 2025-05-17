@@ -2,14 +2,49 @@
 // @/app/admin/dashboard/page.tsx
 "use client";
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, BellRing, Loader2 } from 'lucide-react';
+import { collection, query, where, getDocs, onSnapshot, Unsubscribe } from "firebase/firestore";
+import { db } from '@/lib/firebase';
+import type { Order } from '@/types';
 
 export default function AdminDashboardPage() {
-  // This page assumes an admin user is logged in.
-  // Role-based access control is handled via Firebase Auth and Firestore logic.
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const [showPendingOrdersModal, setShowPendingOrdersModal] = useState(false);
+  const [isLoadingPendingOrders, setIsLoadingPendingOrders] = useState(true);
+
+  useEffect(() => {
+    const ordersRef = collection(db, "orders");
+    const q = query(ordersRef, where("status", "==", "Pending"));
+
+    const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const count = querySnapshot.size;
+      setPendingOrdersCount(count);
+      if (count > 0) {
+        setShowPendingOrdersModal(true);
+      }
+      setIsLoadingPendingOrders(false);
+    }, (error) => {
+      console.error("Error fetching pending orders:", error);
+      setIsLoadingPendingOrders(false);
+    });
+
+    return () => unsubscribe(); // Cleanup listener on component unmount
+  }, []);
+
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -63,7 +98,14 @@ export default function AdminDashboardPage() {
           <CardHeader>
              <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-semibold">Order Management</CardTitle>
-              <ListOrdered className="h-8 w-8 text-primary"/>
+              <div className="relative">
+                <ListOrdered className="h-8 w-8 text-primary"/>
+                {!isLoadingPendingOrders && pendingOrdersCount > 0 && (
+                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground animate-pulse">
+                    {pendingOrdersCount}
+                  </span>
+                )}
+              </div>
             </div>
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
           </CardHeader>
@@ -174,6 +216,33 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {showPendingOrdersModal && pendingOrdersCount > 0 && !isLoadingPendingOrders && (
+        <AlertDialog open={showPendingOrdersModal} onOpenChange={setShowPendingOrdersModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center">
+                <BellRing className="h-6 w-6 mr-2 text-primary animate-pulse" />
+                Pending Orders Notification
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You have {pendingOrdersCount} order(s) with "Pending" status that require your attention.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowPendingOrdersModal(false)}>Dismiss</AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Link href="/admin/orders">View Orders</Link>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+       {isLoadingPendingOrders && (
+         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+            <Loader2 className="h-10 w-10 text-white animate-spin" />
+         </div>
+      )}
     </div>
   );
 }

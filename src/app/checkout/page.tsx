@@ -7,7 +7,7 @@ import { ShippingForm, type ShippingFormValues } from '@/components/checkout/shi
 import { PaymentMethodSelector } from '@/components/checkout/payment-method-selector';
 import { CartSummary } from '@/components/cart/cart-summary';
 import { Button } from '@/components/ui/button';
-import { Lock, ArrowLeft, ShoppingCart, Loader2 } from 'lucide-react';
+import { Lock, ArrowLeft, ShoppingCart, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -137,6 +137,8 @@ export default function CheckoutPage() {
       paymentMethod: selectedPaymentMethod,
       status: 'Pending',
       createdAt: serverTimestamp(),
+      cancellationReason: undefined,
+      cancelledBy: undefined,
     };
 
     console.log("Attempting to save order:", JSON.stringify(orderToSave, null, 2));
@@ -145,8 +147,18 @@ export default function CheckoutPage() {
       const docRef = await addDoc(collection(db, "orders"), orderToSave);
       toast({
         title: "Order Placed Successfully!",
-        description: `Your order #${docRef.id} has been placed.`,
-        duration: 7000,
+        description: (
+            <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                <span>Your order #{docRef.id} has been placed.</span>
+            </div>
+        ),
+        action: (
+          <Button variant="outline" size="sm" onClick={() => router.push(`/profile/my-orders/${docRef.id}`)}>
+            View Order
+          </Button>
+        ),
+        duration: 10000, // Keep toast longer to allow clicking "View Order"
       });
 
       if (currentUser) {
@@ -154,46 +166,15 @@ export default function CheckoutPage() {
         await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb });
       }
 
-      try {
-        const emailResponse = await fetch('/api/send-order-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId: docRef.id,
-            customerEmail: orderToSave.customerEmail,
-            grandTotal: orderToSave.grandTotal,
-            adminEmail: "sumanthcherla12@gmail.com"
-          }),
-        });
-
-        if (!emailResponse.ok) {
-          const errorData = await emailResponse.json().catch(() => ({ message: "Failed to parse error response from email API." }));
-          console.error('Failed to send order notification email:', errorData);
-          toast({
-            title: "Notification Error",
-            description: `Order placed, but failed to send admin notification. ${errorData.message || "Unknown API error."}`.trim(),
-            variant: "destructive",
-            duration: 7000
-          });
-        } else {
-            const successData = await emailResponse.json();
-            console.log('Admin notification email prepared successfully:', successData.message);
-        }
-      } catch (emailError) {
-        console.error('Error calling send-order-email API:', emailError);
-         toast({
-            title: "Notification Error",
-            description: "Order placed, but encountered an issue preparing admin notification.",
-            variant: "destructive",
-            duration: 7000
-          });
-      }
+      // Admin email notification removed as per request.
 
       clearCart();
-      router.push('/');
+      router.push(`/profile/my-orders/${docRef.id}`); // Redirect to the new order's detail page
     } catch (error: any) {
       console.error("Data being sent to Firestore for order save:", JSON.stringify(orderToSave, null, 2));
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      console.error("Firebase error code:", error.code);
+      console.error("Firebase error message:", error.message);
 
       toast({
         title: "Order Placement Failed",
@@ -206,7 +187,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (cartItems.length === 0 && router.asPath && !router.asPath.startsWith('/checkout') && !isPlacingOrder) {
+  if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout')) {
     return (
         <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4"/>
@@ -278,4 +259,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
