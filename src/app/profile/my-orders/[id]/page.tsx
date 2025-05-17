@@ -54,40 +54,39 @@ export default function UserViewOrderDetailsPage() {
         setCurrentUser(user);
       } else {
         setCurrentUser(null);
-        // If user becomes null and we are not already erroring/loading for other reasons,
-        // set error and stop loading.
-        if (!error && isLoading) {
+        if (!error && !isLoading) { 
              setError("Please log in to view order details.");
-             setIsLoading(false);
+             setIsLoading(false); 
+        } else if (!error && isLoading) {
+            // If already loading for other reasons, let it continue,
+            // the main fetch effect will handle user not being present.
+        } else if (!error) {
+            setError("Please log in to view order details.");
+             setIsLoading(false); 
         }
-        // Optionally redirect if strict auth is needed for this page
-        // router.push('/login?redirect=/profile/my-orders'); 
       }
     });
     return () => unsubscribe();
-  }, [router, error, isLoading]); // Added error & isLoading to deps for this auth effect
+  }, [router, error, isLoading]);
 
   useEffect(() => {
-    // Ensure we only attempt to fetch if essential parameters are available
     if (!orderId) {
         setError("No order ID provided.");
         setIsLoading(false);
         return;
     }
     if (!currentUser) {
-        // If currentUser is null, auth useEffect should handle setting error & loading
-        // Or, if page is accessed directly without user yet, we might briefly show loading.
-        // Setting error here could be redundant if auth listener sets it too.
-        // For simplicity, we let the auth listener manage this for now.
-        // If still loading from initial state, don't set error yet, wait for auth.
-        if(!isLoading) {
+        // If still loading from initial page load, don't set error yet, wait for auth.
+        // If not loading, and no user, then set error.
+        if(!isLoading && !error) { // Only set error if not already loading or erroring
             setError("Please log in to view order details.");
+            setIsLoading(false);
         }
         return;
     }
 
     const fetchOrder = async () => {
-      setIsLoading(true); // Set loading true at the start of fetch attempt
+      setIsLoading(true); 
       setError(null);
       try {
         const orderRef = doc(db, "orders", orderId);
@@ -118,7 +117,7 @@ export default function UserViewOrderDetailsPage() {
     };
 
     fetchOrder();
-  }, [orderId, currentUser, toast]); // Corrected dependency array
+  }, [orderId, currentUser, toast]);
 
 
   const handleCopyOrderId = async () => {
@@ -197,6 +196,8 @@ export default function UserViewOrderDetailsPage() {
   }
 
   const { shippingAddress, items } = order;
+  const isOrderCancellable = order.status === 'Pending' || order.status === 'Processing' || order.status === 'Shipped';
+
 
   return (
     <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -242,9 +243,9 @@ export default function UserViewOrderDetailsPage() {
                 <CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5"/>Order Cancelled</CardTitle>
             </CardHeader>
             <CardContent>
-                <p><strong>Reason:</strong> {order.cancellationReason}
-                 {order.cancelledBy === 'store' && " (By Store)"}
-                 {order.cancelledBy === 'user' && " (By User)"}
+                <p>
+                    <strong>Reason:</strong> {order.cancellationReason}
+                    {order.cancelledBy && ` (By ${order.cancelledBy === 'store' ? 'Store' : (order.cancelledBy === 'user' ? 'User' : order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1))})`}
                 </p>
             </CardContent>
         </Card>
@@ -330,7 +331,12 @@ export default function UserViewOrderDetailsPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                     <p><strong>Placed On:</strong> {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}</p>
-                     <Button variant="outline" className="w-full" onClick={() => setIsTrackingModalOpen(true)} disabled={order.status === 'Cancelled'}>
+                     <Button 
+                        variant="outline" 
+                        className="w-full" 
+                        onClick={() => setIsTrackingModalOpen(true)} 
+                        disabled={order.status === 'Cancelled'}
+                     >
                         <TruckIcon className="mr-2 h-4 w-4" /> View Tracking
                     </Button>
                     <Button variant="outline" className="w-full" onClick={() => setIsInvoiceModalOpen(true)}>
@@ -411,6 +417,4 @@ export default function UserViewOrderDetailsPage() {
     </div>
   );
 }
-
-
     
