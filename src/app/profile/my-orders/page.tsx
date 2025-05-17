@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import type { Order, OrderItem } from '@/types'; 
+import type { Order, OrderItem } from '@/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
@@ -37,7 +37,7 @@ export default function MyOrdersPage() {
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
-  
+
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
   const [isCancelFormOpen, setIsCancelFormOpen] = useState(false);
@@ -107,7 +107,7 @@ export default function MyOrdersPage() {
         setOrders([]);
     }
   }, [currentUser, toast]);
-  
+
   const openTrackingModal = (order: Order) => {
     setSelectedOrderForTracking(order);
   };
@@ -237,7 +237,7 @@ export default function MyOrdersPage() {
                     </CardDescription>
                     </div>
                     <div className="flex flex-col sm:items-end gap-1 sm:gap-0 self-start sm:self-center">
-                    <span 
+                    <span
                         className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap
                         ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : ''}
                         ${order.status === 'Shipped' ? 'bg-blue-100 text-blue-700' : ''}
@@ -257,7 +257,8 @@ export default function MyOrdersPage() {
                             <Info className="h-4 w-4 mt-0.5 shrink-0" />
                             <p>
                                 <strong>Cancellation Reason:</strong> {order.cancellationReason}
-                                {order.cancelledBy && ` (By ${order.cancelledBy === 'store' ? 'Store' : (order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1))})`}
+                                {order.cancelledBy === 'store' && ` (By Store)`}
+                                {order.cancelledBy === 'user' && ` (By User)`}
                             </p>
                         </div>
                     </div>
@@ -282,11 +283,11 @@ export default function MyOrdersPage() {
                 <Button size="sm" onClick={() => openTrackingModal(order)} disabled={order.status === 'Cancelled'}>
                   <TruckIcon className="mr-2 h-4 w-4" /> Track Order
                 </Button>
-                 <Button 
-                    variant="outline" 
-                    size="sm" 
+                 <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleRequestCancellation(order)}
-                    disabled={order.status === 'Cancelled' || order.status === 'Delivered'} 
+                    disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
                     className={ (order.status === 'Pending' || order.status === 'Processing') ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}
                  >
                    <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
@@ -313,10 +314,10 @@ export default function MyOrdersPage() {
         />
       )}
       {selectedOrderForInvoice && (
-        <InvoiceViewModal 
-            isOpen={isInvoiceModalOpen} 
-            onClose={() => { setIsInvoiceModalOpen(false); setSelectedOrderForInvoice(null); }} 
-            order={selectedOrderForInvoice} 
+        <InvoiceViewModal
+            isOpen={isInvoiceModalOpen}
+            onClose={() => { setIsInvoiceModalOpen(false); setSelectedOrderForInvoice(null); }}
+            order={selectedOrderForInvoice}
         />
       )}
 
@@ -365,7 +366,7 @@ export default function MyOrdersPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
-      
+
       {orderToCancel && isCancelFormOpen && (
         <OrderCancellationFormModal
           isOpen={isCancelFormOpen}
@@ -379,4 +380,3 @@ export default function MyOrdersPage() {
     </div>
   );
 }
-
