@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, MapPin, CreditCard, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info } from 'lucide-react';
 import type { Order, OrderItem, ShippingAddress as ShippingAddressType } from '@/types';
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase';
@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { OrderCancellationFormModal } from '@/components/orders/OrderCancellationFormModal';
-import type { User } from 'firebase/auth';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export default function UserViewOrderDetailsPage() {
   const params = useParams();
@@ -37,7 +37,7 @@ export default function UserViewOrderDetailsPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -225,7 +225,8 @@ export default function UserViewOrderDetailsPage() {
             </CardHeader>
             <CardContent>
                 <p><strong>Reason:</strong> {order.cancellationReason}
-                {order.cancelledBy && ` (By ${order.cancelledBy === 'store' ? 'Store' : 'User'})`}
+                 {order.cancelledBy === 'store' && " (By Store)"}
+                 {order.cancelledBy === 'user' && " (By User)"}
                 </p>
             </CardContent>
         </Card>
