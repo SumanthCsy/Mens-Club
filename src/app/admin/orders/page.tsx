@@ -13,13 +13,16 @@ import { collection, getDocs, query, orderBy as firestoreOrderBy, Timestamp } fr
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { generateInvoicePdf } from '@/lib/invoice-generator'; // Import the invoice function
+import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal'; // Import the new modal
 
 export default function ViewOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
+
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -54,8 +57,9 @@ export default function ViewOrdersPage() {
     fetchOrders();
   }, [toast]);
 
-  const handleDownloadInvoice = (order: Order) => {
-    generateInvoicePdf(order);
+  const handleViewInvoice = (order: Order) => {
+    setSelectedOrderForInvoice(order);
+    setIsInvoiceModalOpen(true);
   };
 
   if (isLoading) {
@@ -147,7 +151,7 @@ export default function ViewOrdersPage() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleDownloadInvoice(order)} title="Download Invoice (Simulated)">
+                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleViewInvoice(order)} title="View Invoice">
                               <FileText className="h-4 w-4" />
                             </Button>
                         </div>
@@ -160,6 +164,13 @@ export default function ViewOrdersPage() {
           )}
         </CardContent>
       </Card>
+      {selectedOrderForInvoice && (
+        <InvoiceViewModal 
+            isOpen={isInvoiceModalOpen} 
+            onClose={() => { setIsInvoiceModalOpen(false); setSelectedOrderForInvoice(null);}} 
+            order={selectedOrderForInvoice} 
+        />
+      )}
     </div>
   );
 }

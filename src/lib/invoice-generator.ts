@@ -11,7 +11,7 @@ import { format } from 'date-fns';
  * @param order The order object.
  * @returns An HTML string.
  */
-function generateInvoiceHTML(order: Order): string {
+export function generateInvoiceHTML(order: Order): string {
   const storeName = "Mens Club Keshavapatnam";
   const storeAddress = "Main Road, Keshavapatnam, Telangana"; // Example
   const storeContact = "Email: contact@mensclubkpm.com | Phone: +91 9876543210"; // Example
@@ -23,8 +23,8 @@ function generateInvoiceHTML(order: Order): string {
   order.items.forEach((item, index) => {
     itemsHTML += `
       <tr>
-        <td style="border: 1px solid #ddd; padding: 8px;">${index + 1}</td>
-        <td style="border: 1px solid #ddd; padding: 8px;">
+        <td style="border: 1px solid #ddd; padding: 8px; text-align:left;">${index + 1}</td>
+        <td style="border: 1px solid #ddd; padding: 8px; text-align:left;">
           ${item.name}<br>
           <small>Size: ${item.selectedSize || 'N/A'}${item.selectedColor ? `, Color: ${item.selectedColor}` : ''}</small><br>
           <small>SKU: ${item.sku || 'N/A'}</small>
@@ -36,35 +36,27 @@ function generateInvoiceHTML(order: Order): string {
     `;
   });
 
+  // Note: The outer <html> and <body> tags are removed here as this HTML
+  // will be injected into a div within the modal. The styles are kept for now.
   const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Invoice #${order.id}</title>
       <style>
-        body { font-family: 'Arial', sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }
-        .invoice-container { max-width: 800px; margin: 20px auto; background-color: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .header h1 { margin: 0; color: #333; font-size: 24px; }
-        .store-details p { margin: 2px 0; font-size: 12px; }
-        .invoice-details, .customer-details { margin-bottom: 20px; font-size: 14px; }
-        .invoice-details table, .customer-details table { width: 100%; border-collapse: collapse; }
-        .invoice-details th, .invoice-details td, .customer-details th, .customer-details td { padding: 5px; text-align: left; }
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
-        .items-table th { background-color: #f0f0f0; border: 1px solid #ddd; padding: 10px; text-align: left; }
-        .items-table td { border: 1px solid #ddd; padding: 8px; }
-        .totals { float: right; width: 40%; margin-top: 20px; font-size: 14px; }
-        .totals table { width: 100%; }
-        .totals td { padding: 5px; }
-        .totals .grand-total { font-weight: bold; font-size: 16px; }
-        .footer { text-align: center; margin-top: 30px; padding-top: 10px; border-top: 1px solid #eee; font-size: 12px; color: #777; }
-        .clearfix::after { content: ""; clear: both; display: table; }
+        .invoice-container-modal { font-family: 'Arial', sans-serif; color: #333; padding:10px; } /* Adjusted padding */
+        .invoice-container-modal .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .invoice-container-modal .header h1 { margin: 0; color: #333; font-size: 22px; } /* Adjusted font size */
+        .invoice-container-modal .store-details p { margin: 2px 0; font-size: 11px; } /* Adjusted font size */
+        .invoice-container-modal .invoice-details-table, .invoice-container-modal .customer-details-table { margin-bottom: 15px; font-size: 13px; width: 100%; } /* Adjusted font size */
+        .invoice-container-modal .invoice-details-table td, .invoice-container-modal .customer-details-table td { padding: 4px; text-align: left; }
+        .invoice-container-modal .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; } /* Adjusted font size */
+        .invoice-container-modal .items-table th { background-color: #f0f0f0; border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .invoice-container-modal .items-table td { border: 1px solid #ddd; padding: 6px; } /* Adjusted padding */
+        .invoice-container-modal .totals { float: right; width: 45%; margin-top: 15px; font-size: 13px; } /* Adjusted font size */
+        .invoice-container-modal .totals table { width: 100%; }
+        .invoice-container-modal .totals td { padding: 4px; } /* Adjusted padding */
+        .invoice-container-modal .totals .grand-total { font-weight: bold; font-size: 15px; } /* Adjusted font size */
+        .invoice-container-modal .footer { text-align: center; margin-top: 25px; padding-top: 8px; border-top: 1px solid #eee; font-size: 11px; color: #777; } /* Adjusted font size */
+        .invoice-container-modal .clearfix::after { content: ""; clear: both; display: table; }
       </style>
-    </head>
-    <body>
-      <div class="invoice-container" id="invoiceToPrint">
+      <div class="invoice-container-modal" id="invoiceToPrint-${order.id}">
         <div class="header">
           <h1>${storeName}</h1>
           <div class="store-details">
@@ -73,9 +65,9 @@ function generateInvoiceHTML(order: Order): string {
           </div>
         </div>
 
-        <table style="width:100%; margin-bottom: 20px; font-size: 14px;">
+        <table class="invoice-details-table">
           <tr>
-            <td style="width:50%;">
+            <td style="width:50%; vertical-align:top;">
               <strong>Billed To:</strong><br>
               ${order.shippingAddress.fullName}<br>
               ${order.shippingAddress.addressLine1}<br>
@@ -86,8 +78,8 @@ function generateInvoiceHTML(order: Order): string {
               Phone: ${order.shippingAddress.phoneNumber || 'N/A'}
             </td>
             <td style="width:50%; text-align:right; vertical-align:top;">
-              <strong>Invoice #:</strong> ${order.id}<br>
-              <strong>Order ID:</strong> ${order.id}<br>
+              <strong>Invoice #:</strong> ${order.id || 'N/A'}<br>
+              <strong>Order ID:</strong> ${order.id || 'N/A'}<br>
               <strong>Date:</strong> ${invoiceDate}<br>
               <strong>Order Status:</strong> ${order.status}<br>
               <strong>Payment Method:</strong> ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}
@@ -95,12 +87,12 @@ function generateInvoiceHTML(order: Order): string {
           </tr>
         </table>
 
-        <h3 style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px; font-size: 16px;">Order Items</h3>
+        <h3 style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px; font-size: 15px;">Order Items</h3>
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width:5%;">#</th>
-              <th style="width:45%;">Item Description</th>
+              <th style="width:5%; text-align:left;">#</th>
+              <th style="width:45%; text-align:left;">Item Description</th>
               <th style="width:10%; text-align:right;">Qty</th>
               <th style="width:20%; text-align:right;">Unit Price</th>
               <th style="width:20%; text-align:right;">Total</th>
@@ -113,7 +105,7 @@ function generateInvoiceHTML(order: Order): string {
 
         <div class="clearfix">
           <div class="totals">
-            <table style="width:100%;">
+            <table>
               <tr>
                 <td>Subtotal:</td>
                 <td style="text-align:right;">₹${order.subtotal.toFixed(2)}</td>
@@ -140,75 +132,41 @@ function generateInvoiceHTML(order: Order): string {
           <p>Generated on: ${invoiceDateTime}</p>
         </div>
       </div>
-    </body>
-    </html>
   `;
   return htmlContent.trim();
 }
 
 /**
- * Simulates invoice generation by creating an HTML representation and
- * triggering a download of an .html file.
- *
- * @param order The order object for which to simulate invoice generation.
+ * Triggers the download of the provided HTML content as an .html file.
+ * @param order The order object (used for filename).
+ * @param htmlContent The HTML string to download.
  */
-export function generateInvoicePdf(order: Order | null) {
+export function downloadHtmlInvoice(order: Order, htmlContent: string) {
   if (!order || !order.id) {
     toast({
-      title: 'Error Simulating Invoice',
+      title: 'Error Downloading Invoice',
       description: 'Order data or Order ID is not available.',
       variant: 'destructive',
     });
     return;
   }
 
-  const invoiceHtmlContent = generateInvoiceHTML(order);
-
-  // Create a Blob with the HTML content, set MIME type to text/html
-  const blob = new Blob([invoiceHtmlContent], { type: 'text/html' });
-
-  // Create a temporary link element to trigger the download
+  const blob = new Blob([`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Invoice ${order.id}</title></head><body>${htmlContent}</body></html>`], { type: 'text/html' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `invoice-${order.id}.html`; // Filename for the download with .html extension
-
-  // Append to body, click, and remove
+  link.download = `invoice-${order.id}.html`; 
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(link.href); // Clean up the object URL
+  URL.revokeObjectURL(link.href);
 
   toast({
     title: 'Invoice HTML Downloaded',
-    description: `An HTML file (invoice-${order.id}.html) has been downloaded. You can open this in a browser to view the invoice structure. For true PDF generation, further steps are needed.`,
-    duration: 12000,
+    description: `An HTML file (invoice-${order.id}.html) has been downloaded. You can open this in a browser to view the invoice.`,
+    duration: 8000,
   });
-
-  // Log to console as well, for developer reference
-  console.log(`--- Simulated HTML Invoice Generation & Download (as .html) for Order: ${order.id} ---`);
-  console.log("To implement actual PDF generation from this HTML, you would typically use a library like jsPDF combined with html2canvas or html2pdf.js.");
-  console.log("Example (conceptual, requires libraries to be installed and imported):");
-  console.log(`
-    // 1. Add libraries: npm install jspdf html2canvas
-    // 2. Import: import jsPDF from 'jspdf'; import html2canvas from 'html2canvas';
-    // 3. Logic in a function:
-    // const input = document.getElementById('invoiceToPrint'); // Assuming your HTML is rendered or available
-    // if (input) {
-    //   html2canvas(input, { scale: 2 }) // Higher scale for better quality
-    //     .then((canvas) => {
-    //       const imgData = canvas.toDataURL('image/png');
-    //       const pdf = new jsPDF({
-    //         orientation: 'portrait',
-    //         unit: 'pt', // points, pixels won't work well
-    //         format: 'a4'
-    //       });
-    //       const pdfWidth = pdf.internal.pageSize.getWidth();
-    //       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    //       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    //       pdf.save(\`invoice-${order.id}.pdf\`);
-    //     });
-    // } else {
-    //   console.error("Invoice HTML element not found");
-    // }
-  `);
 }
+
+// The old generateInvoicePdf function can be removed or kept for reference.
+// For this change, we are focusing on generating HTML for viewing and downloading.
+// True PDF generation remains a future enhancement.

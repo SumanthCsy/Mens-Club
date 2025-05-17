@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
@@ -14,8 +14,8 @@ import type { User } from 'firebase/auth';
 import type { Order, OrderItem } from '@/types'; 
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { generateInvoicePdf } from '@/lib/invoice-generator';
 import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
+import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal'; // Import the new modal
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -23,6 +23,8 @@ export default function MyOrdersPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -31,8 +33,6 @@ export default function MyOrdersPage() {
       } else {
         setCurrentUser(null);
         setIsLoading(false);
-        // Optionally redirect to login if no user
-        // router.push('/login?redirect=/profile/my-orders');
       }
     });
     return () => unsubscribe();
@@ -87,10 +87,6 @@ export default function MyOrdersPage() {
         setOrders([]);
     }
   }, [currentUser, toast]);
-
-  const handleViewInvoice = (order: Order) => {
-    generateInvoicePdf(order);
-  };
   
   const openTrackingModal = (order: Order) => {
     setSelectedOrderForTracking(order);
@@ -98,6 +94,11 @@ export default function MyOrdersPage() {
 
   const closeTrackingModal = () => {
     setSelectedOrderForTracking(null);
+  };
+
+  const handleViewInvoice = (order: Order) => {
+    setSelectedOrderForInvoice(order);
+    setIsInvoiceModalOpen(true);
   };
 
   const handleCopyOrderId = async (orderId: string) => {
@@ -220,7 +221,7 @@ export default function MyOrdersPage() {
               </CardContent>
               <CardFooter className="pt-4 flex flex-col sm:flex-row gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => handleViewInvoice(order)}>
-                  <FileText className="mr-2 h-4 w-4" /> View Invoice (Simulated)
+                  <Eye className="mr-2 h-4 w-4" /> View Invoice
                 </Button>
                 <Button size="sm" onClick={() => openTrackingModal(order)} disabled={order.status === 'Cancelled'}>
                   <TruckIcon className="mr-2 h-4 w-4" /> Track Order
@@ -238,7 +239,6 @@ export default function MyOrdersPage() {
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
             <Button variant="outline">1</Button>
-            {/* Add more page numbers as needed */}
             <Button variant="outline" disabled>Next</Button>
           </div>
         </div>
@@ -248,6 +248,13 @@ export default function MyOrdersPage() {
           isOpen={!!selectedOrderForTracking}
           onClose={closeTrackingModal}
           order={selectedOrderForTracking}
+        />
+      )}
+      {selectedOrderForInvoice && (
+        <InvoiceViewModal 
+            isOpen={isInvoiceModalOpen} 
+            onClose={() => { setIsInvoiceModalOpen(false); setSelectedOrderForInvoice(null); }} 
+            order={selectedOrderForInvoice} 
         />
       )}
     </div>

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye } from 'lucide-react';
 import type { Order, OrderItem, ShippingAddress } from '@/types';
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
@@ -22,9 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { generateInvoicePdf } from '@/lib/invoice-generator';
 import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
-
+import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal'; // Import the new modal
 
 export default function AdminViewOrderDetailsPage() {
   const params = useParams();
@@ -37,6 +36,7 @@ export default function AdminViewOrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false); // State for invoice modal
 
   useEffect(() => {
     if (orderId) {
@@ -92,12 +92,6 @@ export default function AdminViewOrderDetailsPage() {
       });
     } finally {
       setIsUpdatingStatus(false);
-    }
-  };
-
-  const handleDownloadInvoice = () => {
-    if (order) {
-      generateInvoicePdf(order);
     }
   };
 
@@ -300,8 +294,8 @@ export default function AdminViewOrderDetailsPage() {
                      <Button variant="outline" className="w-full" onClick={() => setIsTrackingModalOpen(true)}>
                         <TruckIcon className="mr-2 h-4 w-4" /> View Tracking
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={handleDownloadInvoice}>
-                        <FileText className="mr-2 h-4 w-4" /> Download Invoice (Simulated)
+                    <Button variant="outline" className="w-full" onClick={() => setIsInvoiceModalOpen(true)}>
+                        <Eye className="mr-2 h-4 w-4" /> View Invoice
                     </Button>
                 </CardContent>
                  <CardFooter>
@@ -311,6 +305,7 @@ export default function AdminViewOrderDetailsPage() {
         </div>
     </div>
     <OrderTrackingModal isOpen={isTrackingModalOpen} onClose={() => setIsTrackingModalOpen(false)} order={order} />
+    <InvoiceViewModal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} order={order} />
     </div>
   );
 }
