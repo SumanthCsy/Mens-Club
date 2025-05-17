@@ -1,3 +1,4 @@
+
 // @/app/checkout/success/[orderId]/page.tsx
 "use client";
 
@@ -16,10 +17,8 @@ export default function OrderSuccessPage() {
 
   useEffect(() => {
     // Play sound effect
-    // Ensure success.mp3 is in your /public directory
-    const audio = new Audio('/success.mp3');
+    const audio = new Audio('/success.mp3'); // Ensure success.mp3 is in your /public directory
     audio.play().catch(error => {
-      // Autoplay can be blocked by the browser, handle gracefully
       console.warn("Audio autoplay prevented for /success.mp3:", error);
     });
 
@@ -29,7 +28,7 @@ export default function OrderSuccessPage() {
     }, 100); // Small delay to allow initial render
 
     return () => clearTimeout(timer);
-  }, []); // Empty dependency array ensures this runs once on mount
+  }, []);
 
   return (
     <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-16 md:py-24 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
