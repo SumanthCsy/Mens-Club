@@ -1,30 +1,42 @@
-
 // @/app/admin/settings/payments/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { ArrowLeft, CreditCard, Save, UploadCloud, IndianRupee, AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { ArrowLeft, CreditCard, Save, UploadCloud, IndianRupee, AlertTriangle, Info, Loader2, Trash2, ImagePlus, XCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { PaymentSettings } from '@/types';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const initialPaymentSettings: PaymentSettings = {
   enableCOD: true,
-  enableOnlinePayments: false, // Default to false as it's not fully implemented
+  enableOnlinePayments: false, 
   upiId: '',
-  qrCodeUrl: '', // Placeholder for URL or path
+  qrCodeUrl: '', 
 };
 
 export default function AdminPaymentSettingsPage() {
   const [settings, setSettings] = useState<PaymentSettings>(initialPaymentSettings);
+  const [qrCodePreview, setQrCodePreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -36,9 +48,15 @@ export default function AdminPaymentSettingsPage() {
         const settingsRef = doc(db, "settings", "paymentConfiguration");
         const docSnap = await getDoc(settingsRef);
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as PaymentSettings);
+          const fetchedSettings = docSnap.data() as PaymentSettings;
+          setSettings(fetchedSettings);
+          if (fetchedSettings.qrCodeUrl && fetchedSettings.qrCodeUrl.startsWith('data:image')) {
+            setQrCodePreview(fetchedSettings.qrCodeUrl);
+          } else if (fetchedSettings.qrCodeUrl) {
+            // If it's a URL, keep it as is for external image, but preview might not work if not data URI
+            setQrCodePreview(null); // Or attempt to load if it's a direct image URL, but safer to nullify for preview if not data URI
+          }
         } else {
-          // If no settings exist, initialize with defaults in Firestore
           await setDoc(settingsRef, initialPaymentSettings);
           setSettings(initialPaymentSettings);
         }
@@ -56,11 +74,33 @@ export default function AdminPaymentSettingsPage() {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleQrCodeUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setQrCodePreview(dataUrl);
+        setSettings(prev => ({ ...prev, qrCodeUrl: dataUrl }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveQrCode = () => {
+    setQrCodePreview(null);
+    setSettings(prev => ({ ...prev, qrCodeUrl: '' }));
+    const qrInput = document.getElementById('qrCodeFile') as HTMLInputElement;
+    if (qrInput) qrInput.value = ''; // Reset file input
+  };
+
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
       const settingsRef = doc(db, "settings", "paymentConfiguration");
-      await setDoc(settingsRef, settings);
+      // Ensure qrCodeUrl is the dataURI from preview if one exists, else from settings
+      const settingsToSave = { ...settings, qrCodeUrl: qrCodePreview || settings.qrCodeUrl || '' };
+      await setDoc(settingsRef, settingsToSave);
       toast({ title: "Settings Saved", description: "Payment settings have been updated." });
     } catch (error) {
       console.error("Error saving payment settings:", error);
@@ -69,6 +109,26 @@ export default function AdminPaymentSettingsPage() {
       setIsSaving(false);
     }
   };
+
+  const handleClearOnlineDetails = async () => {
+    setIsSaving(true); // Use isSaving to disable button during operation
+    try {
+        const newSettings = { ...settings, upiId: '', qrCodeUrl: '' };
+        const settingsRef = doc(db, "settings", "paymentConfiguration");
+        await updateDoc(settingsRef, { upiId: '', qrCodeUrl: '' }); // Only update these fields
+        setSettings(newSettings);
+        setQrCodePreview(null); // Clear preview as well
+        const qrInput = document.getElementById('qrCodeFile') as HTMLInputElement;
+        if (qrInput) qrInput.value = '';
+        toast({ title: "Online Details Cleared", description: "UPI ID and QR Code have been cleared. Save settings to persist." });
+    } catch (error) {
+        console.error("Error clearing online payment details:", error);
+        toast({ title: "Clear Failed", description: "Could not clear online payment details.", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+};
+
 
   if (isLoading) {
     return <div className="container mx-auto p-8 text-center"> <Loader2 className="mx-auto h-8 w-8 animate-spin mb-2"/> Loading payment settings...</div>;
@@ -145,30 +205,68 @@ export default function AdminPaymentSettingsPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="qrCodeUrl">QR Code Image URL (Optional)</Label>
-                             <Input 
-                                id="qrCodeUrl" 
-                                value={settings.qrCodeUrl || ''}
-                                onChange={(e) => handleSettingChange('qrCodeUrl', e.target.value)}
-                                placeholder="Enter URL of your hosted QR code image"
-                                className="text-base h-11"
+                          <Label htmlFor="qrCodeFile">Upload QR Code Image (Optional)</Label>
+                          <div className="flex items-center gap-4">
+                            <Input
+                              id="qrCodeFile"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleQrCodeUpload}
+                              className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                             />
-                            <p className="text-xs text-muted-foreground">
-                                For now, enter a URL to an externally hosted QR code image. Direct upload is not yet supported.
-                            </p>
-                            {settings.qrCodeUrl && (
-                              <div className="mt-2 p-2 border rounded-md inline-block bg-muted/30">
-                                <p className="text-sm mb-1">QR Preview (from URL):</p>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img 
-                                  src={settings.qrCodeUrl} 
-                                  alt="QR Code Preview" 
-                                  className="max-w-[150px] max-h-[150px] rounded-md border"
-                                  onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails to load
-                                />
-                              </div>
-                            )}
+                            <ImagePlus className="h-6 w-6 text-muted-foreground"/>
+                          </div>
+                          {qrCodePreview && (
+                            <div className="mt-3 p-2 border border-dashed border-border rounded-md inline-block relative bg-muted/30">
+                              <Image 
+                                src={qrCodePreview} 
+                                alt="QR Code Preview" 
+                                width={120}
+                                height={120}
+                                className="object-contain rounded"
+                              />
+                               <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-1 right-1 h-6 w-6 bg-red-500/70 text-white hover:bg-red-600"
+                                onClick={handleRemoveQrCode}
+                                title="Remove QR Code"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                           <p className="text-xs text-muted-foreground">
+                              Upload your UPI QR code image. This will be displayed to customers if Online Payments are enabled.
+                              Stored as a data URI in Firestore.
+                          </p>
                         </div>
+                        
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4"/> Clear UPI & QR Details
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will clear the currently entered UPI ID and remove the uploaded QR code from the form. 
+                                    You will need to click "Save Payment Settings" to make this change permanent.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearOnlineDetails} className="bg-destructive hover:bg-destructive/90">
+                                    Yes, Clear Details
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
+
                          <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-3 rounded-md border border-amber-200">
                             <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5"/>
                             <p>

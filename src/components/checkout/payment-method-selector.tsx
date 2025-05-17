@@ -1,4 +1,3 @@
-
 // @/components/checkout/payment-method-selector.tsx
 "use client";
 
@@ -18,12 +17,19 @@ interface PaymentMethodSelectorProps {
   onMethodChange: (method: string) => void;
 }
 
-const defaultPaymentOptionsConfig = {
+const defaultPaymentOptionsConfig: PaymentSettings = {
   enableCOD: true,
   enableOnlinePayments: false,
   upiId: '',
   qrCodeUrl: '',
 };
+
+const upiAppLogos = [
+  { name: "PhonePe", hint: "PhonePe logo", placeholder: "https://placehold.co/80x30.png?text=PhonePe" },
+  { name: "Google Pay", hint: "GooglePay logo", placeholder: "https://placehold.co/80x30.png?text=GPay" },
+  { name: "Paytm", hint: "Paytm logo", placeholder: "https://placehold.co/80x30.png?text=Paytm" },
+  { name: "BHIM UPI", hint: "BHIM UPI logo", placeholder: "https://placehold.co/80x30.png?text=BHIM" },
+];
 
 export function PaymentMethodSelector({ selectedMethod, onMethodChange }: PaymentMethodSelectorProps) {
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
@@ -77,7 +83,7 @@ export function PaymentMethodSelector({ selectedMethod, onMethodChange }: Paymen
     label: 'Online Payment (UPI/QR)', 
     description: paymentSettings?.upiId 
                  ? `Pay using UPI ID: ${paymentSettings.upiId}` 
-                 : 'Scan QR or use UPI. Details shown on next step if applicable.',
+                 : 'Scan QR or use UPI. Details shown below.',
     icon: CreditCard,
     disabled: !paymentSettings?.enableOnlinePayments,
   };
@@ -103,20 +109,20 @@ export function PaymentMethodSelector({ selectedMethod, onMethodChange }: Paymen
                 key={option.id}
                 htmlFor={`payment-${option.id}`}
                 className={cn(
-                  "flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-lg border p-4 transition-all",
+                  "flex flex-col gap-4 rounded-lg border p-4 transition-all",
                   option.disabled 
                     ? "cursor-not-allowed bg-muted/50 text-muted-foreground" 
                     : "cursor-pointer hover:border-primary/80",
                   selectedMethod === option.id && !option.disabled ? "border-primary ring-2 ring-primary bg-primary/5" : "border-border bg-card"
                 )}
               >
-                <RadioGroupItem 
-                  value={option.id} 
-                  id={`payment-${option.id}`} 
-                  className="mt-1 sm:mt-0"
-                  disabled={option.disabled}
-                />
                 <div className="flex items-center gap-3">
+                  <RadioGroupItem 
+                    value={option.id} 
+                    id={`payment-${option.id}`} 
+                    className="mt-1 sm:mt-0"
+                    disabled={option.disabled}
+                  />
                   <option.icon className={cn(
                     "h-6 w-6 shrink-0", 
                     option.disabled ? "text-muted-foreground" : (selectedMethod === option.id ? "text-primary" : "text-muted-foreground")
@@ -131,21 +137,45 @@ export function PaymentMethodSelector({ selectedMethod, onMethodChange }: Paymen
                     <span className={cn("block text-sm", option.disabled ? "text-muted-foreground" : "text-muted-foreground")}>
                       {option.description}
                     </span>
-                    {option.id === 'online' && paymentSettings?.enableOnlinePayments && paymentSettings.qrCodeUrl && (
+                  </div>
+                </div>
+                {option.id === 'online' && selectedMethod === 'online' && paymentSettings?.enableOnlinePayments && (
+                  <div className="mt-3 pl-8 space-y-3 border-t border-border/50 pt-3">
+                    <p className="text-sm font-medium text-foreground">All UPI Apps accepted:</p>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      {upiAppLogos.map(app => (
+                        <div key={app.name} className="flex flex-col items-center">
+                           <Image 
+                            src={app.placeholder} 
+                            alt={`${app.name} logo`} 
+                            width={60} 
+                            height={25} 
+                            className="object-contain rounded-sm"
+                            data-ai-hint={app.hint}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {paymentSettings.upiId && (
+                      <p className="text-sm text-muted-foreground">
+                        Or pay to UPI ID: <strong className="text-foreground">{paymentSettings.upiId}</strong>
+                      </p>
+                    )}
+                    {paymentSettings.qrCodeUrl && (
                        <div className="mt-2">
-                        <p className="text-xs text-muted-foreground mb-1">Scan QR to Pay:</p>
+                        <p className="text-sm text-muted-foreground mb-1">Scan QR to Pay:</p>
                         <Image 
                             src={paymentSettings.qrCodeUrl} 
                             alt="Payment QR Code" 
-                            width={100} 
-                            height={100} 
+                            width={120} 
+                            height={120} 
                             className="rounded-md border border-border/50"
                             data-ai-hint="payment qr"
                         />
                        </div>
                     )}
                   </div>
-                </div>
+                )}
               </Label>
             ))}
           </RadioGroup>
