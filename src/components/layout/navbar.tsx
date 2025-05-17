@@ -121,7 +121,7 @@ export function Navbar() {
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
            <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
             {/* Placeholder for logo while loading */}
-            <div className="h-36 w-36 bg-muted rounded-md"></div>
+            <div className="h-12 w-12 bg-muted rounded-md"></div>
           </Link>
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -135,7 +135,14 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-auto py-2 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-          <Image src="/mclogo.png" alt="Mens Club Logo" width={144} height={144} className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36" />
+          <Image 
+            src="/mclogo.png" 
+            alt="Mens Club Logo" 
+            width={64} 
+            height={64} 
+            className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16"
+            priority 
+          />
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
@@ -213,7 +220,13 @@ export function Navbar() {
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">
-                  <Image src="/mclogo.png" alt="Mens Club Logo" width={120} height={120} className="h-24 w-24" />
+                  <Image 
+                    src="/mclogo.png" 
+                    alt="Mens Club Logo" 
+                    width={64} 
+                    height={64} 
+                    className="h-16 w-16" 
+                  />
                 </Link>
                 <nav className="flex flex-col space-y-1">
                   {navLinks.map((link) => (

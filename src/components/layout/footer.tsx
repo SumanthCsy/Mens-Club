@@ -14,7 +14,13 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Image src="/mclogo.png" alt="Mens Club Logo" width={120} height={120} className="h-30 w-30" />
+              <Image 
+                src="/mclogo.png" 
+                alt="Mens Club Logo" 
+                width={64} 
+                height={64} 
+                className="h-16 w-16" 
+              />
             </Link>
             <p className="text-sm text-muted-foreground">
               Keshavapatnam's finest collection for gentlemen.
@@ -78,7 +84,7 @@ export function Footer() {
               href="https://sumanthcsy.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-primary hover:underline align-baseline inline-block"
+              className="font-medium text-primary hover:underline"
             >
               Sumanth Csy
             </a>
