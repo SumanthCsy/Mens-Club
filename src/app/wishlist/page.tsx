@@ -1,31 +1,28 @@
-
 // @/app/wishlist/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useWishlist } from '@/context/wishlist-context';
 import type { Product } from '@/types';
-import { db, auth } from '@/lib/firebase'; // Import auth
-import { collection, doc, getDoc, getDocs, query, where, documentId } from 'firebase/firestore'; // Import documentId
+import { db, auth } from '@/lib/firebase';
+import { collection, doc, getDoc, getDocs, query, where, documentId } from 'firebase/firestore';
 import { ProductCard } from '@/components/products/product-card';
 import { Button } from '@/components/ui/button';
-import { HeartCrack, Loader2, AlertTriangle, ArrowLeft, LogIn } from 'lucide-react'; // Added LogIn
+import { HeartCrack, Loader2, AlertTriangle, ArrowLeft, LogIn } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Added useRouter
-import type { User as FirebaseUser } from 'firebase/auth'; // Added FirebaseUser type
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export default function WishlistPage() {
-  const { wishlistItems, removeFromWishlist, isLoadingWishlist: isLoadingWishlistContext } = useWishlist();
+  const { wishlistItems, removeFromWishlist, isLoadingWishlist: isLoadingWishlistContext, isProductInWishlist } = useWishlist();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null); // Added currentUser state
-  const router = useRouter(); // Added router
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged(user => {
       setCurrentUser(user);
-      if (!user && !isLoadingWishlistContext) { // If not loading context and no user, stop product loading
+      if (!user && !isLoadingWishlistContext) {
         setIsLoadingProducts(false);
       }
     });
@@ -34,7 +31,7 @@ export default function WishlistPage() {
 
   useEffect(() => {
     const fetchWishlistProducts = async () => {
-      if (!currentUser) { // Don't fetch if no user
+      if (!currentUser) {
         setProducts([]);
         setIsLoadingProducts(false);
         return;
@@ -48,16 +45,14 @@ export default function WishlistPage() {
       setIsLoadingProducts(true);
       setError(null);
       try {
-        const productIdsToFetch = [...wishlistItems]; // Create a mutable copy
+        const productIdsToFetch = [...wishlistItems];
         const fetchedProducts: Product[] = [];
 
-        // Firestore 'in' query can take up to 30 elements.
-        // Batch requests if more than 30 product IDs.
         while (productIdsToFetch.length > 0) {
-          const batch = productIdsToFetch.splice(0, 30); // Get next batch of 30
+          const batch = productIdsToFetch.splice(0, 30);
           if (batch.length > 0) {
             const productsRef = collection(db, 'products');
-            const q = query(productsRef, where(documentId(), 'in', batch)); // Use documentId() for querying by ID
+            const q = query(productsRef, where(documentId(), 'in', batch));
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(docSnap => {
               fetchedProducts.push({
@@ -76,17 +71,19 @@ export default function WishlistPage() {
       }
     };
 
-    if (!isLoadingWishlistContext && currentUser) { // Fetch only if context isn't loading and user exists
+    if (!isLoadingWishlistContext && currentUser) {
       fetchWishlistProducts();
-    } else if (!currentUser) { // If no user, ensure products are cleared
+    } else if (!currentUser) {
       setProducts([]);
       setIsLoadingProducts(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wishlistItems, currentUser, isLoadingWishlistContext]); // Depend on wishlistItems from context and currentUser
+  }, [wishlistItems, currentUser, isLoadingWishlistContext]);
 
   const handleRemoveFromWishlistPage = async (productId: string) => {
-    await removeFromWishlist(productId); // Context now handles Firestore update
+    if (!productId) return;
+    await removeFromWishlist(productId);
+    // The local products state will update via the useEffect that listens to wishlistItems
   };
 
   if (isLoadingWishlistContext || (currentUser && isLoadingProducts)) {
@@ -155,15 +152,17 @@ export default function WishlistPage() {
         {products.map((product) => (
           <div key={product.id} className="relative group">
             <ProductCard product={product} />
-            <Button
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 z-10"
-              onClick={() => handleRemoveFromWishlistPage(product.id)}
-              title="Remove from wishlist"
-            >
-              <HeartCrack className="h-4 w-4" />
-            </Button>
+            {isProductInWishlist(product.id) && (
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 z-10"
+                onClick={() => handleRemoveFromWishlistPage(product.id)}
+                title="Remove from wishlist"
+              >
+                <HeartCrack className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ))}
       </div>

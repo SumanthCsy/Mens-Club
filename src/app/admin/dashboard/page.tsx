@@ -1,52 +1,16 @@
 
 // @/app/admin/dashboard/page.tsx
-"use client";
+"use client"; // Keep as client component if it needs any client-side interactions or hooks
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, BellRing, Loader2 } from 'lucide-react';
-import { collection, query, where, onSnapshot, Unsubscribe } from "firebase/firestore";
-import { db } from '@/lib/firebase';
-// Order type is not directly used here for count, but good for context if we were fetching full orders
-// import type { Order } from '@/types'; 
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck } from 'lucide-react';
+// Removed AlertDialog related imports as global notification handles it now
+// Removed Firebase imports for pending orders as global notification handles it now
 
 export default function AdminDashboardPage() {
-  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
-  const [showPendingOrdersModal, setShowPendingOrdersModal] = useState(false);
-  const [isLoadingPendingOrders, setIsLoadingPendingOrders] = useState(true);
-
-  useEffect(() => {
-    const ordersRef = collection(db, "orders");
-    const q = query(ordersRef, where("status", "==", "Pending"));
-
-    const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const count = querySnapshot.size;
-      setPendingOrdersCount(count);
-      if (count > 0) {
-        setShowPendingOrdersModal(true); // Trigger modal if pending orders exist
-      }
-      setIsLoadingPendingOrders(false);
-    }, (error) => {
-      console.error("Error fetching pending orders:", error);
-      setIsLoadingPendingOrders(false);
-      // Optionally, show a toast or an error message on the dashboard itself
-    });
-
-    return () => unsubscribe(); // Cleanup listener on component unmount
-  }, []);
-
+  // Pending orders count and modal logic is now handled by GlobalAdminNotifications
 
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
@@ -61,7 +25,7 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">Admin Dashboard</h1>
             <p className="mt-3 text-lg text-muted-foreground">
-              Oversee and manage all aspects of your Mens Club Keshavapatnam store.
+              Oversee and manage all aspects of your Mens Club Keshavapatnam store. Pending order notifications will appear globally.
             </p>
           </div>
         </div>
@@ -100,17 +64,8 @@ export default function AdminDashboardPage() {
           <CardHeader>
              <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-semibold">Order Management</CardTitle>
-              <div className="relative">
-                <ListOrdered className="h-8 w-8 text-primary"/>
-                {!isLoadingPendingOrders && pendingOrdersCount > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground animate-pulse">
-                    {pendingOrdersCount}
-                  </span>
-                )}
-                 {isLoadingPendingOrders && ( // Small loader for the badge itself
-                    <Loader2 className="absolute -top-1 -right-1 h-4 w-4 text-primary animate-spin" />
-                 )}
-              </div>
+              {/* Badge for pending orders count removed as global notification handles alert */}
+              <ListOrdered className="h-8 w-8 text-primary"/>
             </div>
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
           </CardHeader>
@@ -221,36 +176,8 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Modal for Pending Orders Notification */}
-      {showPendingOrdersModal && pendingOrdersCount > 0 && !isLoadingPendingOrders && (
-        <AlertDialog open={showPendingOrdersModal} onOpenChange={setShowPendingOrdersModal}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <BellRing className="h-6 w-6 mr-2 text-primary animate-pulse" /> 
-                Pending Orders Notification
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                You have {pendingOrdersCount} order(s) with "Pending" status that require your attention.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowPendingOrdersModal(false)}>Dismiss</AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Link href="/admin/orders">View Orders</Link>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {/* Full-screen loader for initial pending orders count fetch */}
-       {isLoadingPendingOrders && (
-         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-            <Loader2 className="h-10 w-10 text-white animate-spin" />
-         </div>
-      )}
+      {/* Pending Orders Modal removed as it's handled globally */}
+      {/* Full-screen loader for initial pending orders count fetch removed */}
     </div>
   );
 }
