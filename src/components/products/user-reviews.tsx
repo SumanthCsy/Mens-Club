@@ -13,7 +13,7 @@ interface UserReviewsProps {
   reviews?: Review[];
   averageRating?: number;
   reviewCount?: number;
-  isAuthenticated: boolean; // New prop for auth status
+  isAuthenticated: boolean;
 }
 
 export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticated }: UserReviewsProps) {
@@ -25,13 +25,15 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <CardTitle className="text-2xl font-semibold">Customer Reviews</CardTitle>
-            {averageRating && reviewCount && reviewCount > 0 ? (
+            {(averageRating && typeof reviewCount === 'number' && reviewCount > 0) ? (
               <div className="flex items-center gap-2 mt-1">
                 <RatingStars rating={averageRating} size={20} />
                 <span className="text-muted-foreground text-sm">
                   {averageRating.toFixed(1)} average rating based on {reviewCount} reviews
                 </span>
               </div>
+            ) : (
+              <span className="text-sm text-muted-foreground mt-1">No reviews yet</span>
             )}
           </div>
           {isAuthenticated ? (
@@ -55,12 +57,12 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
       <CardContent>
         {hasReviews ? (
           <div className="space-y-6">
-            {reviews.map((review, index) => (
+            {reviews?.map((review, index) => (
               <div key={review.id}>
                 <div className="flex items-start space-x-4">
                   <Avatar className="h-10 w-10 border">
                     <AvatarImage src={review.avatarUrl} alt={review.author} data-ai-hint="person avatar"/>
-                    <AvatarFallback>{review.author.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{review.author?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
@@ -73,10 +75,10 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
                     <p className="text-sm text-foreground/90 leading-relaxed">{review.comment}</p>
                   </div>
                 </div>
-                {index < reviews.length - 1 && <Separator className="my-6" />}
+                {(reviews && index < reviews.length - 1) && <Separator className="my-6" />}
               </div>
             ))}
-             {reviews.length > 3 && ( // Example: Show more button if many reviews
+             {(reviews && reviews.length > 3) && ( 
               <Button variant="link" className="w-full mt-4">Show all reviews</Button>
             )}
           </div>
