@@ -8,14 +8,15 @@ import { format } from 'date-fns';
 
 /**
  * Generates an HTML string snippet for the invoice content, including styles.
- * This snippet is intended to be injected into a container div.
+ * This snippet is intended to be injected into a container div for modal preview.
+ * It returns ONLY the <style> block and the main content <div>.
  * @param order The order object.
  * @returns An HTML string (styles + content div).
  */
 export function generateInvoiceHTML(order: Order): string {
   const storeName = "Mens Club Keshavapatnam";
-  const storeAddress = "Main Road, Keshavapatnam, Telangana";
-  const storeContact = "Email: contact@mensclubkpm.com | Phone: +91 9876543210";
+  const storeAddress = "Main Road, Keshavapatnam, Telangana"; // Example
+  const storeContact = "Email: contact@mensclubkpm.com | Phone: +91 9876543210"; // Example
 
   const invoiceDate = order.createdAt ? format(new Date(order.createdAt), 'dd MMM yyyy') : 'N/A';
   const invoiceDateTime = order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A';
@@ -37,10 +38,11 @@ export function generateInvoiceHTML(order: Order): string {
     `;
   });
 
-  // HTML snippet for injection
+  // HTML snippet for injection (NO full <html>, <head>, <body> here)
+  // Outer padding is removed, will be handled by modal's ScrollArea wrapper
   const htmlSnippet = `
       <style>
-        .invoice-content-wrapper { font-family: 'Arial', sans-serif; color: #333; background-color: #fff; /* Removed padding from here */ }
+        .invoice-content-wrapper { font-family: 'Arial', sans-serif; color: #333; background-color: #fff; /* Removed outer padding */ }
         .invoice-content-wrapper .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .invoice-content-wrapper .header h1 { margin: 0; color: #333; font-size: 22px; }
         .invoice-content-wrapper .store-details p { margin: 2px 0; font-size: 11px; }
@@ -151,26 +153,13 @@ export function downloadHtmlInvoice(order: Order, invoiceHtmlSnippet: string) {
     return;
   }
 
-  // Wrap the snippet in a full HTML document structure for standalone download
-  const fullHtmlDocument = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Invoice #${order.id}</title>
-      ${/* The invoiceHtmlSnippet already contains its own <style> tag */''}
-    </head>
-    <body>
-      ${invoiceHtmlSnippet.substring(invoiceHtmlSnippet.indexOf('<style>'))} 
-      ${/* Ensure only the style and the content div are rendered, not duplicating head/body */}
-    </body>
-    </html>
-  `.replace(/<style>[\s\S]*?<\/style>/, invoiceHtmlSnippet.match(/<style>[\s\S]*?<\/style>/)?.[0] || ''); // A bit hacky to ensure styles are in head
+  // Extract <style>...</style> block
+  const styleMatch = invoiceHtmlSnippet.match(/<style>([\s\S]*?)<\/style>/);
+  const styleContent = styleMatch ? styleMatch[0] : '<style></style>'; // Includes the <style> tags
 
-  // A cleaner way to structure fullHtmlDocument:
-  const styleContent = invoiceHtmlSnippet.substring(invoiceHtmlSnippet.indexOf('<style>'), invoiceHtmlSnippet.indexOf('</style>') + '</style>'.length);
-  const bodyContent = invoiceHtmlSnippet.substring(invoiceHtmlSnippet.indexOf('</style>') + '</style>'.length);
+  // Extract content after the first </style> tag, which should be the main invoice <div>
+  const bodyContentStartIndex = invoiceHtmlSnippet.indexOf('</style>') + '</style>'.length;
+  const bodyContent = invoiceHtmlSnippet.substring(bodyContentStartIndex).trim();
   
   const finalHtmlDocument = `
     <!DOCTYPE html>
@@ -187,7 +176,6 @@ export function downloadHtmlInvoice(order: Order, invoiceHtmlSnippet: string) {
     </html>
   `;
 
-
   const blob = new Blob([finalHtmlDocument], { type: 'text/html' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -203,6 +191,3 @@ export function downloadHtmlInvoice(order: Order, invoiceHtmlSnippet: string) {
     duration: 8000,
   });
 }
-
-// Old generateInvoicePdf function is effectively replaced by the modal view and downloadHtmlInvoice.
-// True PDF generation remains a future enhancement using libraries like jsPDF.
