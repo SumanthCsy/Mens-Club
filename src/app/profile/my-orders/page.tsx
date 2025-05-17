@@ -1,10 +1,11 @@
+
 // @/app/profile/my-orders/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye, XCircle } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
@@ -24,6 +25,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { OrderCancellationFormModal } from '@/components/orders/OrderCancellationFormModal';
 
@@ -35,9 +37,13 @@ export default function MyOrdersPage() {
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
+  
+  // States for cancellation flow
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
   const [isCancelFormOpen, setIsCancelFormOpen] = useState(false);
-  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [isShippedCancelInfoOpen, setIsShippedCancelInfoOpen] = useState(false);
+
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -134,12 +140,24 @@ export default function MyOrdersPage() {
 
   const handleRequestCancellation = (order: Order) => {
     setOrderToCancel(order);
-    setIsConfirmCancelOpen(true);
+    if (order.status === 'Shipped' || order.status === 'Delivered') {
+      setIsShippedCancelInfoOpen(true);
+    } else if (order.status === 'Pending' || order.status === 'Processing') {
+      setIsConfirmCancelOpen(true);
+    }
   };
 
   const proceedToCancellationForm = () => {
     setIsConfirmCancelOpen(false);
-    setIsCancelFormOpen(true);
+    if (orderToCancel) {
+      setIsCancelFormOpen(true);
+    }
+  };
+
+  const getWhatsAppCancellationLink = (orderId: string | undefined) => {
+    if (!orderId) return "#";
+    const message = encodeURIComponent(`I want to cancel my order ${orderId}`);
+    return `https://wa.me/919391157177?text=${message}`;
   };
 
 
@@ -253,7 +271,7 @@ export default function MyOrdersPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleRequestCancellation(order)}
-                    disabled={!(order.status === 'Pending' || order.status === 'Processing')}
+                    disabled={order.status === 'Cancelled'}
                     className={ (order.status === 'Pending' || order.status === 'Processing') ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}
                  >
                    <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
@@ -263,7 +281,7 @@ export default function MyOrdersPage() {
           ))}
         </div>
       )}
-       {orders.length > 5 && ( // Only show pagination if there are more than 5 orders
+       {orders.length > 5 && (
         <div className="mt-12 flex justify-center">
           <div className="flex gap-2">
             <Button variant="outline" disabled>Previous</Button>
@@ -286,35 +304,68 @@ export default function MyOrdersPage() {
             order={selectedOrderForInvoice} 
         />
       )}
-      {orderToCancel && (
-        <>
-          <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Order Cancellation Request</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to request cancellation for Order #{orderToCancel.id}?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setOrderToCancel(null)}>Back</AlertDialogCancel>
-                <AlertDialogAction onClick={proceedToCancellationForm} className="bg-destructive hover:bg-destructive/90">
-                  Continue
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
 
-          <OrderCancellationFormModal
-            isOpen={isCancelFormOpen}
-            onClose={() => {
-              setIsCancelFormOpen(false);
-              setOrderToCancel(null);
-            }}
-            order={orderToCancel}
-          />
-        </>
+      {/* Confirmation Dialog for Cancellable Orders */}
+      {orderToCancel && (orderToCancel.status === 'Pending' || orderToCancel.status === 'Processing') && (
+        <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Order Cancellation Request</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to request cancellation for Order #{orderToCancel.id}?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setOrderToCancel(null)}>Back</AlertDialogCancel>
+              <AlertDialogAction onClick={proceedToCancellationForm} className="bg-destructive hover:bg-destructive/90">
+                Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Dialog for Already Shipped/Delivered Orders */}
+      {orderToCancel && (orderToCancel.status === 'Shipped' || orderToCancel.status === 'Delivered') && (
+         <AlertDialog open={isShippedCancelInfoOpen} onOpenChange={(open) => { if(!open) setOrderToCancel(null); setIsShippedCancelInfoOpen(open);}}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Order Already Shipped</AlertDialogTitle>
+              <AlertDialogDescription>
+                OH Sorry! Your order <span className="font-semibold text-primary">#{orderToCancel.id}</span> is already {orderToCancel.status.toLowerCase()}.
+                Still want to cancel? Please contact us now.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4">
+               <Button asChild variant="outline" className="w-full sm:w-auto">
+                <a href={`tel:+919391157177`}>
+                  <Phone className="mr-2 h-4 w-4" /> Call Us
+                </a>
+              </Button>
+              <Button asChild className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white">
+                <a href={getWhatsAppCancellationLink(orderToCancel.id)} target="_blank" rel="noopener noreferrer">
+                  <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp Us
+                </a>
+              </Button>
+              <AlertDialogCancel onClick={() => setOrderToCancel(null)} className="w-full sm:w-auto mt-2 sm:mt-0">Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+      
+      {/* Cancellation Form Modal (Remains the same, shown only if orderToCancel is set and form is triggered) */}
+      {orderToCancel && isCancelFormOpen && (
+        <OrderCancellationFormModal
+          isOpen={isCancelFormOpen}
+          onClose={() => {
+            setIsCancelFormOpen(false);
+            setOrderToCancel(null);
+          }}
+          order={orderToCancel}
+        />
       )}
     </div>
   );
 }
+
+
