@@ -82,7 +82,7 @@ export function Footer() {
               className="
                 relative overflow-hidden
                 text-primary hover:underline
-                inline-block
+                inline-block align-baseline
                 before:absolute before:inset-0
                 before:-translate-x-full
                 before:animate-shimmer
