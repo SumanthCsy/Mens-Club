@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, ShoppingCart, Package, LogOut, Edit3, Trash2, Loader2, Settings, ArrowLeft } from 'lucide-react'; // Added Settings
+import { User, ShoppingCart, Package, LogOut, Edit3, Trash2, Loader2, Settings, ArrowLeft, MapPin } from 'lucide-react'; // Added MapPin
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -35,35 +35,51 @@ export default function ProfilePage() {
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setIsLoading(true); // Set loading true at the start of auth check
       if (user) {
         setCurrentUser(user);
         const userDocRef = doc(db, "users", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (userDocSnap.exists()) {
-          const fetchedUserData = userDocSnap.data() as UserData;
-          if (fetchedUserData.role === 'admin') {
-            router.replace('/admin/dashboard'); 
+        try {
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const fetchedUserData = userDocSnap.data() as UserData;
+            if (fetchedUserData.role === 'admin') {
+              router.replace('/admin/dashboard'); 
+              // No need to setIsLoading(false) here as redirect will unmount
+              return; 
+            } else {
+              setUserData({ uid: user.uid, ...fetchedUserData });
+            }
           } else {
-            setUserData({ uid: user.uid, ...fetchedUserData });
-          }
-        } else {
-          toast({
-            title: "Profile Error",
-            description: "Could not load your profile data.",
-            variant: "destructive",
-          });
-          // Fallback for users who authenticated but have no Firestore doc (should ideally not happen in normal flow)
-           setUserData({
+             // Fallback for users who authenticated but have no Firestore doc
+             // This scenario should ideally be handled during signup more robustly
+            setUserData({
               uid: user.uid,
-              email: user.email || "Not available",
+              email: user.email || "N/A",
               fullName: user.displayName || "User",
               role: "user",
               memberSince: user.metadata.creationTime || new Date().toISOString(),
             });
+            console.warn("User document not found in Firestore for UID:", user.uid);
+            // Optionally toast if critical profile data is missing
+            // toast({ title: "Profile Incomplete", description: "Some profile details may be missing.", variant: "default" });
+          }
+        } catch (error) {
+          console.error("Error fetching user data for profile:", error);
+          toast({ title: "Profile Load Error", description: "Could not load your profile details.", variant: "destructive" });
+          // Fallback if Firestore fetch fails
+          setUserData({
+            uid: user.uid,
+            email: user.email || "N/A",
+            fullName: user.displayName || "User",
+            role: "user",
+            memberSince: user.metadata.creationTime || new Date().toISOString(),
+          });
         }
       } else {
-        router.replace('/login');
+        router.replace('/login?redirect=/profile');
+        // No need to setIsLoading(false) here as redirect will unmount
+        return;
       }
       setIsLoading(false);
     });
@@ -77,8 +93,11 @@ export default function ProfilePage() {
         title: "Logged Out",
         description: "You have been successfully logged out.",
       });
+      setCurrentUser(null);
+      setUserData(null);
       router.push('/login'); 
     } catch (error) {
+      console.error("Error logging out:", error);
       toast({
         title: "Logout Failed",
         description: "There was an issue logging out. Please try again.",
@@ -95,8 +114,8 @@ export default function ProfilePage() {
     setIsDeletingAccount(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
-      await deleteDoc(userDocRef); // Delete Firestore document
-      await deleteUser(currentUser); // Delete Auth user
+      await deleteDoc(userDocRef); 
+      await deleteUser(currentUser); 
       
       toast({
         title: "Account Deleted",
@@ -115,7 +134,7 @@ export default function ProfilePage() {
         toast({
           title: "Re-authentication Required",
           description: "Please log out and log back in to delete your account.",
-          variant: "default", // Changed from destructive to default for this specific info
+          variant: "default",
           duration: 7000,
         });
       }
@@ -124,7 +143,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (isLoading || !userData) {
+  if (isLoading || !userData) { // Added !userData check to ensure userData is loaded before rendering
     return (
       <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -133,10 +152,12 @@ export default function ProfilePage() {
     );
   }
   
+  // This check should ideally be handled by the redirect in useEffect, but as a fallback:
   if (userData.role === 'admin') {
     return (
         <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
-            <p>Redirecting to admin dashboard...</p>
+            <p className="text-lg text-muted-foreground">Redirecting to admin dashboard...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-primary mt-4 mx-auto" />
         </div>
     );
   }
@@ -153,7 +174,6 @@ export default function ProfilePage() {
       <Card className="shadow-xl border border-border/60">
         <CardHeader className="pb-6 text-center sm:text-left">
            <div className="flex flex-col items-center sm:items-start gap-2">
-             <User className="h-16 w-16 text-primary mb-3 sm:hidden" /> {/* Centered icon for mobile */}
             <CardTitle className="text-3xl font-bold text-foreground">{userData.fullName || 'User Profile'}</CardTitle>
             <CardDescription className="text-lg text-muted-foreground">{userData.email}</CardDescription>
             <p className="text-sm text-muted-foreground mt-1">
@@ -178,13 +198,18 @@ export default function ProfilePage() {
                 <Package className="mr-3 h-5 w-5" /> My Orders
               </Link>
             </Button>
+            <Button variant="outline" asChild className="justify-start text-base py-6 h-auto">
+              <Link href="/checkout"> {/* Link "Manage Address" to checkout */}
+                <MapPin className="mr-3 h-5 w-5" /> Manage Address
+              </Link>
+            </Button>
              <Button variant="outline" asChild className="justify-start text-base py-6 h-auto">
               <Link href="/cart">
                 <ShoppingCart className="mr-3 h-5 w-5" /> My Cart
               </Link>
             </Button>
              <Button variant="outline" asChild className="justify-start text-base py-6 h-auto" disabled>
-              <Link href="#"> {/* Placeholder: /profile/settings or similar */}
+              <Link href="#"> 
                 <Settings className="mr-3 h-5 w-5" /> Account Settings (Soon)
               </Link>
             </Button>
