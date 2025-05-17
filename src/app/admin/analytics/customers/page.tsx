@@ -5,7 +5,15 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, PieChart } from 'lucide-react'; // Using PieChart as a placeholder icon
+import { ArrowLeft, PieChart, Users, UserPlus, ShoppingCart, Repeat } from 'lucide-react';
+
+// Mock data for demonstration - replace with actual data fetching
+const customerMetrics = [
+  { title: "Total Customers", value: "1,820", icon: Users, trend: "+50 this month" },
+  { title: "New Sign-ups", value: "120", icon: UserPlus, trend: "+10% from last month" },
+  { title: "Repeat Customers", value: "450", icon: Repeat, trend: "25% of total" },
+  { title: "Average Orders per Customer", value: "3.2", icon: ShoppingCart, trend: "Lifetime" },
+];
 
 export default function AdminCustomerReportsPage() {
   return (
@@ -25,16 +33,31 @@ export default function AdminCustomerReportsPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {customerMetrics.map((metric) => (
+          <Card key={metric.title} className="shadow-lg border-border/60">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+              <metric.icon className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metric.value}</div>
+              <p className="text-xs text-muted-foreground">{metric.trend}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
        <Card className="shadow-lg border-border/60">
         <CardHeader>
-            <CardTitle>Customer Insights</CardTitle>
-            <CardDescription>Understand your customer base better with data on demographics, purchase history, and engagement.</CardDescription>
+            <CardTitle>Customer Demographics & Behavior</CardTitle>
+            <CardDescription>Understand your customer base better with data on demographics, purchase history, and engagement. (Chart placeholder)</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="text-center py-10">
-                <PieChart className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-lg">Customer reports feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Check back soon for detailed customer analytics!</p>
+            <div className="text-center py-20 bg-muted/30 rounded-md">
+                <PieChart className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-lg">Customer demographics chart would be displayed here.</p>
+                <p className="text-sm text-muted-foreground">Data on location, age, purchase frequency, etc.</p>
             </div>
         </CardContent>
       </Card>
