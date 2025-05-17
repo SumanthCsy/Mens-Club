@@ -126,7 +126,8 @@ export default function CheckoutPage() {
       email: shippingData.email,
     };
 
-    const orderToSave: Omit<Order, 'id'> = {
+    // Construct the object for Firestore with only the fields relevant for a new order
+    const newOrderPayload = {
       userId: currentUser.uid,
       customerEmail: shippingData.email,
       items: orderItemsForDb,
@@ -135,16 +136,19 @@ export default function CheckoutPage() {
       grandTotal: grandTotal,
       shippingAddress: shippingAddressForDb,
       paymentMethod: selectedPaymentMethod,
-      status: 'Pending',
+      status: 'Pending' as Order['status'], // Explicitly type status
       createdAt: serverTimestamp(),
-      cancellationReason: undefined,
-      cancelledBy: undefined,
+      discount: null, // Explicitly set discount to null if no discount is applied for new orders
+      // `cancellationReason` and `cancelledBy` are intentionally omitted here
+      // as they are not set when an order is first created. They are optional fields in the Order type.
     };
 
-    console.log("Attempting to save order:", JSON.stringify(orderToSave, null, 2));
+    console.log("Attempting to save order with payload:", JSON.stringify(newOrderPayload, null, 2));
 
     try {
-      const docRef = await addDoc(collection(db, "orders"), orderToSave);
+      // Pass the newOrderPayload which explicitly omits optional fields not set at creation
+      const docRef = await addDoc(collection(db, "orders"), newOrderPayload);
+      
       toast({
         title: "Order Placed Successfully!",
         description: (
@@ -158,20 +162,18 @@ export default function CheckoutPage() {
             View Order
           </Button>
         ),
-        duration: 10000, // Keep toast longer to allow clicking "View Order"
+        duration: 10000,
       });
 
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
         await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb });
       }
-
-      // Admin email notification removed as per request.
-
+      
       clearCart();
-      router.push(`/profile/my-orders/${docRef.id}`); // Redirect to the new order's detail page
+      router.push(`/profile/my-orders/${docRef.id}`); 
     } catch (error: any) {
-      console.error("Data being sent to Firestore for order save:", JSON.stringify(orderToSave, null, 2));
+      console.error("Data being sent to Firestore for order save:", JSON.stringify(newOrderPayload, null, 2));
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       console.error("Firebase error code:", error.code);
       console.error("Firebase error message:", error.message);
@@ -259,3 +261,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
