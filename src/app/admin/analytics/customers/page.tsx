@@ -1,3 +1,4 @@
+
 // @/app/admin/analytics/customers/page.tsx
 "use client";
 
@@ -15,8 +16,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, PieChart, AlertTriangle, RefreshCcw, Loader2 } from 'lucide-react';
+import { ArrowLeft, PieChart, RefreshCcw, Loader2, Users, UserPlus, BarChartHorizontalBig } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 export default function AdminCustomerReportsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -36,6 +38,12 @@ export default function AdminCustomerReportsPage() {
     setShowResetConfirm(false);
   };
 
+  const placeholderMetrics = [
+    { title: "Total Customers", value: "0", icon: Users, hint: "Overall number of registered users" },
+    { title: "New Signups (Last 30d)", value: "0", icon: UserPlus, hint: "Customers joined recently" },
+    { title: "Returning Customers", value: "0%", icon: BarChartHorizontalBig, hint: "Percentage of repeat buyers" },
+  ];
+
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="mb-8">
@@ -53,23 +61,62 @@ export default function AdminCustomerReportsPage() {
         </div>
       </div>
 
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {placeholderMetrics.map((metric) => (
+          <Card key={metric.title} className="shadow-md border-border/60 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{metric.title}</CardTitle>
+              <metric.icon className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{metric.value}</div>
+              <p className="text-xs text-muted-foreground pt-1">{metric.hint}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
        <Card className="shadow-lg border-border/60">
         <CardHeader>
             <CardTitle>Customer Demographics & Behavior</CardTitle>
             <CardDescription>Understand your customer base better with data on demographics, purchase history, and engagement. (Data & Chart Integration Pending)</CardDescription>
         </CardHeader>
         <CardContent>
-             <div className="text-center py-10">
-                <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-lg">Customer reports feature is under development.</p>
-                <p className="text-sm text-muted-foreground">Detailed customer analytics, segmentation, and lifetime value metrics will be available here soon.</p>
+             <div className="min-h-[300px] flex items-center justify-center bg-muted/30 rounded-md border border-dashed border-border/50">
+                <p className="text-muted-foreground text-lg">Customer Demographics Chart Placeholder</p>
+            </div>
+            <Separator className="my-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Signups</CardTitle>
+                  <CardDescription>Newest members of your store. (Data Pending)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <p className="text-sm text-muted-foreground">user1@example.com</p>
+                   <p className="text-sm text-muted-foreground">user2@example.com</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/50">
+                 <CardHeader>
+                  <CardTitle className="text-lg">Top Customers</CardTitle>
+                  <CardDescription>Customers with highest purchase value or frequency. (Data Pending)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <p className="text-sm text-muted-foreground">customerA@example.com - ₹0.00</p>
+                   <p className="text-sm text-muted-foreground">customerB@example.com - ₹0.00</p>
+                </CardContent>
+              </Card>
             </div>
         </CardContent>
-        <CardFooter className="border-t pt-6">
+        <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <Button variant="outline" onClick={() => setShowResetConfirm(true)} disabled={isResetting}>
             {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
             Reset Customer Reports (Simulated)
           </Button>
+           <p className="text-xs text-muted-foreground text-center sm:text-right">
+            Note: Live analytics require backend data integration and processing.
+          </p>
         </CardFooter>
       </Card>
 
