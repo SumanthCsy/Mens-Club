@@ -1,7 +1,8 @@
 
 // @/components/layout/footer.tsx
 import Link from 'next/link';
-import { Facebook, Instagram, Twitter, Shirt, Phone, MessageSquare } from 'lucide-react'; // Added Phone and MessageSquare (for WhatsApp)
+import Image from 'next/image'; // Import Image component
+import { Facebook, Instagram, Twitter, Phone, MessageSquare } from 'lucide-react'; // Removed Shirt
 
 export function Footer() {
   const whatsappNumber = "919391157177"; // Your WhatsApp number with country code, no '+' or spaces
@@ -13,7 +14,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Shirt className="h-8 w-8 text-primary" />
+              <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-8 w-8" />
               <span className="font-bold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
                 Mens Club
               </span>

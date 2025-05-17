@@ -3,7 +3,8 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, Shirt, LogOut, Shield, Loader2, Heart } from 'lucide-react'; // Added Heart
+import Image from 'next/image'; // Import Image component
+import { ShoppingCart, User, Menu, Home, Store, LogIn, UserPlus, LogOut, Shield, Loader2, Heart } from 'lucide-react'; // Removed Shirt
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { usePathname, useRouter } from 'next/navigation';
@@ -16,7 +17,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { UserData } from '@/types';
 import { useCart } from '@/context/cart-context';
-import { useWishlist } from '@/context/wishlist-context'; // Import useWishlist
+import { useWishlist } from '@/context/wishlist-context';
 
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
@@ -28,7 +29,7 @@ export function Navbar() {
   const router = useRouter();
   const { toast } = useToast();
   const { cartCount } = useCart();
-  const { wishlistCount } = useWishlist(); // Get wishlistCount
+  const { wishlistCount } = useWishlist();
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [currentUserData, setCurrentUserData] = useState<UserData | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -93,7 +94,7 @@ export function Navbar() {
 
   const accountLinksLoggedInBase = [
     {
-      href: '/wishlist', // Add wishlist link
+      href: '/wishlist',
       label: 'Wishlist',
       icon: Heart,
     }
@@ -119,7 +120,7 @@ export function Navbar() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
            <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-            <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+            <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-6 w-6 sm:h-7 sm:w-7" />
             <span className="font-bold text-lg xxs:text-xl xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
               Mens Club
             </span>
@@ -136,7 +137,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-          <Shirt className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+          <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-6 w-6 sm:h-7 sm:w-7" />
           <span className="font-bold text-lg xxs:text-xl xs:text-xl sm:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
             Mens Club
           </span>
@@ -217,7 +218,7 @@ export function Navbar() {
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">
-                  <Shirt className="h-7 w-7 text-primary" />
+                  <Image src="/mclogo.jpg" alt="Mens Club Logo" width={32} height={32} className="h-7 w-7" />
                   <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500">
                     Mens Club
                   </span>
