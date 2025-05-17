@@ -1,11 +1,10 @@
-
 // @/app/profile/my-orders/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy, Eye, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
@@ -15,7 +14,18 @@ import type { Order, OrderItem } from '@/types';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
-import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal'; // Import the new modal
+import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { OrderCancellationFormModal } from '@/components/orders/OrderCancellationFormModal';
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -25,6 +35,9 @@ export default function MyOrdersPage() {
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<Order | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
+  const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
+  const [isCancelFormOpen, setIsCancelFormOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -117,6 +130,16 @@ export default function MyOrdersPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleRequestCancellation = (order: Order) => {
+    setOrderToCancel(order);
+    setIsConfirmCancelOpen(true);
+  };
+
+  const proceedToCancellationForm = () => {
+    setIsConfirmCancelOpen(false);
+    setIsCancelFormOpen(true);
   };
 
 
@@ -219,15 +242,21 @@ export default function MyOrdersPage() {
                   ))}
                 </ul>
               </CardContent>
-              <CardFooter className="pt-4 flex flex-col sm:flex-row gap-2 justify-end">
+              <CardFooter className="pt-4 flex flex-wrap gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => handleViewInvoice(order)}>
                   <Eye className="mr-2 h-4 w-4" /> View Invoice
                 </Button>
                 <Button size="sm" onClick={() => openTrackingModal(order)} disabled={order.status === 'Cancelled'}>
                   <TruckIcon className="mr-2 h-4 w-4" /> Track Order
                 </Button>
-                 <Button variant="outline" size="sm" disabled className="border-destructive text-destructive hover:bg-destructive/10">
-                   Request Cancellation (Soon)
+                 <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleRequestCancellation(order)}
+                    disabled={!(order.status === 'Pending' || order.status === 'Processing')}
+                    className={ (order.status === 'Pending' || order.status === 'Processing') ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}
+                 >
+                   <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
                 </Button>
               </CardFooter>
             </Card>
@@ -257,7 +286,35 @@ export default function MyOrdersPage() {
             order={selectedOrderForInvoice} 
         />
       )}
+      {orderToCancel && (
+        <>
+          <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Order Cancellation Request</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to request cancellation for Order #{orderToCancel.id}?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setOrderToCancel(null)}>Back</AlertDialogCancel>
+                <AlertDialogAction onClick={proceedToCancellationForm} className="bg-destructive hover:bg-destructive/90">
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <OrderCancellationFormModal
+            isOpen={isCancelFormOpen}
+            onClose={() => {
+              setIsCancelFormOpen(false);
+              setOrderToCancel(null);
+            }}
+            order={orderToCancel}
+          />
+        </>
+      )}
     </div>
   );
 }
-
