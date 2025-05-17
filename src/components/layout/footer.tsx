@@ -80,16 +80,7 @@ export function Footer() {
               href="https://sumanthcsy.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="
-                font-medium text-primary hover:underline
-                relative overflow-hidden inline-block align-baseline
-                before:absolute before:inset-0
-                before:-translate-x-full
-                before:animate-shimmer
-                before:bg-gradient-to-r
-                before:from-transparent before:via-white/60 dark:before:via-white/20 before:to-transparent
-                focus:outline-none focus:ring-1 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-background rounded-sm
-              "
+              className="font-medium text-primary hover:underline"
             >
               Sumanth Csy
             </a>
