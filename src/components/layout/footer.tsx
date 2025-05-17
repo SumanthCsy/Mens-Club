@@ -14,7 +14,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <Link href="/" className="flex items-center space-x-2 mb-4">
-              <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8" />
+              <Image src="/mclogo.png" alt="Mens Club Logo" width={48} height={48} className="h-10 w-10" />
             </Link>
             <p className="text-sm text-muted-foreground">
               Keshavapatnam's finest collection for gentlemen.

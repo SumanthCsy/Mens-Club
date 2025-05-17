@@ -120,7 +120,7 @@ export function Navbar() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
            <Link href="/" className="flex items-center space-x-2 mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-            <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9" />
+            <Image src="/mclogo.png" alt="Mens Club Logo" width={48} height={48} className="h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12" />
           </Link>
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -134,7 +134,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center mr-2 xxs:mr-1 xs:mr-2 sm:mr-4 md:mr-6">
-          <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10" />
+          <Image src="/mclogo.png" alt="Mens Club Logo" width={48} height={48} className="h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12" />
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
@@ -212,7 +212,7 @@ export function Navbar() {
              <SheetClose asChild>
               <div className="p-6">
                 <Link href="/" className="flex items-center space-x-2 mb-6">
-                  <Image src="/mclogo.png" alt="Mens Club Logo" width={32} height={32} className="h-7 w-7" />
+                  <Image src="/mclogo.png" alt="Mens Club Logo" width={40} height={40} className="h-8 w-8" />
                 </Link>
                 <nav className="flex flex-col space-y-1">
                   {navLinks.map((link) => (
