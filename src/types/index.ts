@@ -84,7 +84,8 @@ export interface Order {
   paymentMethod: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   createdAt: any; // Firestore ServerTimestamp, will be resolved to Timestamp
-  cancellationReason?: string; // New field
-  cancelledBy?: 'user' | 'admin'; // New field
+  cancellationReason?: string; 
+  cancelledBy?: 'user' | 'store'; // Changed from 'admin' to 'store'
   // Potentially other fields like orderNotes, trackingNumber etc.
 }
+

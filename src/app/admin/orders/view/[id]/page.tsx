@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
 import { InvoiceViewModal } from '@/components/orders/InvoiceViewModal';
-import { AdminOrderCancellationModal } from '@/components/admin/AdminOrderCancellationModal'; // New Modal
+import { AdminOrderCancellationModal } from '@/components/admin/AdminOrderCancellationModal'; 
 
 export default function AdminViewOrderDetailsPage() {
   const params = useParams();
@@ -117,15 +117,15 @@ export default function AdminViewOrderDetailsPage() {
     setIsUpdatingStatus(true);
     try {
       const orderRef = doc(db, "orders", orderToCancelAdmin.id);
-      const cancellationDetails = {
+      const cancellationDetails: Partial<Order> = { // Ensure type safety
         status: 'Cancelled' as Order['status'],
         cancellationReason: remarks || reason,
-        cancelledBy: 'admin' as Order['cancelledBy'],
+        cancelledBy: 'store' as Order['cancelledBy'], // Changed 'admin' to 'store'
       };
       await updateDoc(orderRef, cancellationDetails);
       setOrder(prevOrder => prevOrder ? { ...prevOrder, ...cancellationDetails } : null);
       toast({
-        title: "Order Cancelled by Admin",
+        title: "Order Cancelled by Store",
         description: `Order ${orderToCancelAdmin.id} has been cancelled. Reason: ${reason}`,
       });
       setIsAdminCancelModalOpen(false);
@@ -245,7 +245,7 @@ export default function AdminViewOrderDetailsPage() {
             </CardHeader>
             <CardContent>
                 <p><strong>Reason:</strong> {order.cancellationReason}</p>
-                {order.cancelledBy && <p><strong>Cancelled By:</strong> {order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1)}</p>}
+                {order.cancelledBy && <p><strong>Cancelled By:</strong> {order.cancelledBy === 'store' ? 'Store' : (order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1))}</p>}
             </CardContent>
         </Card>
     )}

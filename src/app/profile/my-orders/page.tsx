@@ -257,7 +257,7 @@ export default function MyOrdersPage() {
                             <Info className="h-4 w-4 mt-0.5 shrink-0" />
                             <p>
                                 <strong>Cancellation Reason:</strong> {order.cancellationReason}
-                                {order.cancelledBy && ` (By ${order.cancelledBy})`}
+                                {order.cancelledBy && ` (By ${order.cancelledBy === 'store' ? 'Store' : (order.cancelledBy.charAt(0).toUpperCase() + order.cancelledBy.slice(1))})`}
                             </p>
                         </div>
                     </div>
@@ -286,7 +286,7 @@ export default function MyOrdersPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleRequestCancellation(order)}
-                    disabled={order.status === 'Cancelled' || order.status === 'Delivered'} // Also disable for delivered for now
+                    disabled={order.status === 'Cancelled' || order.status === 'Delivered'} 
                     className={ (order.status === 'Pending' || order.status === 'Processing') ? "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" : ""}
                  >
                    <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
