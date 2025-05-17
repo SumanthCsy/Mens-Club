@@ -35,34 +35,38 @@ export default function OrderSuccessPage() {
         <CheckCircle
           className={cn(
             "mx-auto h-full w-full text-green-500 transition-all duration-700 ease-out",
-            isIconAnimated 
-              ? "scale-100 opacity-100 animate-pulse" 
+            isIconAnimated
+              ? "scale-100 opacity-100" // Removed animate-pulse
               : "scale-50 opacity-0" // Initial state for pop-in animation
           )}
         />
       </div>
-      <h1 className="text-3xl md:text-4xl font-extrabold text-green-600 mb-4">
-        Order Successful!
-      </h1>
-      <p className="text-lg text-foreground mb-2">
-        Thank you for your purchase.
-      </p>
-      <p className="text-md text-muted-foreground mb-8">
-        Your Order ID is: <span className="font-semibold text-primary break-all">{orderId || 'N/A'}</span>
-      </p>
-      
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-        <Button asChild size="lg" className="flex-1 text-base">
-          <Link href={`/profile/my-orders/${orderId}`}>
-            View Order Details
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="lg" className="flex-1 text-base">
-          <Link href="/products">
-            <ShoppingBag className="mr-2 h-5 w-5" /> Continue Shopping
-          </Link>
-        </Button>
+      {/* Ensure this block of text content is always visible and not affected by icon animation */}
+      <div className="opacity-100"> {/* Explicitly set opacity for the text block */}
+        <h1 className="text-3xl md:text-4xl font-extrabold text-green-600 mb-4">
+          Order Successful!
+        </h1>
+        <p className="text-lg text-foreground mb-2">
+          Thank you for your purchase.
+        </p>
+        <p className="text-md text-muted-foreground mb-8">
+          Your Order ID is: <span className="font-semibold text-primary break-all">{orderId || 'N/A'}</span>
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+          <Button asChild size="lg" className="flex-1 text-base">
+            <Link href={`/profile/my-orders/${orderId}`}>
+              View Order Details
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="flex-1 text-base">
+            <Link href="/products">
+              <ShoppingBag className="mr-2 h-5 w-5" /> Continue Shopping
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
+
