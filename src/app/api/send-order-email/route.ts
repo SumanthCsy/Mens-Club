@@ -9,29 +9,34 @@ export async function POST(request: NextRequest) {
     const { orderId, customerEmail, grandTotal, adminEmail } = body;
 
     if (!orderId || !customerEmail || typeof grandTotal !== 'number' || !adminEmail) {
-      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ message: 'Missing required fields in request body for email notification.' }, { status: 400 });
     }
 
     // Call the Genkit flow
-    const result = await sendOrderNotificationEmail({ 
-        orderId, 
-        customerEmail, 
+    const result = await sendOrderNotificationEmail({
+        orderId,
+        customerEmail,
         grandTotal,
-        adminEmail 
+        adminEmail
     });
 
     if (result.emailSent) {
       return NextResponse.json({ message: result.message, details: result.emailDetails }, { status: 200 });
     } else {
-      return NextResponse.json({ message: result.message }, { status: 500 });
+      // This case is currently not reached by the flow, but kept for completeness
+      return NextResponse.json({ message: result.message || "Genkit flow indicated email was not sent.", error: "Flow execution issue during email preparation." }, { status: 500 });
     }
 
   } catch (error) {
-    console.error('API error sending order email:', error);
-    let errorMessage = 'Internal Server Error';
+    console.error('API error sending order email notification:', error);
+    let errorMessage = 'Internal Server Error while preparing email notification.';
     if (error instanceof Error) {
         errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    } else {
+        errorMessage = 'An unknown error occurred in the email notification API.';
     }
-    return NextResponse.json({ message: 'Failed to process email notification', error: errorMessage }, { status: 500 });
+    return NextResponse.json({ message: 'Failed to process email notification via API.', error: errorMessage }, { status: 500 });
   }
 }

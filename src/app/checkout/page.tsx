@@ -37,7 +37,6 @@ export default function CheckoutPage() {
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data() as UserData;
           if (userData.defaultShippingAddress) {
-            // Ensure all fields from defaultShippingAddress are mapped, providing defaults for missing ones
             prefillData = {
               ...prefillData,
               fullName: userData.defaultShippingAddress.fullName || '',
@@ -48,16 +47,13 @@ export default function CheckoutPage() {
               postalCode: userData.defaultShippingAddress.postalCode || '',
               country: userData.defaultShippingAddress.country || 'India',
               phoneNumber: userData.defaultShippingAddress.phoneNumber || '',
-              // Ensure email from shipping address takes precedence if available, else auth email
-              email: userData.defaultShippingAddress.email || user.email || '', 
+              email: userData.defaultShippingAddress.email || user.email || '',
             };
           }
         }
         setInitialShippingData(prefillData);
       } else {
         setCurrentUser(null);
-        // Optionally redirect to login if user is not authenticated for checkout
-        // router.push('/login?redirect=/checkout');
       }
     });
     return () => unsubscribe();
@@ -104,7 +100,7 @@ export default function CheckoutPage() {
       toast({ title: "Payment Method Required", description: "Please select a payment method.", variant: "destructive" });
       return;
     }
-    
+
     setIsPlacingOrder(true);
 
     const orderItemsForDb: OrderItem[] = cartItems.map(item => ({
@@ -113,26 +109,26 @@ export default function CheckoutPage() {
       quantity: item.quantity,
       price: item.price,
       selectedSize: item.selectedSize,
-      selectedColor: item.selectedColor || null, // Ensure null if undefined
-      imageUrl: item.imageUrl || 'https://placehold.co/100x133.png', // Fallback if not present
-      sku: item.sku || null, // Ensure null if undefined
+      selectedColor: item.selectedColor || null,
+      imageUrl: item.imageUrl || 'https://placehold.co/100x133.png',
+      sku: item.sku || null,
     }));
 
     const shippingAddressForDb: ShippingAddressType = {
       fullName: shippingData.fullName,
       addressLine1: shippingData.addressLine1,
-      addressLine2: shippingData.addressLine2 || null, // Ensure null if undefined
+      addressLine2: shippingData.addressLine2 || null,
       city: shippingData.city,
       stateProvince: shippingData.stateProvince,
       postalCode: shippingData.postalCode,
       country: shippingData.country,
-      phoneNumber: shippingData.phoneNumber || null, // Ensure null if undefined
+      phoneNumber: shippingData.phoneNumber || null,
       email: shippingData.email,
     };
 
     const orderToSave: Omit<Order, 'id'> = {
       userId: currentUser.uid,
-      customerEmail: shippingData.email, 
+      customerEmail: shippingData.email,
       items: orderItemsForDb,
       subtotal: cartTotal,
       shippingCost: shippingCost,
@@ -141,74 +137,69 @@ export default function CheckoutPage() {
       paymentMethod: selectedPaymentMethod,
       status: 'Pending',
       createdAt: serverTimestamp(),
-      // discount would be handled here if it existed, e.g., discount: order.discount || null
     };
-    
-    console.log("Attempting to save order:", JSON.stringify(orderToSave, null, 2));
 
+    console.log("Attempting to save order:", JSON.stringify(orderToSave, null, 2));
 
     try {
       const docRef = await addDoc(collection(db, "orders"), orderToSave);
       toast({
         title: "Order Placed Successfully!",
-        description: `Your order #${docRef.id} has been placed with ${selectedPaymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment (Simulated)'}.`,
+        description: `Your order #${docRef.id} has been placed.`,
         duration: 7000,
       });
 
-      // Update user's default shipping address
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
         await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb });
       }
 
-      // Send email notification to admin
       try {
         const emailResponse = await fetch('/api/send-order-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             orderId: docRef.id,
             customerEmail: orderToSave.customerEmail,
             grandTotal: orderToSave.grandTotal,
-            adminEmail: "sumanthcherla12@gmail.com" 
+            adminEmail: "sumanthcherla12@gmail.com"
           }),
         });
+
         if (!emailResponse.ok) {
-          const errorData = await emailResponse.json();
+          const errorData = await emailResponse.json().catch(() => ({ message: "Failed to parse error response from email API." }));
           console.error('Failed to send order notification email:', errorData);
           toast({
             title: "Notification Error",
-            description: "Order placed, but failed to send admin notification.",
+            description: `Order placed, but failed to send admin notification. ${errorData.message || "Unknown API error."}`.trim(),
             variant: "destructive",
-            duration: 5000
+            duration: 7000
           });
         } else {
             const successData = await emailResponse.json();
-            console.log('Admin notification email sent successfully:', successData.message);
+            console.log('Admin notification email prepared successfully:', successData.message);
         }
       } catch (emailError) {
         console.error('Error calling send-order-email API:', emailError);
          toast({
             title: "Notification Error",
-            description: "Order placed, but encountered an issue sending admin notification.",
+            description: "Order placed, but encountered an issue preparing admin notification.",
             variant: "destructive",
-            duration: 5000
+            duration: 7000
           });
       }
 
       clearCart();
-      router.push('/'); 
+      router.push('/');
     } catch (error: any) {
-      console.error("Data being sent to Firestore:", JSON.stringify(orderToSave, null, 2));
-      // Log the full error object for more details
+      console.error("Data being sent to Firestore for order save:", JSON.stringify(orderToSave, null, 2));
       console.error("Full Firestore error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-
 
       toast({
         title: "Order Placement Failed",
         description: `Error: ${error.message || 'An unknown error occurred.'}. Please check console for more details.`,
         variant: "destructive",
-        duration: 10000, 
+        duration: 10000,
       });
     } finally {
       setIsPlacingOrder(false);
@@ -244,9 +235,9 @@ export default function CheckoutPage() {
 
       <div className="grid lg:grid-cols-3 gap-8 md:gap-12 items-start">
         <div className="lg:col-span-2 space-y-8">
-          <ShippingForm 
-            onSubmit={handleShippingSubmit} 
-            initialData={initialShippingData} // Use fetched or default initial data
+          <ShippingForm
+            onSubmit={handleShippingSubmit}
+            initialData={initialShippingData}
           />
           <PaymentMethodSelector
             selectedMethod={selectedPaymentMethod}
@@ -259,15 +250,15 @@ export default function CheckoutPage() {
             subtotal={cartTotal}
             shippingCost={shippingCost}
             total={grandTotal}
-            checkoutButtonText="Place Order Securely" 
+            checkoutButtonText="Place Order Securely"
             showPromoCodeInput={true}
-            checkoutLink="#" 
+            checkoutLink="#"
           />
-          <Button 
-            size="lg" 
-            className="w-full text-base group mt-6" 
+          <Button
+            size="lg"
+            className="w-full text-base group mt-6"
             onClick={handlePlaceOrder}
-            disabled={cartItems.length === 0 || isPlacingOrder || !shippingData} 
+            disabled={cartItems.length === 0 || isPlacingOrder || !shippingData}
             suppressHydrationWarning={true}
           >
             {isPlacingOrder ? (
