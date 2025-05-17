@@ -1,3 +1,4 @@
+
 // @/components/layout/footer.tsx
 import Link from 'next/link';
 import { Facebook, Instagram, Twitter, Shirt, Phone, MessageSquare } from 'lucide-react'; // Added Phone and MessageSquare (for WhatsApp)
@@ -80,9 +81,8 @@ export function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               className="
-                relative overflow-hidden
-                text-primary hover:underline
-                inline-block align-baseline
+                font-medium text-primary hover:underline
+                relative overflow-hidden inline-block align-baseline
                 before:absolute before:inset-0
                 before:-translate-x-full
                 before:animate-shimmer
