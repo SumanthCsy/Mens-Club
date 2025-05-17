@@ -54,54 +54,72 @@ export default function UserViewOrderDetailsPage() {
         setCurrentUser(user);
       } else {
         setCurrentUser(null);
-        setIsLoading(false);
-        router.push('/login?redirect=/profile/my-orders');
+        // If user becomes null and we are not already erroring/loading for other reasons,
+        // set error and stop loading.
+        if (!error && isLoading) {
+             setError("Please log in to view order details.");
+             setIsLoading(false);
+        }
+        // Optionally redirect if strict auth is needed for this page
+        // router.push('/login?redirect=/profile/my-orders'); 
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, [router, error, isLoading]); // Added error & isLoading to deps for this auth effect
 
   useEffect(() => {
-    if (orderId && currentUser) {
-      const fetchOrder = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const orderRef = doc(db, "orders", orderId);
-          const orderSnap = await getDoc(orderRef);
-          if (orderSnap.exists()) {
-            const data = orderSnap.data();
-            // Security check: ensure the fetched order belongs to the current user
-            if (data.userId === currentUser.uid) {
-              setOrder({
-                id: orderSnap.id,
-                ...data,
-                createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt)
-              } as Order);
-            } else {
-              setError("Access denied. This order does not belong to you.");
-              toast({ title: "Access Denied", description: "You do not have permission to view this order.", variant: "destructive" });
-            }
-          } else {
-            setError("Order not found.");
-            toast({ title: "Error", description: "Order not found.", variant: "destructive" });
-          }
-        } catch (err) {
-          console.error("Error fetching order:", err);
-          setError("Failed to fetch order details.");
-          toast({ title: "Error", description: "Failed to load order details.", variant: "destructive" });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchOrder();
-    } else if (!currentUser && !isLoading) { // User not logged in and not already loading
-        setError("Please log in to view order details.");
-    } else if (!orderId) {
+    // Ensure we only attempt to fetch if essential parameters are available
+    if (!orderId) {
         setError("No order ID provided.");
         setIsLoading(false);
+        return;
     }
-  }, [orderId, currentUser, toast, isLoading]);
+    if (!currentUser) {
+        // If currentUser is null, auth useEffect should handle setting error & loading
+        // Or, if page is accessed directly without user yet, we might briefly show loading.
+        // Setting error here could be redundant if auth listener sets it too.
+        // For simplicity, we let the auth listener manage this for now.
+        // If still loading from initial state, don't set error yet, wait for auth.
+        if(!isLoading) {
+            setError("Please log in to view order details.");
+        }
+        return;
+    }
+
+    const fetchOrder = async () => {
+      setIsLoading(true); // Set loading true at the start of fetch attempt
+      setError(null);
+      try {
+        const orderRef = doc(db, "orders", orderId);
+        const orderSnap = await getDoc(orderRef);
+        if (orderSnap.exists()) {
+          const data = orderSnap.data();
+          if (data.userId === currentUser.uid) {
+            setOrder({
+              id: orderSnap.id,
+              ...data,
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt)
+            } as Order);
+          } else {
+            setError("Access denied. This order does not belong to you.");
+            toast({ title: "Access Denied", description: "You do not have permission to view this order.", variant: "destructive" });
+          }
+        } else {
+          setError("Order not found.");
+          toast({ title: "Error", description: "Order not found.", variant: "destructive" });
+        }
+      } catch (err) {
+        console.error("Error fetching order:", err);
+        setError("Failed to fetch order details.");
+        toast({ title: "Error", description: "Failed to load order details.", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId, currentUser, toast]); // Corrected dependency array
+
 
   const handleCopyOrderId = async () => {
     if (!order || !order.id) return;
@@ -393,3 +411,6 @@ export default function UserViewOrderDetailsPage() {
     </div>
   );
 }
+
+
+    
