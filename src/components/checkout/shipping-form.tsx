@@ -32,7 +32,7 @@ interface ShippingFormProps {
   initialData?: Partial<ShippingFormValues>;
 }
 
-export function ShippingForm({ onSubmit, initialData = {} }: ShippingFormProps) { // Default initialData to {}
+export function ShippingForm({ onSubmit, initialData = {} }: ShippingFormProps) {
   const form = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingFormSchema),
     defaultValues: { // Set clear defaults for all fields
@@ -203,5 +203,3 @@ export function ShippingForm({ onSubmit, initialData = {} }: ShippingFormProps) 
     </Card>
   );
 }
-
-    

@@ -16,7 +16,7 @@ import { auth, db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
 import type { Order, OrderItem, ShippingAddress as ShippingAddressType, UserData } from '@/types';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
 export default function CheckoutPage() {
@@ -35,8 +35,9 @@ export default function CheckoutPage() {
   const [defaultShippingAddress, setDefaultShippingAddress] = useState<Partial<ShippingFormValues> | null>(null);
   
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [addressFormMode, setAddressFormMode] = useState<'new' | 'edit'>('new');
+  const [addressFormMode, setAddressFormMode] = useState<'new' | 'edit'>('new'); // 'new' or 'edit'
 
+  // Effect for auth state and fetching default address
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setIsLoadingInitialAddress(true);
@@ -53,12 +54,14 @@ export default function CheckoutPage() {
               setCurrentConfirmedShippingAddress(fetchedDefaultAddress); // Use default for current order initially
               setShowAddressForm(false); // Hide form if default is available
             } else {
-              setShowAddressForm(true); // No default, show form to add new
+              // No default address, show form to add new
+              setShowAddressForm(true); 
               setAddressFormMode('new');
               setCurrentConfirmedShippingAddress(null); // No address confirmed yet
             }
           } else {
-            setShowAddressForm(true); // No user doc, show form to add new
+            // No user document, show form to add new
+            setShowAddressForm(true); 
             setAddressFormMode('new');
             setCurrentConfirmedShippingAddress(null);
           }
@@ -70,10 +73,12 @@ export default function CheckoutPage() {
           setCurrentConfirmedShippingAddress(null);
         }
       } else {
+        // No user logged in
         setCurrentUser(null);
-        setShowAddressForm(true); // User logged out, require address entry
-        setAddressFormMode('new');
+        setDefaultShippingAddress(null);
         setCurrentConfirmedShippingAddress(null);
+        setShowAddressForm(true); // Require address entry for guest or new user
+        setAddressFormMode('new');
       }
       setIsLoadingInitialAddress(false);
     });
@@ -82,7 +87,7 @@ export default function CheckoutPage() {
 
 
   useEffect(() => {
-    if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout/success') && !router.asPath.startsWith('/checkout')) {
+    if (cartItems.length === 0 && !isPlacingOrder && router.asPath && !router.asPath.startsWith('/checkout/success')) {
         toast({
             title: "Your cart is empty",
             description: "Please add items to your cart before proceeding to checkout.",
@@ -181,6 +186,7 @@ export default function CheckoutPage() {
           await updateDoc(userDocRef, { defaultShippingAddress: shippingAddressForDb }, { merge: true });
         } catch (userUpdateError) {
           console.error("Error updating user's default shipping address:", userUpdateError);
+          // Don't fail the whole order for this, but log it.
         }
       }
       
@@ -217,8 +223,9 @@ export default function CheckoutPage() {
   let formInitialData: Partial<ShippingFormValues> = { country: "India", email: currentUser?.email || "" };
   if (addressFormMode === 'edit' && currentConfirmedShippingAddress) {
     formInitialData = { ...formInitialData, ...currentConfirmedShippingAddress };
-  } else if (addressFormMode === 'new') {
-    // Keep defaults, email might be pre-filled
+  } else if (addressFormMode === 'new' && defaultShippingAddress && !currentConfirmedShippingAddress) {
+    // If adding new but a default existed, start with a mostly blank form but keep email/country
+    formInitialData = { country: "India", email: currentUser?.email || "" };
   }
 
 
@@ -308,5 +315,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
