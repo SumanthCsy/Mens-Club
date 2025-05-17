@@ -11,9 +11,10 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Package, Settings2, Truck, PackageCheck, X } from "lucide-react";
+import { Package, Settings2, Truck, PackageCheck, X, ClipboardCopy } from "lucide-react";
 import type { Order } from "@/types";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -33,18 +34,44 @@ const statusOrder: Order['status'][] = ["Pending", "Processing", "Shipped", "Del
 
 
 export function OrderTrackingModal({ isOpen, onClose, order }: OrderTrackingModalProps) {
+  const { toast } = useToast();
   if (!order) return null;
 
   const currentStatusIndex = statusOrder.indexOf(order.status);
   const isCancelled = order.status === 'Cancelled';
 
+  const handleCopyOrderId = async () => {
+    if (!order || !order.id) return;
+    try {
+      await navigator.clipboard.writeText(order.id);
+      toast({
+        title: "Order ID Copied!",
+        description: `${order.id} copied to clipboard.`,
+      });
+    } catch (err) {
+      console.error("Failed to copy order ID: ", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy Order ID to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md md:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold break-all">
-            Track Order: #{order.id || 'N/A'}
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-2xl font-semibold break-all">
+              Track Order: #{order.id || 'N/A'}
+            </DialogTitle>
+            {order.id && (
+              <Button variant="ghost" size="icon" onClick={handleCopyOrderId} className="h-7 w-7 text-muted-foreground hover:text-primary">
+                <ClipboardCopy className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <DialogDescription>
             Current status: <span className={cn(
               "font-semibold",

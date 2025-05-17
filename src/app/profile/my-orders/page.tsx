@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon } from 'lucide-react';
+import { Package, ArrowLeft, FileText, ShoppingBag, Loader2, AlertTriangle, TruckIcon, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { auth, db } from '@/lib/firebase';
@@ -100,6 +100,24 @@ export default function MyOrdersPage() {
     setSelectedOrderForTracking(null);
   };
 
+  const handleCopyOrderId = async (orderId: string) => {
+    if (!orderId) return;
+    try {
+      await navigator.clipboard.writeText(orderId);
+      toast({
+        title: "Order ID Copied!",
+        description: `${orderId} copied to clipboard.`,
+      });
+    } catch (err) {
+      console.error("Failed to copy order ID: ", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy Order ID to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -161,7 +179,14 @@ export default function MyOrdersPage() {
             <Card key={order.id} className="shadow-lg hover:shadow-xl transition-shadow duration-200 border border-border/60">
               <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
+                  <div className="flex items-center gap-1.5">
+                    <CardTitle className="text-xl font-semibold break-all">Order #{order.id || 'N/A'}</CardTitle>
+                    {order.id && (
+                      <Button variant="ghost" size="icon" onClick={() => handleCopyOrderId(order.id!)} className="h-7 w-7 text-muted-foreground hover:text-primary">
+                        <ClipboardCopy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   <CardDescription className="text-sm">
                     Placed on: {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}
                   </CardDescription>

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Edit, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy } from 'lucide-react';
 import type { Order, OrderItem, ShippingAddress } from '@/types';
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
@@ -22,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { generateInvoicePdf } from '@/lib/invoice-generator'; // Import the invoice function
-import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal'; // Import the tracking modal
+import { generateInvoicePdf } from '@/lib/invoice-generator';
+import { OrderTrackingModal } from '@/components/orders/OrderTrackingModal';
 
 
 export default function AdminViewOrderDetailsPage() {
@@ -101,6 +101,24 @@ export default function AdminViewOrderDetailsPage() {
     }
   };
 
+  const handleCopyOrderId = async () => {
+    if (!order || !order.id) return;
+    try {
+      await navigator.clipboard.writeText(order.id);
+      toast({
+        title: "Order ID Copied!",
+        description: `${order.id} copied to clipboard.`,
+      });
+    } catch (err) {
+      console.error("Failed to copy order ID: ", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy Order ID to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto max-w-screen-lg px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
@@ -149,9 +167,16 @@ export default function AdminViewOrderDetailsPage() {
                 <Package className="h-10 w-10 text-primary" />
                 <div>
                     <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">Order Details</h1>
-                    <p className="mt-1 text-md text-muted-foreground break-all">
-                    Order ID: {order.id || 'N/A'}
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <p className="mt-1 text-md text-muted-foreground break-all">
+                        Order ID: {order.id || 'N/A'}
+                        </p>
+                        {order.id && (
+                          <Button variant="ghost" size="icon" onClick={handleCopyOrderId} className="h-7 w-7 -ml-1 text-muted-foreground hover:text-primary">
+                            <ClipboardCopy className="h-4 w-4" />
+                          </Button>
+                        )}
+                    </div>
                 </div>
             </div>
             <div className="flex items-center gap-2">
@@ -263,7 +288,14 @@ export default function AdminViewOrderDetailsPage() {
                     <CardTitle className="text-xl flex items-center gap-2">Order Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                    <p className="break-all"><strong>Order ID:</strong> {order.id}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="break-all"><strong>Order ID:</strong> {order.id}</p>
+                        {order.id && (
+                          <Button variant="ghost" size="icon" onClick={handleCopyOrderId} className="h-6 w-6 text-muted-foreground hover:text-primary">
+                            <ClipboardCopy className="h-3 w-3" />
+                          </Button>
+                        )}
+                    </div>
                     <p><strong>Placed On:</strong> {order.createdAt ? format(new Date(order.createdAt), 'PPP p') : 'N/A'}</p>
                      <Button variant="outline" className="w-full" onClick={() => setIsTrackingModalOpen(true)}>
                         <TruckIcon className="mr-2 h-4 w-4" /> View Tracking
