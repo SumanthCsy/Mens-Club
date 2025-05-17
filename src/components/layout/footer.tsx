@@ -80,7 +80,7 @@ export function Footer() {
               href="https://sumanthcsy.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-primary hover:underline"
+              className="font-medium text-primary hover:underline" 
             >
               Sumanth Csy
             </a>
