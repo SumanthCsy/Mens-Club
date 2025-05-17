@@ -1,5 +1,7 @@
 
 // @/components/products/user-reviews.tsx
+"use client"; // Added "use client" as it uses useState and interacts with modals
+
 import type { Review } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,38 +10,36 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { MessageSquarePlus, LogIn } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react'; // Added for modal state
-import { AddReviewModal } from './AddReviewModal'; // Import the new modal
+import { useState } from 'react';
+import { AddReviewModal } from './AddReviewModal';
 
 interface UserReviewsProps {
-  productId: string; // Added productId
+  productId: string;
   reviews?: Review[];
-  // averageRating and reviewCount can be derived from reviews array or passed if pre-calculated
-  // For simplicity, we'll derive it here if not provided, or use passed values.
   averageRatingProp?: number;
   reviewCountProp?: number;
   isAuthenticated: boolean;
-  onReviewSubmit: (productId: string, rating: number, comment: string) => Promise<void>; // Added for callback
+  onReviewSubmit: (productId: string, rating: number, comment: string) => Promise<void>;
 }
 
-export function UserReviews({ 
-  productId, 
-  reviews, 
-  averageRatingProp, 
-  reviewCountProp, 
+export function UserReviews({
+  productId,
+  reviews,
+  averageRatingProp,
+  reviewCountProp,
   isAuthenticated,
-  onReviewSubmit 
+  onReviewSubmit
 }: UserReviewsProps) {
   const [isAddReviewModalOpen, setIsAddReviewModalOpen] = useState(false);
   const hasReviews = reviews && reviews.length > 0;
 
-  // Calculate averageRating and reviewCount from the reviews array if not provided
   const effectiveReviewCount = reviewCountProp !== undefined ? reviewCountProp : (reviews?.length || 0);
-  const effectiveAverageRating = averageRatingProp !== undefined 
-    ? averageRatingProp 
-    : (hasReviews && reviews && effectiveReviewCount > 0
-        ? reviews.reduce((acc, review) => acc + review.rating, 0) / effectiveReviewCount
-        : 0);
+  const effectiveAverageRating =
+    averageRatingProp !== undefined
+      ? averageRatingProp
+      : (hasReviews && reviews && effectiveReviewCount > 0
+          ? reviews.reduce((acc, review) => acc + review.rating, 0) / effectiveReviewCount
+          : 0);
 
   return (
     <>
@@ -80,10 +80,10 @@ export function UserReviews({
           {hasReviews && reviews ? (
             <div className="space-y-6">
               {reviews.map((review, index) => (
-                <div key={review.id || index}>
+                <div key={review.id || `review-${index}`}> {/* Added fallback key */}
                   <div className="flex items-start space-x-4">
                     <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={review.avatarUrl} alt={review.author} data-ai-hint="person avatar"/>
+                      <AvatarImage src={review.avatarUrl || undefined} alt={review.author} data-ai-hint="person avatar"/> {/* Ensure src is undefined if null for AvatarImage */}
                       <AvatarFallback>{review.author?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -100,11 +100,7 @@ export function UserReviews({
                   {index < reviews.length - 1 && <Separator className="my-6" />}
                 </div>
               ))}
-              {reviews.length > 3 && ( // Example: Show more button if many reviews
-                <Button variant="link" className="w-full mt-4" disabled> 
-                  Show all reviews (Soon)
-                </Button>
-              )}
+              {/* Removed "Show all reviews (Soon)" button for simplicity now */}
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-8">No reviews yet for this product. Be the first to write one!</p>
