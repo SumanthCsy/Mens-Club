@@ -29,7 +29,7 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
               <div className="flex items-center gap-2 mt-1">
                 <RatingStars rating={averageRating} size={20} />
                 <span className="text-muted-foreground text-sm">
-                  {averageRating.toFixed(1)} average rating based on {reviewCount} reviews
+                  {averageRating.toFixed(1)} average rating based on {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
                 </span>
               </div>
             ) : (
@@ -43,13 +43,12 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
             </Button>
           ) : (
             <div className="text-right">
-              <Button variant="outline" disabled>
-                <MessageSquarePlus className="mr-2 h-4 w-4" />
-                Write a Review
+              <Button variant="outline" asChild>
+                <Link href="/login">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Login to Write Review
+                </Link>
               </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                <Link href="/login" className="text-primary hover:underline">Login</Link> to write a review.
-              </p>
             </div>
           )}
         </div>
@@ -58,7 +57,7 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
         {hasReviews ? (
           <div className="space-y-6">
             {reviews?.map((review, index) => (
-              <div key={review.id}>
+              <div key={review.id || index}> {/* Added index as fallback key */}
                 <div className="flex items-start space-x-4">
                   <Avatar className="h-10 w-10 border">
                     <AvatarImage src={review.avatarUrl} alt={review.author} data-ai-hint="person avatar"/>
@@ -78,8 +77,10 @@ export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticat
                 {(reviews && index < reviews.length - 1) && <Separator className="my-6" />}
               </div>
             ))}
-             {(reviews && reviews.length > 3) && ( 
-              <Button variant="link" className="w-full mt-4">Show all reviews</Button>
+            {(reviews && reviews.length > 3) && (
+              <Button variant="link" className="w-full mt-4" disabled> {/* Placeholder */}
+                Show all reviews (Soon)
+              </Button>
             )}
           </div>
         ) : (
