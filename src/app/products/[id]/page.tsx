@@ -10,18 +10,18 @@ import { ProductImageGallery } from '@/components/products/product-image-gallery
 import { SizeSelector } from '@/components/products/size-selector';
 import { UserReviews } from '@/components/products/user-reviews';
 import { RatingStars } from '@/components/shared/rating-stars';
-import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn } from 'lucide-react'; // Added LogIn
+import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ProductCard } from '@/components/products/product-card';
 import Link from 'next/link';
 import { doc, onSnapshot, Unsubscribe, Timestamp } from "firebase/firestore";
-import { auth, db } from '@/lib/firebase'; // Import auth
+import { auth, db } from '@/lib/firebase';
 import { useCart } from '@/context/cart-context';
 import { useWishlist } from '@/context/wishlist-context';
 import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
-import type { User as FirebaseUser } from 'firebase/auth'; // Added FirebaseUser type
+import type { User as FirebaseUser } from 'firebase/auth';
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -31,8 +31,8 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isProductInWishlist, isLoadingWishlist } = useWishlist();
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null); // Added currentUser state
-  const router = useRouter(); // Added router
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const router = useRouter();
 
   const isWishlisted = product ? isProductInWishlist(product.id) : false;
 
@@ -128,7 +128,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     }
   };
 
-  if (isLoading || isLoadingWishlist) { // Consider isLoadingWishlist too
+  if (isLoading || isLoadingWishlist) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -250,7 +250,12 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       </div>
 
       <div className="mt-16 md:mt-24">
-        <UserReviews reviews={product.reviews} averageRating={product.averageRating} reviewCount={product.reviewCount} />
+        <UserReviews 
+          reviews={product.reviews} 
+          averageRating={product.averageRating} 
+          reviewCount={product.reviewCount}
+          isAuthenticated={!!currentUser} // Pass authentication status
+        />
       </div>
 
       {relatedProducts.length > 0 && (

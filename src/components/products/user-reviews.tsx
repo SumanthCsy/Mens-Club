@@ -1,3 +1,4 @@
+
 // @/components/products/user-reviews.tsx
 import type { Review } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,12 +13,11 @@ interface UserReviewsProps {
   reviews?: Review[];
   averageRating?: number;
   reviewCount?: number;
+  isAuthenticated: boolean; // New prop for auth status
 }
 
-export function UserReviews({ reviews, averageRating, reviewCount }: UserReviewsProps) {
+export function UserReviews({ reviews, averageRating, reviewCount, isAuthenticated }: UserReviewsProps) {
   const hasReviews = reviews && reviews.length > 0;
-  // Simulate a logged-in state. In a real app, this would come from an auth context.
-  const isLoggedIn = false; 
 
   return (
     <Card className="shadow-md border border-border/60">
@@ -25,7 +25,7 @@ export function UserReviews({ reviews, averageRating, reviewCount }: UserReviews
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <CardTitle className="text-2xl font-semibold">Customer Reviews</CardTitle>
-            {averageRating && reviewCount && reviewCount > 0 && (
+            {averageRating && reviewCount && reviewCount > 0 ? (
               <div className="flex items-center gap-2 mt-1">
                 <RatingStars rating={averageRating} size={20} />
                 <span className="text-muted-foreground text-sm">
@@ -34,10 +34,10 @@ export function UserReviews({ reviews, averageRating, reviewCount }: UserReviews
               </div>
             )}
           </div>
-          {isLoggedIn ? (
-            <Button variant="outline">
+          {isAuthenticated ? (
+            <Button variant="outline" disabled> {/* Actual review submission not implemented yet */}
               <MessageSquarePlus className="mr-2 h-4 w-4" />
-              Write a Review
+              Write a Review (Soon)
             </Button>
           ) : (
             <div className="text-right">
