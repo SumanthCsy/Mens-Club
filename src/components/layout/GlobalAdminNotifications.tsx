@@ -27,9 +27,7 @@ const newOrderMessages = [
   "You received a new order 🔔"
 ];
 
-// **IMPORTANT**: Replace this with your actual VAPID public key for push notifications
-// You can generate VAPID keys using: npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; 
+const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; // REPLACE THIS
 
 async function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -69,8 +67,10 @@ export function GlobalAdminNotifications() {
         setIsPushSupported(true);
       }
       // Preload audio
-      audioRef.current = new Audio('/success.mp3');
-      audioRef.current.load(); // Explicitly load
+      const audio = new Audio('/success.mp3'); // Ensure success.mp3 is in your /public directory
+      audio.load(); // Explicitly load
+      audioRef.current = audio;
+      console.log('Audio element initialized:', audioRef.current);
     }
   }, []);
 
@@ -107,29 +107,37 @@ export function GlobalAdminNotifications() {
   }, [isPushSupported]);
 
   const playSuccessSound = () => {
+    console.log('Attempting to play new order sound. audioRef.current:', audioRef.current);
     if (audioRef.current) {
       audioRef.current.currentTime = 0; // Rewind to start
-      audioRef.current.play().catch(error => {
-        console.warn("Audio autoplay prevented for new order notification:", error);
+      audioRef.current.play().then(() => {
+        console.log('New order sound played successfully.');
+      }).catch(error => {
+        console.error("Error playing new order sound:", error);
         toast({
-          title: "Audio Alert Blocked by Browser",
-          description: "The new order sound was blocked. Browsers often require interaction (like a click) before allowing sound. This is normal.",
+          title: "New Order Sound Issue",
+          description: `The new order sound was blocked or failed to play. Error: ${error.name} - ${error.message}. This often happens if you haven't interacted with the page.`,
           variant: "default",
-          duration: 8000
-        })
+          duration: 10000
+        });
       });
     } else {
-        console.warn("Audio element not ready or success.mp3 not found in /public folder.")
+      console.warn("Audio element not ready for new order sound, or success.mp3 not found in /public folder.");
+       toast({
+        title: "Audio System Issue",
+        description: "Could not play new order sound: Audio element not ready. Ensure success.mp3 is in /public.",
+        variant: "destructive",
+        duration: 8000
+      });
     }
   };
-
 
   const subscribeUserToPush = async () => {
     if (!isPushSupported || !isAdmin || !navigator.serviceWorker) return;
 
     try {
       if (VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY_HERE') {
-        console.warn("VAPID_PUBLIC_KEY is not set. Push subscription cannot proceed effectively.");
+        console.warn("VAPID_PUBLIC_KEY is not set in GlobalAdminNotifications.tsx. Push subscription cannot proceed effectively for background notifications.");
         toast({
             title: "Push Setup Incomplete",
             description: "VAPID public key is missing. Background push notifications might not work correctly.",
@@ -173,7 +181,6 @@ export function GlobalAdminNotifications() {
     }
   };
 
-
   useEffect(() => {
     let unsubscribeOrders: Unsubscribe | undefined;
 
@@ -184,6 +191,7 @@ export function GlobalAdminNotifications() {
       unsubscribeOrders = onSnapshot(q, (querySnapshot) => {
         const currentCount = querySnapshot.size;
         setPendingOrdersCount(currentCount);
+        console.log(`Pending orders snapshot: currentCount=${currentCount}, previousCount=${previousPendingOrdersCountRef.current}`); // DEBUG
 
         if (previousPendingOrdersCountRef.current === null) { // First time loading for this admin session
           if (currentCount > 0 && !hasShownInitialNotificationThisSession) {
@@ -191,23 +199,22 @@ export function GlobalAdminNotifications() {
             setShowNotificationModal(true);
           }
         } else if (currentCount > previousPendingOrdersCountRef.current) { // New order(s) arrived
-          setAlertModalType('newOrder'); 
-          setShowNotificationModal(true);
-          playSuccessSound();
+          console.log(`New order detected. Current count: ${currentCount}, Previous count: ${previousPendingOrdersCountRef.current}`); // DEBUG
+          setAlertModalType('newOrder');
           
-          if (notificationPermission === 'granted' && isPushSupported) {
+          if (isPushSupported && notificationPermission === 'granted') {
             const message = newOrderMessages[lastNotificationMessageIndex];
-            new Notification(message, { icon: '/mclogo.png', body: 'A new order requires your attention.' });
-            setLastNotificationMessageIndex((prevIndex) => (prevIndex + 1) % newOrderMessages.length);
-          } else if (notificationPermission === 'default' && isPushSupported) {
-             toast({
-                title: "New Order Arrived!",
-                description: "Enable browser notifications for instant alerts even when this tab isn't active.",
-                action: <Button onClick={subscribeUserToPush} size="sm">Enable Notifications</Button>,
-                duration: 10000
-            });
+            try {
+              new Notification(message, { icon: '/mclogo.png', body: 'A new order requires your attention.' });
+              setLastNotificationMessageIndex((prevIndex) => (prevIndex + 1) % newOrderMessages.length);
+            } catch (notificationError) {
+              console.error("Error showing browser notification:", notificationError);
+            }
+          } else {
+            // Fallback to in-app modal if browser notifications are not granted or not supported
+            setShowNotificationModal(true);
           }
-           console.log("New order arrived. Browser notifications permission:", notificationPermission, "Push supported:", isPushSupported);
+          playSuccessSound(); // Play sound for new order
         }
         previousPendingOrdersCountRef.current = currentCount;
       }, (error) => {
@@ -222,7 +229,10 @@ export function GlobalAdminNotifications() {
       setPendingOrdersCount(0);
       setShowNotificationModal(false);
       setAlertModalType(null);
-      previousPendingOrdersCountRef.current = null; 
+      // Only reset previousPendingOrdersCountRef if user logs out (isAdmin becomes false)
+      if (!isAdmin) {
+        previousPendingOrdersCountRef.current = null; 
+      }
     }
 
     return () => {
@@ -230,7 +240,6 @@ export function GlobalAdminNotifications() {
         unsubscribeOrders();
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, currentUser, isLoadingAuth, hasShownInitialNotificationThisSession, notificationPermission, lastNotificationMessageIndex, toast, isPushSupported]);
   
   const renderPermissionRequester = () => {
@@ -307,4 +316,3 @@ export function GlobalAdminNotifications() {
     </>
   );
 }
-
