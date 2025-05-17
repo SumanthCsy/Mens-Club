@@ -1,3 +1,4 @@
+
 // @/components/layout/footer.tsx
 import Link from 'next/link';
 import { Facebook, Instagram, Twitter, Shirt, Phone, MessageSquare } from 'lucide-react'; // Added Phone and MessageSquare (for WhatsApp)
@@ -50,9 +51,9 @@ export function Footer() {
             </div>
             <ul className="space-y-2 text-sm">
                 <li>
-                    <a 
-                        href={`https://wa.me/${whatsappNumber}`} 
-                        target="_blank" 
+                    <a
+                        href={`https://wa.me/${whatsappNumber}`}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center text-muted-foreground hover:text-primary transition-colors"
                     >
@@ -60,7 +61,7 @@ export function Footer() {
                     </a>
                 </li>
                 <li>
-                    <a 
+                    <a
                         href={`tel:${callNumber}`}
                         className="flex items-center text-muted-foreground hover:text-primary transition-colors"
                     >
