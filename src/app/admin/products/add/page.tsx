@@ -11,13 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PackagePlus, Save, UploadCloud, Loader2, XCircle } from 'lucide-react';
+import { ArrowLeft, PackagePlus, Save, UploadCloud, Loader2, XCircle, ImagePlus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/types';
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 
-type ProductFormData = Omit<Product, 'id' | 'createdAt'> & {
+type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'images'> & {
   sizes: string;
   colors?: string;
   tags?: string;
@@ -40,7 +40,7 @@ const initialFormData: ProductFormData = {
   price: 0,
   originalPrice: undefined,
   imageUrl: '',
-  images: [],
+  // images will be handled by mainImageFile and additionalImageFiles
   description: '',
   sizes: '',
   colors: '',
@@ -60,67 +60,80 @@ const initialFormData: ProductFormData = {
 
 export default function AddProductPage() {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
+  const [additionalImageFiles, setAdditionalImageFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleRemoveMainImage = () => {
-    setImagePreview(null);
+    setMainImagePreview(null);
     setMainImageFile(null);
     setFormData(prev => ({ ...prev, imageUrl: '', dataAiHint: '' }));
-    const imageInput = document.getElementById('imageFile') as HTMLInputElement;
+    const imageInput = document.getElementById('mainImageFile') as HTMLInputElement;
     if (imageInput) {
         imageInput.value = '';
+    }
+  };
+  
+  const handleRemoveAdditionalImage = (index: number) => {
+    setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setAdditionalImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      setMainImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setMainImagePreview(dataUrl);
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: dataUrl,
+          dataAiHint: prev.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product",
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setAdditionalImageFiles(prev => [...prev, ...filesArray]);
+
+      filesArray.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAdditionalImagePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-
-    if (name === 'imageFile' && e.target instanceof HTMLInputElement && e.target.files?.[0]) {
-      const file = e.target.files[0];
-      setMainImageFile(file);
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUrl = reader.result as string;
-          setImagePreview(dataUrl);
-          setFormData(prev => ({
-            ...prev,
-            imageUrl: dataUrl, // Store data URL for potential Firestore storage (though Firebase Storage is preferred)
-            dataAiHint: prev.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product",
-          }));
-        };
-        reader.readAsDataURL(file);
-      }
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: name === 'price' || name === 'originalPrice' || name === 'stock' ? parseFloat(value) || (name === 'originalPrice' ? undefined : 0) : value,
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'price' || name === 'originalPrice' || name === 'stock' ? parseFloat(value) || (name === 'originalPrice' ? undefined : 0) : value,
+    }));
   };
 
   const handleCategoryChange = (value: string) => {
     setFormData(prev => ({ ...prev, category: value }));
   };
 
-  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (!formData.imageUrl && !imagePreview) {
+    if (!mainImageFile && !formData.imageUrl) {
       toast({
-        title: "Image Required",
+        title: "Main Image Required",
         description: "Please upload a main product image.",
         variant: "destructive",
       });
@@ -137,27 +150,21 @@ export default function AddProductPage() {
       return;
     }
 
-    let finalMainImageUrl = formData.imageUrl;
-    // In a real app with Firebase Storage, you'd upload mainImageFile here and get a URL.
-    // For now, we're using the data URL stored in formData.imageUrl.
+    let finalMainImageUrl = formData.imageUrl; // This should be the data URL from mainImageFile
 
-    let finalImagesArray: string[] = [];
+    const productImages: string[] = [];
     if (finalMainImageUrl) {
-      finalImagesArray.push(finalMainImageUrl);
+      productImages.push(finalMainImageUrl);
     }
-
-    if (typeof formData.images === 'string' && formData.images.trim() !== '') {
-      const additionalImageUrls = formData.images.split(',').map(s => s.trim()).filter(s => s);
-      finalImagesArray = [...finalImagesArray, ...additionalImageUrls];
-    }
-
+    // Process additional uploaded images (already data URLs in additionalImagePreviews)
+    productImages.push(...additionalImagePreviews.filter(url => url !== finalMainImageUrl)); // Avoid duplicating main image
 
     const productDataToSave: Omit<Product, 'id'> = {
       name: formData.name,
       price: Number(formData.price),
       originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
-      imageUrl: finalMainImageUrl,
-      images: finalImagesArray.length > 0 ? finalImagesArray : (finalMainImageUrl ? [finalMainImageUrl] : []),
+      imageUrl: finalMainImageUrl, // Main image URL
+      images: productImages.length > 0 ? productImages : (finalMainImageUrl ? [finalMainImageUrl] : []), // Array of all image URLs
       description: formData.description,
       sizes: formData.sizes.split(',').map(s => s.trim()).filter(s => s),
       colors: formData.colors?.split(',').map(s => s.trim()).filter(s => s) || [],
@@ -174,11 +181,10 @@ export default function AddProductPage() {
       offerEndDate: formData.offerEndDateInput ? new Date(formData.offerEndDateInput) : undefined,
     };
 
-
     try {
       const docRef = await addDoc(collection(db, "products"), {
         ...productDataToSave,
-        createdAt: serverTimestamp() // Add server timestamp for new products
+        createdAt: serverTimestamp()
       });
       toast({
         title: "Product Added Successfully!",
@@ -186,12 +192,15 @@ export default function AddProductPage() {
         duration: 7000,
       });
       setFormData(initialFormData);
-      setImagePreview(null);
+      setMainImagePreview(null);
       setMainImageFile(null);
-      const imageInput = document.getElementById('imageFile') as HTMLInputElement;
-      if (imageInput) {
-          imageInput.value = '';
-      }
+      setAdditionalImagePreviews([]);
+      setAdditionalImageFiles([]);
+      // Reset file inputs
+      const mainImageInput = document.getElementById('mainImageFile') as HTMLInputElement;
+      if (mainImageInput) mainImageInput.value = '';
+      const additionalImagesInput = document.getElementById('additionalImagesFile') as HTMLInputElement;
+      if (additionalImagesInput) additionalImagesInput.value = '';
 
     } catch (error) {
       console.error("Error adding document: ", error);
@@ -226,7 +235,7 @@ export default function AddProductPage() {
       <Card className="shadow-xl border-border/60">
         <CardHeader>
           <CardTitle>Product Information</CardTitle>
-          <CardDescription>Enter all necessary details. Upload a main image. Additional images can be URLs.</CardDescription>
+          <CardDescription>Upload a main image and optional additional images.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -264,7 +273,7 @@ export default function AddProductPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select value={formData.category} onValueChange={handleCategoryChange}>
+                 <Select value={formData.category} onValueChange={handleCategoryChange}>
                   <SelectTrigger className="h-11 text-base">
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
@@ -282,24 +291,24 @@ export default function AddProductPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="imageFile">Main Product Image</Label>
+              <Label htmlFor="mainImageFile">Main Product Image</Label>
               <div className="flex items-center gap-4">
                 <Input
-                  id="imageFile"
-                  name="imageFile"
+                  id="mainImageFile"
+                  name="mainImageFile"
                   type="file"
                   accept="image/*"
-                  onChange={handleChange}
-                  required={!imagePreview && !formData.imageUrl}
+                  onChange={handleMainImageChange}
+                  required={!mainImagePreview && !formData.imageUrl} // Required if no preview exists
                   className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 />
                 <UploadCloud className="h-6 w-6 text-muted-foreground"/>
               </div>
-              {imagePreview && (
+              {mainImagePreview && (
                 <div className="mt-4 p-2 border border-dashed border-border rounded-md inline-block relative">
                   <Image
-                    src={imagePreview}
-                    alt="Product Preview"
+                    src={mainImagePreview}
+                    alt="Main Product Preview"
                     width={200}
                     height={266}
                     className="object-contain rounded-md"
@@ -318,17 +327,45 @@ export default function AddProductPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="images">Additional Image URLs (comma-separated, optional)</Label>
-              <Input
-                id="images"
-                name="images"
-                value={typeof formData.images === 'string' ? formData.images : ''}
-                onChange={handleAdditionalImagesChange}
-                placeholder="url1.png, url2.png, ..."
-                className="text-base h-11"
-              />
-              <p className="text-xs text-muted-foreground">Externally hosted image URLs. Main image is uploaded above.</p>
+              <Label htmlFor="additionalImagesFile">Additional Product Images (Optional)</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="additionalImagesFile"
+                  name="additionalImagesFile"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleAdditionalImagesChange}
+                  className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                <ImagePlus className="h-6 w-6 text-muted-foreground"/>
+              </div>
+              {additionalImagePreviews.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-4">
+                  {additionalImagePreviews.map((previewUrl, index) => (
+                    <div key={index} className="p-2 border border-dashed border-border rounded-md inline-block relative">
+                      <Image
+                        src={previewUrl}
+                        alt={`Additional Preview ${index + 1}`}
+                        width={100}
+                        height={133}
+                        className="object-contain rounded-md"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-5 w-5 bg-red-500/70 text-white hover:bg-red-600"
+                        onClick={() => handleRemoveAdditionalImage(index)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -384,8 +421,10 @@ export default function AddProductPage() {
       <p className="mt-8 text-sm text-muted-foreground text-center">
         Products are saved to Firebase Firestore.
         <br />
-        <strong>Note on Images:</strong> Main image stored as data URI. For production, use Firebase Storage.
+        <strong>Note on Images:</strong> Images stored as data URIs. For production, use Firebase Storage.
       </p>
     </div>
   );
 }
+
+    
