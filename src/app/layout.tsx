@@ -7,6 +7,7 @@ import { Footer } from '@/components/layout/footer';
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from '@/lib/utils';
 import { CartProvider } from '@/context/cart-context'; // Import CartProvider
+import { FloatingContactButtons } from '@/components/layout/FloatingContactButtons'; // Import the new component
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -41,6 +42,7 @@ export default function RootLayout({
           <main className="flex-grow">{children}</main>
           <Footer />
           <Toaster />
+          <FloatingContactButtons /> {/* Add floating buttons here */}
         </CartProvider>
       </body>
     </html>
