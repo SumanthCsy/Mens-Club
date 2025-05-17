@@ -1,13 +1,54 @@
+
 // @/app/admin/dashboard/page.tsx
 "use client"; 
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, ServerCrash } from 'lucide-react';
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, ServerCrash, Ticket } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
 
 
 export default function AdminDashboardPage() {
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const [showPendingOrdersModal, setShowPendingOrdersModal] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  useEffect(() => {
+    const ordersRef = collection(db, "orders");
+    const q = query(ordersRef, where("status", "==", "Pending"));
+
+    const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const count = querySnapshot.size;
+      setPendingOrdersCount(count);
+      if (count > 0 && !initialLoadComplete) {
+        setShowPendingOrdersModal(true);
+        setInitialLoadComplete(true); // Ensure modal only shows on initial load with pending orders
+      } else if (count === 0) {
+        setShowPendingOrdersModal(false); // Close if no pending orders
+      }
+    }, (error) => {
+      console.error("Error fetching pending orders: ", error);
+      // Optionally, show a toast to the admin if fetching fails
+    });
+
+    return () => unsubscribe();
+  }, [initialLoadComplete]);
+
+
   return (
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="mb-10">
@@ -21,7 +62,8 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">Admin Dashboard</h1>
             <p className="mt-3 text-lg text-muted-foreground">
-              Oversee and manage all aspects of your Mens Club Keshavapatnam store. Pending order notifications will appear globally.
+              Oversee and manage all aspects of your Mens Club Keshavapatnam store. 
+              Pending order notifications will appear globally if configured.
             </p>
           </div>
         </div>
@@ -48,9 +90,9 @@ export default function AdminDashboardPage() {
                     <PackageSearch className="mr-2 h-5 w-5" /> View All Products
                 </Link>
              </Button>
-             <Button asChild variant="outline" className="w-full">
-                <Link href="/admin/products/view"> 
-                    Edit Products
+             <Button asChild variant="outline" className="w-full" disabled>
+                <Link href="#"> 
+                    Edit Products (Soon)
                 </Link>
              </Button>
           </CardContent>
@@ -60,7 +102,14 @@ export default function AdminDashboardPage() {
           <CardHeader>
              <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-semibold">Order Management</CardTitle>
-              <ListOrdered className="h-8 w-8 text-primary"/>
+              <div className="relative">
+                <ListOrdered className="h-8 w-8 text-primary"/>
+                {pendingOrdersCount > 0 && (
+                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-bold text-white">
+                    {pendingOrdersCount}
+                  </span>
+                )}
+              </div>
             </div>
             <CardDescription>View and process customer orders, manage shipping and returns.</CardDescription>
           </CardHeader>
@@ -97,6 +146,28 @@ export default function AdminDashboardPage() {
                 <UserCog className="mr-2 h-5 w-5" /> Manage Roles
               </Link>
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-200 border-border/60">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-semibold">Coupon Management</CardTitle>
+              <Ticket className="h-8 w-8 text-primary" />
+            </div>
+            <CardDescription>Create, view, edit, or delete discount coupons for your store.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button asChild className="w-full">
+              <Link href="/admin/coupons/add">
+                <PlusCircle className="mr-2 h-5 w-5" /> Add New Coupon
+              </Link>
+            </Button>
+             <Button asChild variant="outline" className="w-full">
+                <Link href="/admin/coupons">
+                     View Coupons
+                </Link>
+             </Button>
           </CardContent>
         </Card>
         
@@ -189,6 +260,27 @@ export default function AdminDashboardPage() {
         </Card>
 
       </div>
+       {showPendingOrdersModal && pendingOrdersCount > 0 && (
+         <AlertDialog open={showPendingOrdersModal} onOpenChange={setShowPendingOrdersModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center">
+                 <ListOrdered className="h-6 w-6 mr-2 text-primary" />
+                Pending Orders Alert
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You have {pendingOrdersCount} order(s) with "Pending" status that require your attention.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowPendingOrdersModal(false)}>Dismiss</AlertDialogCancel>
+              <AlertDialogAction asChild onClick={() => setShowPendingOrdersModal(false)}>
+                <Link href="/admin/orders">View Orders</Link>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

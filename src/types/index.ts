@@ -1,35 +1,35 @@
 
 export interface Review {
-  id: string; // Can be auto-generated or productID + userID + timestamp
+  id: string; 
   userId: string;
-  author: string; // User's display name or email
-  rating: number; // 1-5
+  author: string; 
+  rating: number; 
   comment: string;
-  date: string; // ISO string
-  avatarUrl?: string | null; // Allow null for avatarUrl
+  date: string; 
+  avatarUrl?: string | null; 
 }
 
 export interface Product {
   id: string;
   name: string;
   price: number;
-  originalPrice?: number; // For sales/discounts
-  imageUrl: string; // Main image URL (can be data URI temporarily or Firebase Storage URL)
-  images?: string[]; // For product gallery, including main image + additional. All ideally URLs.
+  originalPrice?: number; 
+  imageUrl: string; 
+  images?: string[]; 
   description: string;
   sizes: string[];
   colors?: string[];
   category?: string;
   brand?: string;
-  averageRating?: number; // This will be calculated client-side in UserReviews or by a Function
-  reviewCount?: number;   // This will be calculated client-side in UserReviews or by a Function
-  reviews?: Review[];     // Array of actual review objects
-  stock?: number; // Number of items in stock
+  averageRating?: number; 
+  reviewCount?: number;   
+  reviews?: Review[];     
+  stock?: number; 
   tags?: string[];
-  sku?: string; // Stock Keeping Unit
-  dataAiHint?: string; // For placeholder image search keywords
-  offerStartDate?: any; // Firestore ServerTimestamp or string for input
-  offerEndDate?: any;   // Firestore ServerTimestamp or string for input
+  sku?: string; 
+  dataAiHint?: string; 
+  offerStartDate?: any; 
+  offerEndDate?: any;   
 }
 
 export interface CartItemData extends Product {
@@ -38,7 +38,6 @@ export interface CartItemData extends Product {
   selectedColor?: string | null;
 }
 
-// For user data stored in Firestore
 export interface UserData {
   uid: string;
   email: string;
@@ -47,65 +46,79 @@ export interface UserData {
   role: 'user' | 'admin';
   memberSince?: string;
   avatarUrl?: string | null;
-  defaultShippingAddress?: ShippingAddress; // Added for storing default address
+  defaultShippingAddress?: ShippingAddress; 
 }
 
-// Types for Order and Shipping
 export interface OrderItem {
-  id: string; // Product ID
+  id: string; 
   name: string;
   quantity: number;
-  price: number; // Price per unit at the time of order
+  price: number; 
   selectedSize: string;
-  selectedColor: string | null; // Ensure it can be null
+  selectedColor: string | null; 
   imageUrl: string;
-  sku: string | null; // Ensure it can be null
+  sku: string | null; 
 }
 
 export interface ShippingAddress {
   fullName: string;
   addressLine1: string;
-  addressLine2: string | null; // Ensure it can be null
+  addressLine2: string | null; 
   city: string;
   stateProvince: string;
   postalCode: string;
   country: string;
-  phoneNumber: string | null; // Ensure it can be null
-  email: string; // Customer's email for shipping, might be different from auth email
+  phoneNumber: string | null; 
+  email: string; 
 }
 
 export interface Order {
-  id?: string; // Firestore will generate this if not provided when adding
-  userId: string; // UID of the user who placed the order
-  customerEmail: string; // Email of the user who placed the order (from shipping/auth)
+  id?: string; 
+  userId: string; 
+  customerEmail: string; 
   items: OrderItem[];
   subtotal: number;
   shippingCost: number;
-  discount?: number | null; // Optional discount amount, can be null
+  discount?: number | null; 
   grandTotal: number;
   shippingAddress: ShippingAddress;
   paymentMethod: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
-  createdAt: any; // Firestore ServerTimestamp, will be resolved to Timestamp
+  createdAt: any; 
   cancellationReason?: string;
   cancelledBy?: 'user' | 'store';
+  appliedCouponCode?: string;
 }
 
 export interface PaymentSettings {
   enableCOD: boolean;
   enableOnlinePayments: boolean;
   upiId?: string;
-  qrCodeUrl?: string; // Placeholder for QR code image URL
+  qrCodeUrl?: string; 
 }
 
 export interface ThemeSettings {
-  selectedColor: string; // e.g., 'default', 'yellow', 'blue'
+  selectedColor: string; 
   displayMode: 'light' | 'dark';
 }
 
-// Combined store settings
 export interface StoreSettings {
   paymentConfig?: PaymentSettings;
   themeConfig?: ThemeSettings;
-  // Add other global settings here if needed
 }
+
+export interface Coupon {
+  id?: string; // Firestore document ID
+  code: string; // The coupon code itself, e.g., SUMMER20
+  discountType: 'percentage' | 'fixed'; // Type of discount
+  discountValue: number; // Value of the discount (e.g., 20 for 20% or 200 for ₹200)
+  expiryDate?: any; // Firestore Timestamp or null
+  minPurchaseAmount?: number; // Optional minimum purchase to apply coupon
+  isActive: boolean; // Admin can toggle this (derived from dates or manual)
+  displayOnSite: boolean; // If true, show in user-facing coupon list/popup
+  createdAt: any; // Firestore Timestamp
+  // Optional: usageLimit (total times coupon can be used)
+  // Optional: perUserLimit (times a single user can use it)
+  // Optional: usageCount (how many times it has been used)
+}
+
