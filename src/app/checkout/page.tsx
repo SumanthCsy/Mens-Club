@@ -125,9 +125,8 @@ export default function CheckoutPage() {
       phoneNumber: shippingData.phoneNumber || null,
       email: shippingData.email,
     };
-
-    // Construct the object for Firestore with only the fields relevant for a new order
-    const newOrderPayload = {
+    
+    const newOrderPayload: Omit<Order, 'id' | 'cancellationReason' | 'cancelledBy'> = {
       userId: currentUser.uid,
       customerEmail: shippingData.email,
       items: orderItemsForDb,
@@ -136,24 +135,27 @@ export default function CheckoutPage() {
       grandTotal: grandTotal,
       shippingAddress: shippingAddressForDb,
       paymentMethod: selectedPaymentMethod,
-      status: 'Pending' as Order['status'], // Explicitly type status
+      status: 'Pending' as Order['status'],
       createdAt: serverTimestamp(),
       discount: null, // Explicitly set discount to null if no discount is applied for new orders
-      // `cancellationReason` and `cancelledBy` are intentionally omitted here
-      // as they are not set when an order is first created. They are optional fields in the Order type.
     };
+
 
     console.log("Attempting to save order with payload:", JSON.stringify(newOrderPayload, null, 2));
 
     try {
-      // Pass the newOrderPayload which explicitly omits optional fields not set at creation
       const docRef = await addDoc(collection(db, "orders"), newOrderPayload);
       
+      // Placeholder for success sound:
+      // const audio = new Audio('/sounds/order-success.mp3'); // Assuming you have an audio file in public/sounds
+      // audio.play();
+      // console.log("Order success sound would play here.");
+
       toast({
         title: "Order Placed Successfully!",
         description: (
             <div className="flex items-center">
-                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                <CheckCircle className="h-6 w-6 text-green-500 mr-3 animate-pulse" />
                 <span>Your order #{docRef.id} has been placed.</span>
             </div>
         ),
