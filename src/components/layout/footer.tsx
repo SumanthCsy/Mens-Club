@@ -1,12 +1,15 @@
 // @/components/layout/footer.tsx
 import Link from 'next/link';
-import { Facebook, Instagram, Twitter, Shirt } from 'lucide-react';
+import { Facebook, Instagram, Twitter, Shirt, Phone, MessageSquare } from 'lucide-react'; // Added Phone and MessageSquare (for WhatsApp)
 
 export function Footer() {
+  const whatsappNumber = "919391157177"; // Your WhatsApp number with country code, no '+' or spaces
+  const callNumber = "+919391157177";
+
   return (
     <footer className="bg-muted/50 border-t border-border/40">
       <div className="container mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <Link href="/" className="flex items-center space-x-2 mb-4">
               <Shirt className="h-8 w-8 text-primary" />
@@ -39,12 +42,32 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-3">Follow Us</h3>
-            <div className="flex space-x-4">
+            <h3 className="text-lg font-semibold text-foreground mb-3">Connect With Us</h3>
+            <div className="flex space-x-4 mb-4">
               <Link href="#" aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors"><Facebook size={20} /></Link>
               <Link href="#" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors"><Instagram size={20} /></Link>
               <Link href="#" aria-label="Twitter" className="text-muted-foreground hover:text-primary transition-colors"><Twitter size={20} /></Link>
             </div>
+            <ul className="space-y-2 text-sm">
+                <li>
+                    <a 
+                        href={`https://wa.me/${whatsappNumber}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center text-muted-foreground hover:text-primary transition-colors"
+                    >
+                        <MessageSquare size={18} className="mr-2" /> WhatsApp Us
+                    </a>
+                </li>
+                <li>
+                    <a 
+                        href={`tel:${callNumber}`}
+                        className="flex items-center text-muted-foreground hover:text-primary transition-colors"
+                    >
+                        <Phone size={18} className="mr-2" /> Call Us: {callNumber}
+                    </a>
+                </li>
+            </ul>
           </div>
         </div>
 
