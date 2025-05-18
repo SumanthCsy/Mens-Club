@@ -10,7 +10,8 @@ import { CartProvider } from '@/context/cart-context';
 import { WishlistProvider } from '@/context/wishlist-context';
 import { FloatingContactButtons } from '@/components/layout/FloatingContactButtons';
 import { GlobalAdminNotifications } from '@/components/layout/GlobalAdminNotifications';
-import { SiteCouponPopup } from '@/components/layout/SiteCouponPopup'; // New Import
+import { SiteCouponPopup } from '@/components/layout/SiteCouponPopup';
+import { PageTransitionLoader } from '@/components/layout/PageTransitionLoader'; // New Import
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -42,13 +43,14 @@ export default function RootLayout({
       >
         <CartProvider>
           <WishlistProvider>
+            <PageTransitionLoader /> {/* Added PageTransitionLoader */}
             <Navbar />
             <main className="flex-grow">{children}</main>
             <Footer />
             <Toaster />
             <FloatingContactButtons />
             <GlobalAdminNotifications />
-            <SiteCouponPopup /> {/* Add SiteCouponPopup here */}
+            <SiteCouponPopup />
           </WishlistProvider>
         </CartProvider>
       </body>
