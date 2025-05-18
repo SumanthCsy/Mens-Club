@@ -1,4 +1,3 @@
-
 // @/app/admin/products/edit/[id]/page.tsx
 "use client";
 
@@ -18,6 +17,7 @@ import type { Product, ProductVariant } from '@/types';
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
+import { CustomLoader } from '@/components/layout/CustomLoader'; // Added import
 
 const productCategories = [
   "New Arrivals",
