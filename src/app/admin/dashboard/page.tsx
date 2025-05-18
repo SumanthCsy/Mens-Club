@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, ServerCrash, Ticket } from 'lucide-react';
+import { PlusCircle, ShoppingBag, Users, Settings, ArrowLeft, BarChart3, MessageSquare, Palette, ListOrdered, UsersRound, LayoutDashboard, PackageSearch, Undo2, UserCog, CreditCard, Truck, ServerCrash, Ticket, KeyRound } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,29 +24,23 @@ import { cn } from '@/lib/utils';
 
 export default function AdminDashboardPage() {
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
-  const [showPendingOrdersModal, setShowPendingOrdersModal] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  // const [showPendingOrdersModal, setShowPendingOrdersModal] = useState(false); // Managed by GlobalAdminNotifications
+  // const [initialLoadComplete, setInitialLoadComplete] = useState(false); // Managed by GlobalAdminNotifications
 
   useEffect(() => {
+    // This effect is now only for the badge count, modal is global
     const ordersRef = collection(db, "orders");
     const q = query(ordersRef, where("status", "==", "Pending"));
 
     const unsubscribe: Unsubscribe = onSnapshot(q, (querySnapshot) => {
       const count = querySnapshot.size;
       setPendingOrdersCount(count);
-      if (count > 0 && !initialLoadComplete) {
-        setShowPendingOrdersModal(true);
-        setInitialLoadComplete(true); // Ensure modal only shows on initial load with pending orders
-      } else if (count === 0) {
-        setShowPendingOrdersModal(false); // Close if no pending orders
-      }
     }, (error) => {
-      console.error("Error fetching pending orders: ", error);
-      // Optionally, show a toast to the admin if fetching fails
+      console.error("Error fetching pending orders for badge: ", error);
     });
 
     return () => unsubscribe();
-  }, [initialLoadComplete]);
+  }, []);
 
 
   return (
@@ -63,7 +57,7 @@ export default function AdminDashboardPage() {
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">Admin Dashboard</h1>
             <p className="mt-3 text-lg text-muted-foreground">
               Oversee and manage all aspects of your Mens Club Keshavapatnam store. 
-              Pending order notifications will appear globally if configured.
+              New order notifications will appear globally.
             </p>
           </div>
         </div>
@@ -88,11 +82,6 @@ export default function AdminDashboardPage() {
              <Button asChild variant="outline" className="w-full">
                 <Link href="/admin/products/view">
                     <PackageSearch className="mr-2 h-5 w-5" /> View All Products
-                </Link>
-             </Button>
-             <Button asChild variant="outline" className="w-full" disabled>
-                <Link href="#"> 
-                    Edit Products (Soon)
                 </Link>
              </Button>
           </CardContent>
@@ -221,7 +210,7 @@ export default function AdminDashboardPage() {
               <CardTitle className="text-2xl font-semibold">Store Settings</CardTitle>
               <Settings className="h-8 w-8 text-primary" />
             </div>
-            <CardDescription>Configure payment gateways, shipping options, and customize store theme.</CardDescription>
+            <CardDescription>Configure payment gateways, shipping options, theme and admin account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
              <Button asChild variant="outline" className="w-full">
@@ -237,6 +226,11 @@ export default function AdminDashboardPage() {
             <Button asChild variant="outline" className="w-full">
                  <Link href="/admin/settings/shipping">
                     <Truck className="mr-2 h-5 w-5" /> Shipping Configuration
+                 </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+                 <Link href="/admin/settings/change-password">
+                    <KeyRound className="mr-2 h-5 w-5" /> Change Admin Password
                  </Link>
             </Button>
           </CardContent>
@@ -260,27 +254,8 @@ export default function AdminDashboardPage() {
         </Card>
 
       </div>
-       {showPendingOrdersModal && pendingOrdersCount > 0 && (
-         <AlertDialog open={showPendingOrdersModal} onOpenChange={setShowPendingOrdersModal}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                 <ListOrdered className="h-6 w-6 mr-2 text-primary" />
-                Pending Orders Alert
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                You have {pendingOrdersCount} order(s) with "Pending" status that require your attention.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowPendingOrdersModal(false)}>Dismiss</AlertDialogCancel>
-              <AlertDialogAction asChild onClick={() => setShowPendingOrdersModal(false)}>
-                <Link href="/admin/orders">View Orders</Link>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {/* Modal is now handled by GlobalAdminNotifications */}
     </div>
   );
 }
+
