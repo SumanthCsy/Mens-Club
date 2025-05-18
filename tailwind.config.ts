@@ -88,19 +88,17 @@ export default {
   					height: '0'
   				}
   			},
-        shimmer: {
-          '0%': {
-            transform: 'translateX(-100%)',
-          },
-          '100%': {
-            transform: 'translateX(100%)',
-          },
+        'slide-icons': {
+          '0%': { transform: 'translateX(-120%)', opacity: '0' }, // Start further left
+          '20%': { transform: 'translateX(0)', opacity: '1' },    // Slide in
+          '80%': { transform: 'translateX(0)', opacity: '1' },    // Stay
+          '100%': { transform: 'translateX(120%)', opacity: '0' }, // Slide out further right
         },
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
-        shimmer: 'shimmer 2s infinite linear',
+        'slide-icons': 'slide-icons 1.8s ease-in-out infinite', // Utility class using the keyframes
   		}
   	}
   },
