@@ -11,13 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, UploadCloud, Loader2, AlertTriangle, Edit, XCircle, Trash2, Shirt, AppWindow } from 'lucide-react'; // Added Shirt, AppWindow
+import { ArrowLeft, Save, UploadCloud, Loader2, AlertTriangle, Edit, XCircle, Trash2, Shirt, AppWindow, ImagePlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, ProductVariant } from '@/types';
 import { doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
-import { CustomLoader } from '@/components/layout/CustomLoader'; // Added import
+import { CustomLoader } from '@/components/layout/CustomLoader';
 
 const productCategories = [
   "New Arrivals",
@@ -32,9 +32,8 @@ const productCategories = [
 const defaultShirtSizes = ['S', 'M', 'L', 'XL', 'XXL'];
 const defaultPantSizes = ['28', '30', '32', '34', '36', '38'];
 
-type ProductEditFormData = Omit<Product, 'id' | 'createdAt' | 'images' | 'variants' | 'offerStartDate' | 'offerEndDate'> & {
+type ProductEditFormData = Omit<Product, 'id' | 'createdAt' | 'images' | 'variants' | 'offerStartDate' | 'offerEndDate' | 'sizes' | 'stock' | 'averageRating' | 'reviewCount' | 'reviews'> & {
   tags?: string;
-  additionalImagesString?: string; // For comma-separated URLs of additional images
   offerStartDateInput?: string;
   offerEndDateInput?: string;
 };
@@ -59,8 +58,16 @@ export default function EditProductPage() {
   const [formData, setFormData] = useState<Partial<ProductEditFormData>>({});
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [originalProduct, setOriginalProduct] = useState<Product | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null); // For main image preview
-  const [mainImageFile, setMainImageFile] = useState<File | null>(null); // For new main image file
+  
+  // Main Image State
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+
+  // Additional Images State
+  const [existingAdditionalImages, setExistingAdditionalImages] = useState<string[]>([]);
+  const [newAdditionalImagePreviews, setNewAdditionalImagePreviews] = useState<string[]>([]);
+  const [newAdditionalImageFiles, setNewAdditionalImageFiles] = useState<File[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,19 +87,23 @@ export default function EditProductPage() {
               name: productData.name,
               price: productData.price,
               originalPrice: productData.originalPrice,
-              imageUrl: productData.imageUrl,
+              imageUrl: productData.imageUrl, // This will be the main image
               description: productData.description,
               category: productData.category || '',
               brand: productData.brand,
               tags: productData.tags?.join(', ') || '',
               sku: productData.sku,
               dataAiHint: productData.dataAiHint,
-              additionalImagesString: productData.images?.filter(img => img !== productData.imageUrl).join('\n') || '', // Use newline for textarea
               offerStartDateInput: formatDateForInput(productData.offerStartDate),
               offerEndDateInput: formatDateForInput(productData.offerEndDate),
             });
             setVariants(productData.variants || [{ size: '', stock: 0, sku: '' }]);
-            setImagePreview(productData.imageUrl);
+            setMainImagePreview(productData.imageUrl);
+            // Set existing additional images (all images except the first one, which is the main image)
+            setExistingAdditionalImages(productData.images?.slice(1) || []);
+            setNewAdditionalImagePreviews([]);
+            setNewAdditionalImageFiles([]);
+
           } else {
             setError("Product not found.");
             toast({ title: "Error", description: "Product not found.", variant: "destructive" });
@@ -112,8 +123,8 @@ export default function EditProductPage() {
   }, [productId, toast]);
 
   const handleRemoveMainImage = () => {
-    setImagePreview(null); setMainImageFile(null);
-    setFormData(prev => ({ ...prev, imageUrl: '', dataAiHint: '' }));
+    setMainImagePreview(null); setMainImageFile(null);
+    setFormData(prev => ({ ...prev, imageUrl: '', dataAiHint: prev?.dataAiHint || '' }));
     const imageInput = document.getElementById('mainImageFile') as HTMLInputElement;
     if (imageInput) imageInput.value = '';
   };
@@ -127,22 +138,61 @@ export default function EditProductPage() {
     setFormData(prev => ({ ...prev, category: value }));
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMainImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0]; setMainImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        const dataUrl = reader.result as string; setImagePreview(dataUrl);
-        setFormData(prev => ({ ...prev, imageUrl: dataUrl, dataAiHint: prev?.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product image" }));
+        const dataUrl = reader.result as string; setMainImagePreview(dataUrl);
+        // When a new main image is uploaded, its data URI is stored in mainImagePreview
+        // formData.imageUrl will be updated from mainImagePreview during submit
+        setFormData(prev => ({ ...prev, dataAiHint: prev?.dataAiHint || file.name.split('.')[0].substring(0, 20).replace(/[^a-zA-Z0-9 ]/g, "") || "product image" }));
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleNewAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const currentFiles = [...newAdditionalImageFiles, ...filesArray];
+      setNewAdditionalImageFiles(currentFiles);
+
+      const newPreviewsArray: string[] = [];
+      const filePromises = filesArray.map(file => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(filePromises).then(dataUrls => {
+        setNewAdditionalImagePreviews(prev => [...prev, ...dataUrls]);
+      }).catch(error => {
+        console.error("Error reading additional image files:", error);
+        toast({ title: "Image Read Error", description: "Could not read some additional images.", variant: "destructive" });
+      });
+       // Reset file input to allow re-selecting if needed
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveExistingAdditionalImage = (index: number) => {
+    setExistingAdditionalImages(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const handleRemoveNewAdditionalImage = (index: number) => {
+    setNewAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setNewAdditionalImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+
   const handleVariantChange = (index: number, field: keyof ProductVariant, value: string | number) => {
     const newVariants = [...variants];
     if (field === 'stock') {
-      newVariants[index][field] = Number(value) || 0;
+      newVariants[index][field] = Number(value) < 0 ? 0 : Number(value) || 0;
     } else {
       newVariants[index][field] = value as string;
     }
@@ -158,7 +208,7 @@ export default function EditProductPage() {
       const variantsToAdd = defaultSizes
         .filter(size => !existingSizes.has(size.trim().toUpperCase()))
         .map(size => ({ size, stock: 0, sku: '' }));
-      return [...prevVariants, ...variantsToAdd];
+      return [...prevVariants.filter(v => v.size.trim() !== ''), ...variantsToAdd]; // Keep existing valid variants
     });
   };
 
@@ -170,14 +220,29 @@ export default function EditProductPage() {
     if (!formData.category) {
       toast({ title: "Category Required", description: "Please select a category.", variant: "destructive" }); return;
     }
-    if (variants.some(v => !v.size.trim() || v.stock < 0)) {
-        toast({ title: "Invalid Variants", description: "All variants must have a size and non-negative stock.", variant: "destructive" }); return;
+    const validVariants = variants.filter(v => v.size.trim());
+    if (validVariants.length === 0) {
+        toast({ title: "At least one variant required", description: "Please add at least one size variant.", variant: "destructive"}); return;
+    }
+    if (validVariants.some(v => v.stock < 0)) {
+        toast({ title: "Invalid Variants", description: "Variant stock cannot be negative.", variant: "destructive" }); return;
     }
     setIsSubmitting(true);
 
-    let finalMainImageUrl = formData.imageUrl || originalProduct.imageUrl;
-    const additionalImageUrls = formData.additionalImagesString?.split('\n').map(s => s.trim()).filter(s => s) || [];
-    const finalImagesArray = [finalMainImageUrl, ...additionalImageUrls].filter(Boolean) as string[];
+    // Determine final main image URL
+    // If mainImageFile exists, it means a new main image was uploaded, and its data URI is in mainImagePreview.
+    // Otherwise, use the existing formData.imageUrl (which was the original product's imageUrl).
+    const finalMainImageUrl = mainImageFile ? mainImagePreview : formData.imageUrl;
+
+    if (!finalMainImageUrl) {
+      toast({ title: "Main Image Required", description: "Please ensure a main product image is set.", variant: "destructive" });
+      setIsSubmitting(false); return;
+    }
+
+    // Construct the final images array
+    const finalImagesArray: string[] = [finalMainImageUrl];
+    finalImagesArray.push(...existingAdditionalImages); // Add existing ones that weren't removed
+    finalImagesArray.push(...newAdditionalImagePreviews); // Add newly uploaded ones
 
     const productDataToUpdate: Partial<Product> = {
       name: formData.name || originalProduct.name,
@@ -186,14 +251,14 @@ export default function EditProductPage() {
       imageUrl: finalMainImageUrl,
       images: finalImagesArray.length > 0 ? finalImagesArray : (finalMainImageUrl ? [finalMainImageUrl] : []),
       description: formData.description || originalProduct.description,
-      variants: variants.filter(v => v.size.trim()),
+      variants: validVariants,
       category: formData.category || originalProduct.category,
       brand: formData.brand || originalProduct.brand,
       tags: formData.tags?.split(',').map(s => s.trim()).filter(s => s) || originalProduct.tags || [],
       sku: formData.sku || originalProduct.sku,
       dataAiHint: formData.dataAiHint || originalProduct.dataAiHint,
-      offerStartDate: formData.offerStartDateInput ? new Date(formData.offerStartDateInput) : originalProduct.offerStartDate,
-      offerEndDate: formData.offerEndDateInput ? new Date(formData.offerEndDateInput) : originalProduct.offerEndDate,
+      offerStartDate: formData.offerStartDateInput ? new Date(formData.offerStartDateInput) : (originalProduct.offerStartDate || undefined),
+      offerEndDate: formData.offerEndDateInput ? new Date(formData.offerEndDateInput) : (originalProduct.offerEndDate || undefined),
       // Keep existing review data
       averageRating: originalProduct.averageRating,
       reviewCount: originalProduct.reviewCount,
@@ -313,37 +378,73 @@ export default function EditProductPage() {
             </div>
 
             {/* Main Image */}
-            <div className="space-y-2">
-              <Label htmlFor="mainImageFile">Change Main Product Image (Optional)</Label>
+            <div className="space-y-2 p-4 border border-border/50 rounded-lg">
+              <Label htmlFor="mainImageFile" className="text-md font-semibold">Change Main Product Image (Optional)</Label>
               <div className="flex items-center gap-4">
-                <Input id="mainImageFile" name="mainImageFile" type="file" accept="image/*" onChange={handleImageFileChange} className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
+                <Input id="mainImageFile" name="mainImageFile" type="file" accept="image/*" onChange={handleMainImageFileChange} className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
                 <UploadCloud className="h-6 w-6 text-muted-foreground"/>
               </div>
-              {imagePreview && (
+              {mainImagePreview && (
                 <div className="mt-4 p-2 border border-dashed border-border rounded-md inline-block relative">
                   <p className="text-xs text-muted-foreground mb-1">{mainImageFile ? "New Image Preview:" : "Current Main Image:"}</p>
-                  <Image src={imagePreview} alt="Product Preview" width={200} height={266} className="object-contain rounded-md"/>
+                  <Image src={mainImagePreview} alt="Product Preview" width={200} height={266} className="object-contain rounded-md aspect-[3/4]"/>
                   <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-red-500/70 text-white hover:bg-red-600" onClick={handleRemoveMainImage}><XCircle className="h-4 w-4" /></Button>
                 </div>
               )}
             </div>
-             <div className="space-y-2">
+            <div className="space-y-2">
                 <Label htmlFor="dataAiHint">AI Hint for Main Image</Label>
                 <Input id="dataAiHint" name="dataAiHint" value={formData.dataAiHint || ''} onChange={handleChange} className="text-base h-11"/>
                  <p className="text-xs text-muted-foreground">Max 2 words.</p>
             </div>
 
-            {/* Additional Image URLs (Textarea for new lines) */}
-            <div className="space-y-2">
-              <Label htmlFor="additionalImagesString">Additional Image URLs (one URL per line)</Label>
-              <Textarea id="additionalImagesString" name="additionalImagesString" value={formData.additionalImagesString || ''} onChange={handleChange} placeholder="https://url1.png\nhttps://url2.jpg" rows={3} className="text-base"/>
-              <p className="text-xs text-muted-foreground">Externally hosted image URLs. The main image can be changed via the uploader above.</p>
+            {/* Additional Images Management */}
+            <div className="space-y-4 p-4 border border-border/50 rounded-lg">
+                <Label className="text-md font-semibold">Additional Product Images</Label>
+                {/* Display existing additional images */}
+                {existingAdditionalImages.length > 0 && (
+                    <div className="mb-4">
+                        <p className="text-sm text-muted-foreground mb-2">Current additional images:</p>
+                        <div className="flex flex-wrap gap-4">
+                        {existingAdditionalImages.map((imageUrl, index) => (
+                            <div key={`existing-${index}`} className="p-2 border border-dashed border-border rounded-md inline-block relative">
+                            <Image src={imageUrl} alt={`Existing Additional ${index + 1}`} width={100} height={133} className="object-contain rounded-md aspect-[3/4]"/>
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-5 w-5 bg-red-500/70 text-white hover:bg-red-600" onClick={() => handleRemoveExistingAdditionalImage(index)}><Trash2 className="h-3 w-3" /></Button>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Upload new additional images */}
+                <div className="space-y-2">
+                    <Label htmlFor="newAdditionalImagesFile">Upload New Additional Images</Label>
+                    <div className="flex items-center gap-4">
+                        <Input id="newAdditionalImagesFile" type="file" accept="image/*" multiple onChange={handleNewAdditionalImagesChange} className="text-base h-11 flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
+                        <ImagePlus className="h-6 w-6 text-muted-foreground"/>
+                    </div>
+                </div>
+
+                {/* Display previews of newly uploaded additional images */}
+                {newAdditionalImagePreviews.length > 0 && (
+                    <div className="mt-4">
+                        <p className="text-sm text-muted-foreground mb-2">Newly added image previews:</p>
+                        <div className="flex flex-wrap gap-4">
+                        {newAdditionalImagePreviews.map((previewUrl, index) => (
+                            <div key={`new-${index}`} className="p-2 border border-dashed border-border rounded-md inline-block relative">
+                            <Image src={previewUrl} alt={`New Additional Preview ${index + 1}`} width={100} height={133} className="object-contain rounded-md aspect-[3/4]"/>
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-5 w-5 bg-red-500/70 text-white hover:bg-red-600" onClick={() => handleRemoveNewAdditionalImage(index)}><Trash2 className="h-3 w-3" /></Button>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Product Variants */}
             <div className="space-y-4 p-4 border border-border/60 rounded-lg">
-              <Label className="text-lg font-semibold">Product Variants (Sizes & Stock)</Label>
-               <div className="flex gap-2 mb-3">
+              <Label className="text-lg font-semibold">Product Variants (Sizes, Stock & SKU)</Label>
+               <div className="flex gap-2 mb-3 flex-wrap">
                 <Button type="button" variant="outline" size="sm" onClick={() => loadDefaultSizes(defaultShirtSizes)}>
                     <Shirt className="mr-2 h-4 w-4"/> Load Shirt Sizes
                 </Button>
