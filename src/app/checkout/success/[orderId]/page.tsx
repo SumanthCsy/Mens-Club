@@ -1,4 +1,3 @@
-
 // @/app/checkout/success/[orderId]/page.tsx
 "use client";
 
@@ -6,21 +5,25 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, ShoppingBag } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react'; // Added useRef
 import { cn } from '@/lib/utils';
 
 export default function OrderSuccessPage() {
   const params = useParams();
   const orderId = params.orderId as string;
   const [isIconAnimated, setIsIconAnimated] = useState(false);
-  const [showTextContent, setShowTextContent] = useState(false); // New state
+  const [showTextContent, setShowTextContent] = useState(false);
+  const soundPlayedRef = useRef(false); // Ref to track if sound has played
 
   useEffect(() => {
-    // Play sound effect
-    const audio = new Audio('/success.mp3'); // Ensure success.mp3 is in your /public directory
-    audio.play().catch(error => {
-      console.warn("Audio autoplay prevented for /success.mp3:", error);
-    });
+    // Play sound effect only once
+    if (!soundPlayedRef.current) {
+      const audio = new Audio('/success.mp3'); // Ensure success.mp3 is in your /public directory
+      audio.play().catch(error => {
+        console.warn("Audio autoplay prevented for /success.mp3:", error);
+      });
+      soundPlayedRef.current = true;
+    }
 
     // Trigger icon animation
     const iconAnimationTimer = setTimeout(() => {
@@ -28,16 +31,15 @@ export default function OrderSuccessPage() {
     }, 100); // Small delay to allow initial render for icon
 
     // Trigger text content visibility after icon animation (and sound starts)
-    // Adjust timeout duration as needed to match your animation/sound length preference
     const textContentTimer = setTimeout(() => {
       setShowTextContent(true);
-    }, 700); // e.g., 600ms for icon animation + 100ms buffer
+    }, 700);
 
     return () => {
       clearTimeout(iconAnimationTimer);
       clearTimeout(textContentTimer);
     };
-  }, []);
+  }, []); // Empty dependency array, effect runs once on mount
 
   return (
     <div className="container mx-auto max-w-screen-md px-4 sm:px-6 lg:px-8 py-16 md:py-24 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
