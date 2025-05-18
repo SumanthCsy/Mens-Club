@@ -31,17 +31,27 @@ export interface Product {
   offerEndDate?: any;   // Firestore Timestamp or string
 }
 
-// This type is used for items *within* the cart, including quantity and selections
-export interface CartItemData extends Omit<Product, 'id'| 'reviews' | 'averageRating' | 'reviewCount' | 'tags'> {
-  // id here will be the Firestore document ID of the cart item itself
-  // We need to store product's original ID separately if cart item ID is composite
-  id: string; // This should be the cart item's unique ID (e.g., productId_size_color)
-  productId: string; // The actual ID of the product
+export interface CartItemData {
+  // Fields from Product that are relevant for the cart
+  id: string;           // This is the composite cart item ID (e.g., productId_size) for Firestore
+  productId: string;    // The original product ID
+  name: string;
+  price: number;
+  originalPrice?: number | null; // From Product, explicitly allow null
+  imageUrl: string;
+  stock?: number | null;       // From Product, explicitly allow null
+  dataAiHint?: string | null;  // From Product, explicitly allow null
+  sku?: string | null;         // From Product, explicitly allow null
+
+  // Cart-specific fields
   quantity: number;
   selectedSize: string;
   selectedColor?: string | null;
   addedAt?: any; // Firestore Timestamp
-  cartItemId?: string; // Explicitly to store the composite key if needed for easy reference
+
+  // Offer dates, if they are to be stored with the cart item
+  offerStartDate?: any | null;
+  offerEndDate?: any | null;
 }
 
 
@@ -54,7 +64,6 @@ export interface UserData {
   memberSince?: string; // ISO string or Firestore Timestamp
   avatarUrl?: string | null;
   defaultShippingAddress?: ShippingAddress;
-  // cart?: CartItemData[]; // Cart will now be a subcollection
 }
 
 export interface OrderItem {
@@ -122,7 +131,7 @@ export interface Coupon {
   code: string; // The coupon code itself, e.g., SUMMER20
   discountType: 'percentage' | 'fixed'; // Type of discount
   discountValue: number; // Value of the discount (e.g., 20 for 20% or 200 for ₹200)
-  expiryDate?: any; // Firestore Timestamp or null
+  expiryDate?: any | null; // Firestore Timestamp, Date object, or null
   minPurchaseAmount?: number; // Optional minimum purchase to apply coupon
   isActive: boolean; // Admin can toggle this
   displayOnSite: boolean; // If true, show in user-facing coupon list/popup
