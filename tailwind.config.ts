@@ -88,17 +88,22 @@ export default {
   					height: '0'
   				}
   			},
-        'slide-icons': {
-          '0%': { transform: 'translateX(-120%)', opacity: '0' }, // Start further left
-          '20%': { transform: 'translateX(0)', opacity: '1' },    // Slide in
-          '80%': { transform: 'translateX(0)', opacity: '1' },    // Stay
-          '100%': { transform: 'translateX(120%)', opacity: '0' }, // Slide out further right
+        'shirt-drop': {
+          '0%': { opacity: '1', transform: 'translateY(-20px) scale(0.8)' },
+          '40%': { opacity: '1', transform: 'translateY(10px) scale(0.6)' }, // Shirt moves down
+          '80%, 100%': { opacity: '0', transform: 'translateY(15px) scale(0.3)' }, // Shirt fades and shrinks "into" bag
+        },
+        'bag-pulse': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '40%, 60%': { transform: 'scale(1)' }, // Bag is normal before shirt "lands"
+          '50%': { transform: 'scale(1.05)' }, // Bag pulses as shirt "lands"
         },
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
-        'slide-icons': 'slide-icons 1.8s ease-in-out infinite', // Utility class using the keyframes
+        'shirt-drop': 'shirt-drop 1.5s ease-in-out infinite',
+        'bag-pulse': 'bag-pulse 1.5s ease-in-out infinite', // Same duration as shirt for sync
   		}
   	}
   },

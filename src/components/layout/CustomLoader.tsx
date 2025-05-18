@@ -4,19 +4,18 @@ import { cn } from '@/lib/utils';
 
 export function CustomLoader() {
   return (
-    <div className="flex flex-col items-center justify-center space-y-4">
-      <div className="relative h-16 w-32 overflow-hidden"> {/* Container for icons */}
+    <div className="flex flex-col items-center justify-center space-y-6">
+      <div className="relative h-20 w-20"> {/* Container for icons */}
+        {/* Shirt is positioned absolutely, bag is also absolute but lower z-index if needed */}
         <Shirt
           className={cn(
-            'absolute left-0 top-0 h-12 w-12 text-primary animate-slide-icons',
+            'absolute top-0 left-1/2 -translate-x-1/2 h-10 w-10 text-primary animate-shirt-drop' 
           )}
-          style={{ animationDelay: '0s' }} // Shirt starts immediately
         />
         <ShoppingBag
           className={cn(
-            'absolute left-0 top-0 h-12 w-12 text-primary animate-slide-icons', // Using primary color for better visibility
+            'absolute bottom-2 left-1/2 -translate-x-1/2 h-12 w-12 text-primary animate-bag-pulse'
           )}
-          style={{ animationDelay: '0.3s' }} // ShoppingBag starts slightly later for a chase effect
         />
       </div>
       <p className="text-lg font-medium text-foreground animate-pulse">
