@@ -1,5 +1,5 @@
 // @/app/products/[id]/page.tsx
-"use client"; // Make the entire file a client component module
+"use client"; // Mark the entire file as a client component module
 
 import { useState, useEffect, useMemo, useCallback, use } from 'react';
 import Link from 'next/link';
@@ -22,6 +22,16 @@ import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -29,10 +39,14 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
-  const { addToCart: addToCartContext, isLoadingCart } = useCart(); // Renamed to avoid conflict
+  const { addToCart: addToCartContext, isLoadingCart } = useCart();
   const { addToWishlist, removeFromWishlist, isProductInWishlist, isLoadingWishlist } = useWishlist();
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const router = useRouter();
+
+  const [showLoginRequiredModal, setShowLoginRequiredModal] = useState(false);
+  const [loginRedirectAction, setLoginRedirectAction] = useState<'cart' | 'wishlist' | null>(null);
+
 
   const isWishlisted = product ? isProductInWishlist(product.id) : false;
 
@@ -94,15 +108,8 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const handleAddToCart = async () => {
     if (!product) return;
     if (!currentUser) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to add items to your cart.",
-        action: (
-          <Button onClick={() => router.push('/login?redirect=' + encodeURIComponent(window.location.pathname))}>
-            <LogIn className="mr-2 h-4 w-4" /> Login
-          </Button>
-        ),
-      });
+      setLoginRedirectAction('cart');
+      setShowLoginRequiredModal(true);
       return;
     }
     if (product.sizes && product.sizes.length > 0 && !selectedSize) {
@@ -122,18 +129,11 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
   const handleToggleWishlist = async () => {
     if (!currentUser) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to manage your wishlist.",
-        action: (
-          <Button onClick={() => router.push('/login?redirect=' + encodeURIComponent(window.location.pathname))}>
-            <LogIn className="mr-2 h-4 w-4" /> Login
-          </Button>
-        ),
-      });
+      setLoginRedirectAction('wishlist');
+      setShowLoginRequiredModal(true);
       return;
     }
-    if (!product || !product.id) return; // Ensure product and product.id exist
+    if (!product || !product.id) return;
     if (isWishlisted) {
       await removeFromWishlist(product.id);
     } else {
@@ -143,6 +143,8 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
   const handleReviewSubmit = useCallback(async (prodId: string, rating: number, comment: string) => {
     if (!currentUser) {
+      // This scenario should ideally be handled by disabling "Write Review" if not authenticated
+      // But adding a check here as a safeguard.
       toast({ title: "Login Required", description: "You must be logged in to submit a review.", variant: "destructive" });
       return;
     }
@@ -169,9 +171,8 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       console.error("Error fetching user data for review author name:", fetchError);
     }
     if (!authorName || authorName === (currentUser.email || "")) { 
-        authorName = "Anonymous";
+        authorName = "Anonymous"; // Default to Anonymous if name couldn't be determined
     }
-
 
     const newReview: Review = {
       id: uuidv4(),
@@ -326,6 +327,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       : 0;
 
   return (
+    <>
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
         <ProductImageGallery images={product.images || [product.imageUrl]} altText={product.name} mainImageHint={product.dataAiHint} />
@@ -444,13 +446,38 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         />
       </div>
     </div>
+
+    {showLoginRequiredModal && (
+        <AlertDialog open={showLoginRequiredModal} onOpenChange={setShowLoginRequiredModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <LogIn className="h-6 w-6 text-primary" />
+                Login Required
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You need to be logged in to {loginRedirectAction === 'cart' ? 'add items to your cart' : 'manage your wishlist'}.
+                Would you like to log in now?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowLoginRequiredModal(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Link href={`/login?redirect=${encodeURIComponent(window.location.pathname)}`}>
+                  Login
+                </Link>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   );
 }
 
-// This is the default export for the page, now also a client component
-export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params); 
-  const productId = resolvedParams.id;
+// This is the default export for the page
+export default function ProductDetailsPage({ params }: { params: { id: string } }) { // Changed params type to non-promise
+  const { id: productId } = params; // Directly access id
 
   if (typeof productId !== 'string') {
     return <div className="text-center py-20">Invalid product ID.</div>;
