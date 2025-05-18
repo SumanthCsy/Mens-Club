@@ -108,7 +108,7 @@ export default function RootLayout({
 
 
   return (
-    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning is key for client-side <html> class changes */}
+    <html lang="en" suppressHydrationWarning>{/* Ensure no whitespace before <head> or after <body> */}
       <head>
          {/* Static metadata can go here. Title is set in useEffect for now. */}
         <meta name="description" content="Premium fashion for gentlemen in Keshavapatnam." />
