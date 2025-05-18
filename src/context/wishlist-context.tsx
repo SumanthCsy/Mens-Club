@@ -1,12 +1,11 @@
-
 // @/context/wishlist-context.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase'; // Import Firebase auth and db
-import type { User } from 'firebase/auth';
-import { collection, doc, setDoc, deleteDoc, getDocs, serverTimestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import type { User as FirebaseUser } from 'firebase/auth';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
 interface WishlistContextType {
   wishlistItems: string[]; // Array of product IDs
@@ -21,45 +20,41 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 export const WishlistProvider = ({ children }: { children: ReactNode }) => {
   const [wishlistItems, setWishlistItems] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [isLoadingWishlist, setIsLoadingWishlist] = useState(true);
   const { toast } = useToast();
 
-  // Listen to Firebase Auth state changes
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       setCurrentUser(user);
       if (!user) {
-        setWishlistItems([]); // Clear wishlist if user logs out
+        setWishlistItems([]); 
         setIsLoadingWishlist(false);
       }
-      // Fetching wishlist will be triggered by currentUser change in the next useEffect
     });
     return () => unsubscribeAuth();
   }, []);
 
-  // Fetch wishlist from Firestore when user logs in or changes
   useEffect(() => {
-    let unsubscribeDb: Unsubscribe | undefined = undefined;
+    let unsubscribeDb: (() => void) | undefined = undefined;
     if (currentUser) {
       setIsLoadingWishlist(true);
       const wishlistColRef = collection(db, "users", currentUser.uid, "wishlist");
       
       unsubscribeDb = onSnapshot(wishlistColRef, (snapshot) => {
-        const items = snapshot.docs.map(doc => doc.id);
+        const items = snapshot.docs.map(docSnap => docSnap.id);
         setWishlistItems(items);
         setIsLoadingWishlist(false);
       }, (error) => {
         console.error("Error fetching wishlist in real-time:", error);
-        toast({ title: "Error", description: "Could not load wishlist.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not load your wishlist.", variant: "destructive" });
         setIsLoadingWishlist(false);
       });
 
     } else {
-      setWishlistItems([]); // Clear for logged-out users
+      setWishlistItems([]); 
       setIsLoadingWishlist(false);
     }
-    // Cleanup Firestore listener on unmount or when currentUser changes
     return () => {
       if (unsubscribeDb) {
         unsubscribeDb();
@@ -70,22 +65,21 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
   const addToWishlist = useCallback(async (productId: string) => {
     if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to add items to your wishlist.", variant: "default" });
+      toast({ title: "Login Required", description: "Please log in to add items to your wishlist." });
       return;
     }
     if (!productId) {
-      console.error("Product ID is undefined.");
-      toast({ title: "Error", description: "Could not add item to wishlist.", variant: "destructive" });
+      console.error("Product ID is undefined for addToWishlist.");
+      toast({ title: "Error", description: "Could not add item to wishlist: Missing product ID.", variant: "destructive" });
       return;
     }
 
     try {
       const wishlistItemRef = doc(db, "users", currentUser.uid, "wishlist", productId);
       await setDoc(wishlistItemRef, { 
-        productId: productId, // Storing productId in document as well for potential querying
+        productId: productId, 
         addedAt: serverTimestamp() 
       });
-      // Local state will be updated by the onSnapshot listener
       toast({
         title: "Added to Wishlist!",
         description: `Item has been added to your wishlist.`,
@@ -98,14 +92,17 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
 
   const removeFromWishlist = useCallback(async (productId: string) => {
     if (!currentUser) {
-      // This case should ideally not be reached if UI prevents action for logged-out users
-      toast({ title: "Login Required", description: "Please log in to manage your wishlist.", variant: "default" });
+      toast({ title: "Login Required", description: "Please log in to manage your wishlist." });
+      return;
+    }
+    if (!productId) {
+      console.error("Product ID is undefined for removeFromWishlist.");
+      toast({ title: "Error", description: "Could not remove item from wishlist: Missing product ID.", variant: "destructive" });
       return;
     }
     try {
       const wishlistItemRef = doc(db, "users", currentUser.uid, "wishlist", productId);
       await deleteDoc(wishlistItemRef);
-      // Local state will be updated by the onSnapshot listener
       toast({
         title: "Removed from Wishlist",
         description: "Item has been removed from your wishlist.",

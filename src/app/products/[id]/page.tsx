@@ -10,7 +10,7 @@ import { ProductImageGallery } from '@/components/products/product-image-gallery
 import { SizeSelector } from '@/components/products/size-selector';
 import { UserReviews } from '@/components/products/user-reviews';
 import { RatingStars } from '@/components/shared/rating-stars';
-import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn, Copy, MessageSquare } from 'lucide-react'; // Added Copy, MessageSquare
+import { Heart, Share2, ShoppingCart, CheckCircle, AlertTriangle, Loader2, Percent, LogIn, Copy, MessageSquare } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -21,11 +21,7 @@ import { useWishlist } from '@/context/wishlist-context';
 import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"; // Added Popover components
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -33,7 +29,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const { toast } = useToast();
-  const { addToCart } = useCart();
+  const { addToCart: addToCartContext, isLoadingCart } = useCart(); // Renamed to avoid conflict
   const { addToWishlist, removeFromWishlist, isProductInWishlist, isLoadingWishlist } = useWishlist();
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const router = useRouter();
@@ -95,8 +91,20 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     return 0;
   }, [product]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return;
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to add items to your cart.",
+        action: (
+          <Button onClick={() => router.push('/login?redirect=' + encodeURIComponent(window.location.pathname))}>
+            <LogIn className="mr-2 h-4 w-4" /> Login
+          </Button>
+        ),
+      });
+      return;
+    }
     if (product.sizes && product.sizes.length > 0 && !selectedSize) {
       toast({
         title: "Size Required",
@@ -109,7 +117,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       toast({ title: "Out of Stock", description: "This item is currently out of stock.", variant: "destructive"});
       return;
     }
-    addToCart(product, selectedSize || (product.sizes?.[0] || 'N/A'));
+    await addToCartContext(product, selectedSize || (product.sizes?.[0] || 'N/A'));
   };
 
   const handleToggleWishlist = async () => {
@@ -125,7 +133,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       });
       return;
     }
-    if (!product) return;
+    if (!product || !product.id) return; // Ensure product and product.id exist
     if (isWishlisted) {
       await removeFromWishlist(product.id);
     } else {
@@ -160,7 +168,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     } catch (fetchError) {
       console.error("Error fetching user data for review author name:", fetchError);
     }
-    if (authorName === (currentUser.email || "")) { // Fallback if name is email
+    if (!authorName || authorName === (currentUser.email || "")) { 
         authorName = "Anonymous";
     }
 
@@ -225,7 +233,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       toast({ title: "Review Deleted", description: "Your review has been successfully deleted." });
     } catch (error: any) {
       console.error("Error deleting review:", error);
-      toast({ title: "Deletion Failed", description: `Could not delete review: ${error.message}`, variant: "destructive" });
+      toast({ title: "Deletion Failed", description: `Could not delete the review: ${error.message}`, variant: "destructive" });
     }
   }, [currentUser, product, toast]);
 
@@ -275,7 +283,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   };
 
 
-  if (isLoading || isLoadingWishlist) {
+  if (isLoading || isLoadingWishlist || isLoadingCart) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -382,12 +390,12 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={!product || (typeof product.stock === 'number' && product.stock === 0)}>
-              <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
+            <Button size="lg" className="flex-1 text-base" onClick={handleAddToCart} disabled={isLoadingCart || !product || (typeof product.stock === 'number' && product.stock === 0)}>
+              <ShoppingCart className="mr-2 h-5 w-5" /> {isLoadingCart ? 'Adding...' : 'Add to Cart'}
             </Button>
-            <Button variant="outline" size="lg" className="flex-1 text-base" onClick={handleToggleWishlist}>
+            <Button variant="outline" size="lg" className="flex-1 text-base" onClick={handleToggleWishlist} disabled={isLoadingWishlist}>
               <Heart className={`mr-2 h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-              {isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
+              {isLoadingWishlist ? 'Updating...' : (isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist')}
             </Button>
           </div>
 
@@ -441,7 +449,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
 // This is the default export for the page, now also a client component
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params); // use() is fine in client components
+  const resolvedParams = use(params); 
   const productId = resolvedParams.id;
 
   if (typeof productId !== 'string') {
