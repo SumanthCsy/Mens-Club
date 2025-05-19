@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, MapPin, CreditCard, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info, Trash2 } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Loader2, AlertTriangle, ShoppingCart, BadgeIndianRupee, FileText, TruckIcon, ClipboardCopy, Eye, XCircle, Phone, MessageSquare, Info, Trash2 } from 'lucide-react';
 import type { Order } from '@/types';
 import { doc, getDoc, Timestamp, deleteDoc } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase';
@@ -58,14 +58,17 @@ export default function UserViewOrderDetailsPage() {
         setCurrentUser(user);
       } else {
         setCurrentUser(null);
-        if (!isLoading && !error) {
+        if (!isLoading && !error) { // Only set error if not already loading or errored
             setError("Please log in to view order details.");
             setIsLoading(false);
+        } else if (isLoading) { // If initial auth check fails while still loading
+            setIsLoading(false);
+            setError("Authentication required to view orders.");
         }
       }
     });
     return () => unsubscribe();
-  }, [isLoading, error]);
+  }, [isLoading, error]); // Added dependencies
 
   useEffect(() => {
     if (!orderId) {
@@ -74,15 +77,14 @@ export default function UserViewOrderDetailsPage() {
         return;
     }
     if (!currentUser) {
-        if(!isLoading && !error) {
-            setError("Please log in to view order details.");
-            setIsLoading(false);
-        }
+        // Error and loading state are handled by the auth effect.
+        // This check prevents fetching if user becomes null after initial load.
+        if(!isLoading) setIsLoading(false); // Ensure loading stops if currentUser becomes null
         return;
     }
 
     const fetchOrder = async () => {
-      setIsLoading(true);
+      setIsLoading(true); // Set loading true at the start of fetch
       setError(null);
       try {
         const orderRef = doc(db, "orders", orderId);
@@ -113,7 +115,7 @@ export default function UserViewOrderDetailsPage() {
     };
 
     fetchOrder();
-  }, [orderId, currentUser, toast]);
+  }, [orderId, currentUser, toast]); // Removed isLoading from here
 
 
   const handleCopyOrderId = async () => {
@@ -323,7 +325,7 @@ export default function UserViewOrderDetailsPage() {
 
              <Card className="shadow-lg border-border/60">
                 <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2"><MapPin className="h-6 w-6 text-primary"/>Shipping To</CardTitle>
+                    <CardTitle className="text-xl flex items-center gap-2"><User className="h-6 w-6 text-primary"/>Shipping To</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 text-sm">
                     <p><strong>{shippingAddress.fullName}</strong></p>
@@ -367,17 +369,16 @@ export default function UserViewOrderDetailsPage() {
                     >
                         <XCircle className="mr-2 h-4 w-4" /> Request Cancellation
                     </Button>
-                    {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
-                         <Button
-                            variant="destructive"
-                            className="w-full"
-                            onClick={() => setShowDeleteOrderConfirm(true)}
-                            disabled={isDeletingOrder}
-                        >
-                            {isDeletingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                             Delete Order
-                        </Button>
-                    )}
+                    {/* Removed conditional rendering for delete button, now always visible */}
+                    <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => setShowDeleteOrderConfirm(true)}
+                        disabled={isDeletingOrder}
+                    >
+                        {isDeletingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                         Delete Order
+                    </Button>
                 </CardContent>
             </Card>
         </div>
