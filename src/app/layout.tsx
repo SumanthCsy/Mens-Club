@@ -1,7 +1,6 @@
-
+// @/app/layout.tsx
 "use client"; // Mark as a Client Component module
 
-// import type { Metadata } from 'next'; // Metadata type can still be used, but generation might be client-side
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/layout/navbar';
@@ -47,22 +46,12 @@ const defaultThemeSettings: ThemeSettings = {
   displayMode: 'light',
 };
 
-// export const metadata: Metadata = { // Static metadata; dynamic title handled in useEffect
-//   title: 'Mens Club Keshavapatnam',
-//   description: 'Premium fashion for gentlemen in Keshavapatnam.',
-// };
-
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Theme loading is handled by useEffect, no need for separate isLoadingTheme state here for now
-  // as the effect will run on mount and apply changes.
-
   useEffect(() => {
-    // Set a default static title
     document.title = 'Mens Club Keshavapatnam';
 
     const settingsRef = doc(db, "settings", "themeConfiguration");
@@ -70,7 +59,6 @@ export default function RootLayout({
       let activeTheme = defaultThemeSettings;
       if (docSnap.exists()) {
         const fetchedSettings = docSnap.data() as ThemeSettings;
-        // Ensure fetched settings are valid before applying
         if (fetchedSettings.selectedColor && fetchedSettings.displayMode) {
             activeTheme = fetchedSettings;
         } else {
@@ -90,12 +78,8 @@ export default function RootLayout({
       const colorConfig = themeColorMap[activeTheme.selectedColor] || themeColorMap.default;
       root.style.setProperty('--primary', colorConfig.primaryHsl);
       root.style.setProperty('--accent', colorConfig.accentHsl);
-      // Potentially set other CSS variables like --background, --foreground if your theme system is more complex
-      // For now, globals.css :root and .dark handle these.
-
     }, (error) => {
       console.error("Error fetching theme settings from Firestore:", error);
-      // Apply default theme on error to ensure consistent fallback
       const root = document.documentElement;
       root.classList.remove('dark'); 
       const colorConfig = themeColorMap.default;
@@ -103,22 +87,19 @@ export default function RootLayout({
       root.style.setProperty('--accent', colorConfig.accentHsl);
     });
 
-    return () => unsubscribe(); // Cleanup Firestore listener
+    return () => unsubscribe();
   }, []);
 
-
   return (
-    <html lang="en" suppressHydrationWarning>{/* Ensure no whitespace before <head> or after <body> */}
+    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning is key for client-side <html> class changes */}
       <head>
-         {/* Static metadata can go here. Title is set in useEffect for now. */}
         <meta name="description" content="Premium fashion for gentlemen in Keshavapatnam." />
+        <link rel="icon" href="/mclogo.png" type="image/png" /> {/* Updated favicon link */}
       </head>
       <body
         className={cn(
           `${geistSans.variable} ${geistMono.variable} antialiased font-sans`,
           "min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-foreground flex flex-col"
-          // The 'dark' class is dynamically added/removed on `<html>` by the useEffect above.
-          // The body's background gradient is static for now, dark mode primarily affects component backgrounds via CSS variables.
         )}
       >
         <CartProvider>
