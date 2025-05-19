@@ -80,6 +80,7 @@ export default function RootLayout({
       root.style.setProperty('--accent', colorConfig.accentHsl);
     }, (error) => {
       console.error("Error fetching theme settings from Firestore:", error);
+      // Fallback to default theme on error
       const root = document.documentElement;
       root.classList.remove('dark'); 
       const colorConfig = themeColorMap.default;
@@ -94,7 +95,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning is key for client-side <html> class changes */}
       <head>
         <meta name="description" content="Premium fashion for gentlemen in Keshavapatnam." />
-        <link rel="icon" href="/mclogo.png" type="image/png" /> {/* Updated favicon link */}
+        <link rel="icon" href="/mclogo.png" type="image/png" sizes="any"/>
       </head>
       <body
         className={cn(
