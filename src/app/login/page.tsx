@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { LogIn, Mail, KeyRound, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -20,36 +20,47 @@ import type { UserData } from '@/types';
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
 
   useEffect(() => {
-    // Redirect if already logged in
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         // Check user role from Firestore
-        const userDocRef = doc(db, "users", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data() as UserData;
-          if (userData.role === 'admin') {
-            router.replace('/admin/dashboard');
+        try {
+          const userDocRef = doc(db, "users", user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data() as UserData;
+            if (userData.role === 'admin') {
+              router.replace('/admin/dashboard');
+            } else {
+              const redirectUrl = searchParams.get('redirect') || '/';
+              router.replace(redirectUrl);
+            }
           } else {
-            router.replace('/'); 
+             // Fallback if no user doc, e.g., admin only in Auth
+             if (user.email === 'admin@mensclub') { // Hardcoded admin email
+               router.replace('/admin/dashboard');
+             } else {
+              const redirectUrl = searchParams.get('redirect') || '/';
+              router.replace(redirectUrl);
+             }
           }
-        } else {
-           // Fallback if no user doc, e.g., admin only in Auth
-           if (user.email === 'admin@mensclub') {
-             router.replace('/admin/dashboard');
-           } else {
-            router.replace('/'); 
-           }
+        } catch (error) {
+            console.error("Error checking user role during auth state change:", error);
+            const redirectUrl = searchParams.get('redirect') || '/';
+            router.replace(redirectUrl); // Default redirect on error
         }
       }
+      setIsAuthLoading(false);
     });
     return () => unsubscribe();
-  }, [router]);
+  }, [router, searchParams]);
 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -64,40 +75,36 @@ export default function LoginPage() {
       const userDocSnap = await getDoc(userDocRef);
 
       let userName = "User";
-      let userRole = "user"; // Default to 'user'
+      let userRole = "user"; 
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data() as UserData;
         userName = userData.fullName || user.email?.split('@')[0] || "User";
         userRole = userData.role || "user";
       } else {
-        // If no user document in Firestore, but user authenticated successfully via Firebase Auth
-        console.warn(`User document not found in Firestore for UID: ${user.uid}. Email: ${user.email}`);
-        if (user.email === 'admin@mensclub') {
-          // Fallback to assign admin role if email matches.
-          // This is a safeguard; ideally, admin's Firestore doc should exist with role: 'admin'.
+        if (user.email === 'admin@mensclub') { 
           userRole = 'admin';
           userName = 'Admin Mens Club'; 
           toast({
             title: "Admin Alert",
-            description: "Admin Firestore document not found. Assigned admin role based on email. Please ensure Firestore 'users' collection is correctly set up for the admin.",
+            description: "Admin Firestore document not found. Assigned admin role based on email. Ensure Firestore 'users' collection is correctly set up.",
             variant: "destructive",
             duration: 10000, 
           });
         } else {
-          // For regular users, if their Firestore doc is missing, they'll be treated as 'user' role
-          // but might lack profile details like fullName.
           userRole = 'user'; 
           userName = user.email?.split('@')[0] || "User"; 
            toast({
             title: "Profile Data Missing",
-            description: "Your user profile details could not be fully loaded. Some information may be missing.",
+            description: "Your user profile details could not be fully loaded.",
             variant: "default",
             duration: 7000,
           });
         }
       }
       
+      const redirectUrl = searchParams.get('redirect');
+
       if (userRole === 'admin' && email === 'admin@mensclub') { 
         toast({
           title: "Admin Login Successful!",
@@ -109,23 +116,28 @@ export default function LoginPage() {
           title: "Login Successful!",
           description: `Welcome back, ${userName}!`,
         });
-        router.push('/'); 
+        router.push(redirectUrl || '/'); 
       } else {
-        // Fallback if role is neither 'admin' nor 'user'
         toast({
           title: "Login Successful (Role Undetermined)",
-          description: `Welcome, ${userName}! Redirecting to homepage. Please check your account setup if full features are not available.`,
+          description: `Welcome, ${userName}! Please check your account setup if full features are not available.`,
            variant: "default",
            duration: 7000,
         });
-        router.push('/');
+        router.push(redirectUrl || '/');
       }
     } catch (error: any) {
       console.error("Login error: ", error);
-      // This is where "invalid auth credentials" error from Firebase will be caught and displayed
+      let friendlyMessage = "Invalid details or user not found.";
+      // You can check for specific error codes if needed, e.g.,
+      // if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      //   friendlyMessage = "Invalid email or password. Please try again.";
+      // } else if (error.code === 'auth/too-many-requests') {
+      //   friendlyMessage = "Too many login attempts. Please try again later."
+      // }
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please ensure your email and password are correct, or sign up if you are a new user.",
+        description: friendlyMessage,
         variant: "destructive",
         duration: 7000,
       });
@@ -133,6 +145,14 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="container mx-auto flex justify-center items-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-md px-4 sm:px-6 lg:px-8 py-12 md:py-24 flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -157,6 +177,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
+                  suppressHydrationWarning={true}
                 />
               </div>
             </div>
@@ -173,6 +194,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  suppressHydrationWarning={true}
                 />
               </div>
             </div>
@@ -181,7 +203,7 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <Button type="submit" className="w-full text-lg py-3 h-auto" disabled={isLoading}>
+            <Button type="submit" className="w-full text-lg py-3 h-auto" disabled={isLoading} suppressHydrationWarning={true}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Signing In...
