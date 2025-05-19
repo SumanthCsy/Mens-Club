@@ -52,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   useEffect(() => {
-    document.title = 'Mens Club Keshavapatnam';
+    document.title = 'Mens Club Keshavapatnam'; // Moved from ProductDetailsPage
 
     const settingsRef = doc(db, "settings", "themeConfiguration");
     const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
@@ -80,7 +80,6 @@ export default function RootLayout({
       root.style.setProperty('--accent', colorConfig.accentHsl);
     }, (error) => {
       console.error("Error fetching theme settings from Firestore:", error);
-      // Fallback to default theme on error
       const root = document.documentElement;
       root.classList.remove('dark'); 
       const colorConfig = themeColorMap.default;
@@ -95,6 +94,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning is key for client-side <html> class changes */}
       <head>
         <meta name="description" content="Premium fashion for gentlemen in Keshavapatnam." />
+        {/* Ensure mclogo.png is in the /public directory for this link to work */}
         <link rel="icon" href="/mclogo.png" type="image/png" sizes="any"/>
       </head>
       <body
