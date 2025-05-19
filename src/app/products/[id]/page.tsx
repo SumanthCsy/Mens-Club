@@ -1,10 +1,10 @@
+// src/app/products/[id]/page.tsx
+"use client"; // This page is a client component
 
-// @/app/products/[id]/page.tsx
-"use client"; 
-
-import { useState, useEffect, useMemo, useCallback } from 'react'; // Removed 'use' import as it's not used here
-import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Removed useParams as it's not used in client part directly
+// All client-specific imports for ProductDetailsClientContent
+import { useState, useEffect, useMemo, useCallback, use } from 'react'; // 'use' is imported
+// useParams is not needed if params are passed down directly
+import { useRouter } from 'next/navigation';
 import type { Product, Review, UserData, ProductVariant } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ProductImageGallery } from '@/components/products/product-image-gallery';
@@ -23,6 +23,7 @@ import { OfferCountdownTimer } from '@/components/products/OfferCountdownTimer';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import Link from 'next/link';
 import { CustomLoader } from '@/components/layout/CustomLoader';
 import {
   AlertDialog,
@@ -35,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Client Component that handles all the logic and state
 function ProductDetailsClientContent({ productId }: { productId: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,10 +79,11 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         setProduct({
             id: docSnap.id,
             ...data,
+            // Ensure reviews and variants are always arrays, even if undefined in Firestore
             reviews: Array.isArray(data.reviews) ? data.reviews : [],
             variants: Array.isArray(data.variants) ? data.variants : [],
-            offerStartDate: data.offerStartDate,
-            offerEndDate: data.offerEndDate,
+            offerStartDate: data.offerStartDate, // Keep as Timestamp or convert if needed
+            offerEndDate: data.offerEndDate,   // Keep as Timestamp or convert if needed
         } as Product);
       } else {
         setError("Product not found."); setProduct(null);
@@ -112,7 +115,9 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     if (!currentUser) {
       setLoginRedirectAction('cart'); setShowLoginRequiredModal(true); return;
     }
-    if (selectedVariant.stock < 1) {
+     // Find the product variant again to ensure we have the latest stock info
+    const currentProductVariant = product.variants.find(v => v.size === selectedVariant.size);
+    if (!currentProductVariant || currentProductVariant.stock < 1) {
       toast({ title: "Out of Stock", description: "This size is currently out of stock.", variant: "destructive" }); return;
     }
     await addToCartContext(product, selectedVariant.size, product.colors?.[0]);
@@ -129,15 +134,17 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
 
   const handleReviewSubmit = useCallback(async (prodId: string, rating: number, comment: string) => {
     if (!currentUser) {
-      toast({ title: "Login Required", description: "You must be logged in to submit a review.", variant: "destructive" }); return;
+      setShowLoginRequiredModal(true); // Show login modal instead of toast
+      return;
     }
     if (!product) {
       toast({ title: "Error", description: "Product not found.", variant: "destructive" }); return;
     }
     let authorName = "Anonymous";
     try {
-      if (currentUser.displayName) authorName = currentUser.displayName;
-      else {
+      if (currentUser.displayName) {
+        authorName = currentUser.displayName;
+      } else {
         const userDocRef = doc(db, "users", currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
@@ -146,11 +153,16 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
         }
       }
     } catch (fetchError) { console.error("Error fetching user data for review author name:", fetchError); }
-    if (!authorName || authorName === (currentUser.email || "")) authorName = "Anonymous";
+    
+    if (!authorName || authorName === currentUser.email) { // Avoid using email as author name
+        authorName = "Anonymous";
+    }
+
 
     const newReview: Review = {
       id: uuidv4(), userId: currentUser.uid, author: authorName,
-      avatarUrl: currentUser.photoURL || null, rating, comment, date: new Date().toISOString(),
+      avatarUrl: currentUser.photoURL || null, // Ensure null instead of undefined
+      rating, comment, date: new Date().toISOString(),
     };
     try {
       const productRef = doc(db, "products", prodId);
@@ -159,13 +171,15 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       const currentProductData = currentProductSnap.data() as Product;
       const existingReviews = currentProductData.reviews || [];
       if (existingReviews.some(review => review.userId === currentUser.uid)) {
-        toast({ title: "Already Reviewed", description: "You have already submitted a review.", variant: "default" }); return;
+        toast({ title: "Already Reviewed", description: "You have already submitted a review for this product.", variant: "default" }); return;
       }
       await updateDoc(productRef, { reviews: arrayUnion(newReview) });
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
     } catch (error: any) {
       console.error("Error submitting review:", error);
-      toast({ title: "Review Submission Failed", description: `Could not save review: ${error.message}`, variant: "destructive", duration: 7000 });
+      console.error("Firebase error code:", error.code);
+      console.error("Firebase error message:", error.message);
+      toast({ title: "Review Submission Failed", description: `Could not save review: ${error.message || 'Please try again.'}`, variant: "destructive", duration: 7000 });
     }
   }, [currentUser, product, toast]);
 
@@ -221,10 +235,10 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   const effectiveReviewCount = product.reviews?.length || 0;
   const effectiveAverageRating = product.reviews && effectiveReviewCount > 0 ? product.reviews.reduce((acc, review) => acc + review.rating, 0) / effectiveReviewCount : 0;
 
-  const displayModeForSizeSelector = 
-    (product.category?.toLowerCase() === 'jeans' || product.category?.toLowerCase() === 'trousers') && (product.variants?.length || 0) > 4
+  const displayModeForSizeSelector =
+    (product.category?.toLowerCase() === 'jeans' || product.category?.toLowerCase() === 'trousers' || (product.variants && product.variants.length > 4))
       ? 'dropdown'
-      : (product.variants?.length || 0) > 6
+      : (product.variants && product.variants.length > 6)
       ? 'dropdown'
       : 'radio';
 
@@ -232,7 +246,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
     <>
     <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
-        <ProductImageGallery images={product.images || [product.imageUrl]} altText={product.name} mainImageHint={product.dataAiHint} />
+        <ProductImageGallery images={product.images || (product.imageUrl ? [product.imageUrl] : [])} altText={product.name} mainImageHint={product.dataAiHint} />
         <div className="space-y-6">
           <div className="space-y-2">
             {product.brand && <p className="text-sm font-medium text-primary tracking-wide uppercase">{product.brand}</p>}
@@ -298,7 +312,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
       </div>
       <div className="mt-16 md:mt-24">
         <UserReviews
-          productId={product.id} reviews={product.reviews} averageRatingProp={effectiveAverageRating} reviewCountProp={effectiveReviewCount}
+          productId={product.id} reviews={product.reviews || []}
           isAuthenticated={!!currentUser} currentUser={currentUser}
           onReviewSubmit={handleReviewSubmit} onDeleteReview={handleDeleteReview} onUpdateReview={handleUpdateReview}
         />
@@ -309,7 +323,7 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2"><LogIn className="h-6 w-6 text-primary" />Login Required</AlertDialogTitle>
-              <AlertDialogDescription>You need to be logged in to {loginRedirectAction === 'cart' ? 'add items to your cart' : 'manage your wishlist'}. Would you like to log in now?</AlertDialogDescription>
+              <AlertDialogDescription>You need to be logged in to {loginRedirectAction === 'cart' ? 'add items to your cart' : (loginRedirectAction === 'wishlist' ? 'manage your wishlist' : 'perform this action')}. Would you like to log in now?</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setShowLoginRequiredModal(false)}>Cancel</AlertDialogCancel>
@@ -322,10 +336,15 @@ function ProductDetailsClientContent({ productId }: { productId: string }) {
   );
 }
 
-export default function ProductDetailsPage({ params }: { params: { id: string } }) {
-  const productId = params.id;
+// Main page component
+export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params); // Use React.use to resolve the params promise
+  const productId = resolvedParams.id;
+
   if (typeof productId !== 'string') {
     return <div className="text-center py-20">Invalid product ID.</div>;
   }
   return <ProductDetailsClientContent productId={productId} />;
 }
+
+    
